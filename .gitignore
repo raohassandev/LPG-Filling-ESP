@@ -1,0 +1,10 @@
+build/
+dist/
+.DS_Store
+backups/
+tools/local/
+*.bin
+*.elf
+*.map
+*.partitions.bin
+firmware/kc868_a6_lpg_controller/build/

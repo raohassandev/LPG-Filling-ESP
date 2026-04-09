@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LPG Controller</title>
+    <style>
+      :root {
+        --bg: #f1eee7;
+        --panel: #fffdf8;
+        --line: #d7cfbf;
+        --ink: #1d251f;
+        --muted: #59655d;
+        --accent: #1f6f58;
+        --danger: #aa2f2f;
+        --warn: #b06d1d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #ece5d6 0%, var(--bg) 100%);
+        color: var(--ink);
+      }
+      .shell {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+      }
+      .hero {
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: radial-gradient(circle at top left, #ffffff 0%, var(--panel) 70%);
+        box-shadow: 0 18px 50px rgba(70, 58, 28, 0.08);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+      p { color: var(--muted); }
+      .grid {
+        display: grid;
+        gap: 16px;
+        margin-top: 20px;
+      }
+      @media (min-width: 768px) {
+        .grid { grid-template-columns: 1.1fr 0.9fr; }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+      }
+      .metric {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .metric div {
+        background: #f8f3e8;
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .metric strong {
+        display: block;
+        font-size: 1.4rem;
+        margin-top: 6px;
+      }
+      label {
+        display: block;
+        font-size: 0.9rem;
+        margin: 10px 0 6px;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font: inherit;
+        background: #fff;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .start { background: var(--accent); color: white; }
+      .stop { background: var(--danger); color: white; }
+      .sim { background: var(--warn); color: white; width: 100%; margin-top: 10px; }
+      .state {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #e5efe9;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #24312b;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <h1>KC868-A6 LPG Filling Controller</h1>
+        <p>Serial-first baseline for safe boot, status visibility, and device-hosted control.</p>
+        <span class="state" id="stateTag">BOOT</span>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Live Status</h2>
+          <div class="metric">
+            <div>
+              Weight
+              <strong id="weightKg">0.000 kg</strong>
+            </div>
+            <div>
+              Target
+              <strong id="targetWeightKg">0.000 kg</strong>
+            </div>
+            <div>
+              Rate
+              <strong id="ratePerKg">0.00</strong>
+            </div>
+          </div>
+          <div class="metric">
+            <div>
+              Nozzle
+              <strong id="nozzleEngaged">No</strong>
+            </div>
+            <div>
+              Cylinder
+              <strong id="cylinderPresent">No</strong>
+            </div>
+            <div>
+              E-Stop
+              <strong id="emergencyStopOk">OK</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Control</h2>
+          <label for="targetWeightInput">Target Weight (kg)</label>
+          <input id="targetWeightInput" type="number" step="0.01" value="11.80">
+          <label for="rateInput">Rate per Kg</label>
+          <input id="rateInput" type="number" step="0.01" value="250.00">
+          <label for="targetAmountInput">Target Amount</label>
+          <input id="targetAmountInput" type="number" step="0.01" value="2950.00">
+          <div class="actions">
+            <button class="start" id="startBtn">Start</button>
+            <button class="stop" id="stopBtn">Stop</button>
+          </div>
+          <button class="sim" id="resetBtn" style="background:#3c5a76">Reset To Idle</button>
+          <label for="simWeightInput">Simulated Weight (kg)</label>
+          <input id="simWeightInput" type="number" step="0.01" value="0.00">
+          <button class="sim" id="simBtn">Apply Simulated Weight</button>
+        </article>
+      </section>
+
+      <section class="card" style="margin-top: 16px">
+        <h2>Raw Status</h2>
+        <pre id="rawStatus">Loading…</pre>
+      </section>
+
+      <section class="card" style="margin-top: 16px">
+        <h2>Event Log</h2>
+        <pre id="eventLog">Loading…</pre>
+      </section>
+    </main>
+
+    <script>
+      async function call(path, options) {
+        const response = await fetch(path, options);
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return { ok: false, raw: text };
+        }
+      }
+
+      function setText(id, value) {
+        document.getElementById(id).textContent = value;
+      }
+
+      async function refreshStatus() {
+        const status = await call('/api/status');
+        if (!status || !status.state) return;
+        setText('stateTag', status.state);
+        setText('weightKg', `${Number(status.weightKg).toFixed(3)} kg`);
+        setText('targetWeightKg', `${Number(status.targetWeightKg).toFixed(3)} kg`);
+        setText('ratePerKg', Number(status.ratePerKg).toFixed(2));
+        setText('nozzleEngaged', status.nozzleEngaged ? 'Engaged' : 'Open');
+        setText('cylinderPresent', status.cylinderPresent ? 'Present' : 'Missing');
+        setText('emergencyStopOk', status.emergencyStopOk ? 'OK' : 'TRIPPED');
+        setText('rawStatus', JSON.stringify(status, null, 2));
+      }
+
+      async function refreshLogs() {
+        const response = await fetch('/api/logs');
+        const text = await response.text();
+        setText('eventLog', text || 'No events yet');
+      }
+
+      document.getElementById('startBtn').addEventListener('click', async () => {
+        const targetWeightKg = document.getElementById('targetWeightInput').value;
+        const ratePerKg = document.getElementById('rateInput').value;
+        const targetAmount = document.getElementById('targetAmountInput').value;
+        await call(`/api/start?targetWeightKg=${encodeURIComponent(targetWeightKg)}&ratePerKg=${encodeURIComponent(ratePerKg)}&targetAmount=${encodeURIComponent(targetAmount)}`, { method: 'POST' });
+        refreshStatus();
+      });
+
+      document.getElementById('stopBtn').addEventListener('click', async () => {
+        await call('/api/stop', { method: 'POST' });
+        refreshStatus();
+      });
+
+      document.getElementById('resetBtn').addEventListener('click', async () => {
+        await call('/api/reset', { method: 'POST' });
+        refreshStatus();
+      });
+
+      document.getElementById('simBtn').addEventListener('click', async () => {
+        const weightKg = document.getElementById('simWeightInput').value;
+        await call(`/api/sim-weight?weightKg=${encodeURIComponent(weightKg)}`, { method: 'POST' });
+        refreshStatus();
+      });
+
+      refreshStatus();
+      refreshLogs();
+      setInterval(refreshStatus, 1000);
+      setInterval(refreshLogs, 3000);
+    </script>
+  </body>
+  </html>
