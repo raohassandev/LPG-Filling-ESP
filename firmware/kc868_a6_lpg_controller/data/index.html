@@ -70,6 +70,26 @@
         background: var(--accent-2);
         color: #fff;
       }
+      .mode-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        margin-bottom: 12px;
+      }
+      .mode-tabs button {
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        padding: 10px;
+      }
+      .mode-tabs button.active {
+        background: var(--accent);
+        color: #fff;
+      }
       .state {
         display: inline-block;
         min-width: 116px;
@@ -336,7 +356,15 @@
             <h2>Fill Control</h2>
             <label for="tareWeightInput">Tare Weight / Empty Cylinder (kg)</label>
             <input id="tareWeightInput" type="number" step="0.01" value="0.00">
-            <button class="inline-action" id="applyTareBtn">Apply Tare Weight</button>
+            <div class="actions">
+              <button class="inline-action" id="applyTareBtn">Apply Tare</button>
+              <button class="inline-action" id="zeroNetBtn">Zero Net</button>
+            </div>
+            <label>Input Mode</label>
+            <div class="mode-tabs" aria-label="Input mode">
+              <button class="active" data-fill-mode="weight">By Weight</button>
+              <button data-fill-mode="amount">By Amount</button>
+            </div>
             <label for="targetWeightInput">Target Weight (kg)</label>
             <input id="targetWeightInput" type="number" step="0.01" value="11.80">
             <label for="rateInput">Rate per Kg</label>
@@ -408,6 +436,7 @@
 
     <script>
       let latestTransactions = [];
+      let fillMode = 'weight';
 
       async function call(path, options) {
         const response = await fetch(path, options);
@@ -502,6 +531,29 @@
           <tr><td>${item.transactionId || item.id}</td><td>${item.status}</td><td>${kg(item.netKg)}</td><td>${money(item.finalAmount)}</td></tr>
         `).join('');
         document.getElementById('historyRows').innerHTML = rows || '<tr><td colspan="4">No transactions yet</td></tr>';
+      }
+
+      function syncTargetFields(changedId) {
+        const ratePerKg = Number(document.getElementById('rateInput').value || 0);
+        const targetWeight = document.getElementById('targetWeightInput');
+        const targetAmount = document.getElementById('targetAmountInput');
+        if (ratePerKg <= 0) return;
+
+        if (fillMode === 'amount' || changedId === 'targetAmountInput') {
+          targetWeight.value = kg(Number(targetAmount.value || 0) / ratePerKg);
+        } else {
+          targetAmount.value = money(Number(targetWeight.value || 0) * ratePerKg);
+        }
+      }
+
+      function setFillMode(mode) {
+        fillMode = mode;
+        document.querySelectorAll('[data-fill-mode]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.fillMode === mode);
+        });
+        document.getElementById('targetWeightInput').readOnly = mode === 'amount';
+        document.getElementById('targetAmountInput').readOnly = mode === 'weight';
+        syncTargetFields(mode === 'amount' ? 'targetAmountInput' : 'targetWeightInput');
       }
 
       function inPeriod(unixSeconds, period) {
@@ -606,6 +658,12 @@
         refreshStatus();
       });
 
+      document.getElementById('zeroNetBtn').addEventListener('click', async () => {
+        const result = await call('/api/tare-zero', { method: 'POST' });
+        showMessage(result.message || (result.ok ? 'Net weight zeroed' : 'Zero net rejected'), Boolean(result.ok));
+        refreshStatus();
+      });
+
       document.getElementById('saveRateBtn').addEventListener('click', async () => {
         const ratePerKg = document.getElementById('adminRateInput').value;
         const result = await call(`/api/settings?ratePerKg=${encodeURIComponent(ratePerKg)}`, { method: 'POST' });
@@ -616,11 +674,13 @@
 
       document.getElementById('reportPeriod').addEventListener('change', renderTransactionSummary);
 
-      ['targetWeightInput', 'rateInput'].forEach((id) => {
+      document.querySelectorAll('[data-fill-mode]').forEach((button) => {
+        button.addEventListener('click', () => setFillMode(button.dataset.fillMode));
+      });
+
+      ['targetWeightInput', 'targetAmountInput', 'rateInput'].forEach((id) => {
         document.getElementById(id).addEventListener('input', () => {
-          const targetWeightKg = Number(document.getElementById('targetWeightInput').value || 0);
-          const ratePerKg = Number(document.getElementById('rateInput').value || 0);
-          document.getElementById('targetAmountInput').value = money(targetWeightKg * ratePerKg);
+          syncTargetFields(id);
         });
       });
 
@@ -640,6 +700,7 @@
       refreshSettings();
       refreshTransactions();
       refreshLogs();
+      setFillMode('weight');
       setInterval(refreshStatus, 1000);
       setInterval(refreshTransactions, 5000);
       setInterval(refreshLogs, 3000);

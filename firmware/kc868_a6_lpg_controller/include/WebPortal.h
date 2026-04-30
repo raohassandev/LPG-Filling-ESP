@@ -28,6 +28,7 @@ class WebPortal {
   void handleSettings();
   void handleUpdateSettings();
   void handleSetTare();
+  void handleZeroNetWeight();
   void handleModbusMap();
   void handleLogs();
   void handleTransactions();

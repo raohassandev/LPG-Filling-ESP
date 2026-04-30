@@ -22,6 +22,7 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 - `WeightService` reads HX711 on KC868-A6 `IO-1/GPIO32` and `IO-2/GPIO33`.
 - Operators enter empty-cylinder tare weight separately from scale tare.
 - Fill control and pricing use net weight: `net = live - tare`.
+- Operators can zero net weight by setting tare equal to the current live scale reading.
 - Calibration is not yet production-ready; the next implementation step is persistent calibration.
 
 ### Web UI
@@ -29,6 +30,7 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 - `WebPortal` serves a lightweight role-based console from SPIFFS.
 - User role: start/stop/reset and readiness.
 - User role displays live, tare, net, target, and current amount.
+- User role supports weight-based and amount-based fill entry.
 - Admin role: rate setup, transactions, sales totals, audit log.
 - Manufacturer role: relay diagnostics and raw device status.
 
@@ -41,7 +43,8 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 - `0x1004`: filling status code.
 - `0x1005`: target weight.
 - `0x1006`: E-stop status.
-- The firmware contains a compact register map so TCP/RTU transport can be connected without changing business logic.
+- The firmware serves Modbus TCP on port `502` for read holding registers and tare writes.
+- RTU transport remains a Phase 2 hardware-binding task after RS485/HMI settings are finalized.
 
 ### Logging and History
 
@@ -59,12 +62,15 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 6. HX711 initializes and `tare` brings empty platform near zero.
 7. Nozzle, cylinder, and E-stop UI tiles match live input states.
 8. Operator tare weight updates net weight and current amount.
-9. Start moves state to `FILLING_FAST` and energizes Relay 1 + Relay 3.
-10. Slow-fill threshold moves state to `FILLING_SLOW` and energizes Relay 2 + Relay 3.
-11. Stop/reset/fault de-energize all relays.
-12. A completed or aborted fill appears in `/api/transactions` with tare, net kg, rate, and final amount.
-13. Admin can save rate per kg and the operator UI uses that rate.
-14. `/api/modbus` returns the current Modbus register map values.
+9. Zero Net sets tare to the current live weight and brings net weight to zero.
+10. Weight mode calculates amount as `targetWeight * ratePerKg`.
+11. Amount mode calculates target weight as `targetAmount / ratePerKg`.
+12. Start moves state to `FILLING_FAST` and energizes Relay 1 + Relay 3.
+13. Slow-fill threshold moves state to `FILLING_SLOW` and energizes Relay 2 + Relay 3.
+14. Stop/reset/fault de-energize all relays.
+15. A completed or aborted fill appears in `/api/transactions` with tare, net kg, rate, and final amount.
+16. Admin can save rate per kg and the operator UI uses that rate.
+17. `/api/modbus` returns the current Modbus register map values.
 
 ## Phase 1 Automated Checks
 

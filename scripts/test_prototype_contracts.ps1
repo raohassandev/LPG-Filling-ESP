@@ -43,6 +43,7 @@ Assert-Contains "$firmware\src\FillController.cpp" "status\.netWeightKg\s*>=\s*s
 Assert-Contains "$firmware\src\WebPortal.cpp" 'server_\.on\("/api/transactions"' "Transactions API route is required."
 Assert-Contains "$firmware\src\WebPortal.cpp" 'server_\.on\("/api/relay"' "Manual relay API route is required."
 Assert-Contains "$firmware\src\WebPortal.cpp" 'server_\.on\("/api/tare"' "Tare weight API route is required."
+Assert-Contains "$firmware\src\WebPortal.cpp" 'server_\.on\("/api/tare-zero"' "Zero-net API route is required."
 Assert-Contains "$firmware\src\WebPortal.cpp" 'server_\.on\("/api/modbus"' "Modbus register map API route is required."
 Assert-Contains "$firmware\src\WebPortal.cpp" "manual relay control blocked during fill" "Manual relay control must be blocked during active fill."
 
@@ -57,13 +58,20 @@ Assert-Contains "$firmware\include\ModbusRegisterMap.h" "kNetWeight\s*=\s*0x1003
 Assert-Contains "$firmware\include\ModbusRegisterMap.h" "kFillingStatus\s*=\s*0x1004" "Modbus filling status register must be 0x1004."
 Assert-Contains "$firmware\include\ModbusRegisterMap.h" "kTargetWeight\s*=\s*0x1005" "Modbus target weight register must be 0x1005."
 Assert-Contains "$firmware\include\ModbusRegisterMap.h" "kEstopStatus\s*=\s*0x1006" "Modbus E-stop register must be 0x1006."
+Assert-Contains "$firmware\src\ModbusTcpService.cpp" "kFunctionReadHolding\s*=\s*0x03" "Modbus TCP must support read holding registers."
+Assert-Contains "$firmware\src\ModbusTcpService.cpp" "kFunctionWriteSingle\s*=\s*0x06" "Modbus TCP must support write single register."
+Assert-Contains "$firmware\kc868_a6_lpg_controller.ino" "modbusTcpService\.handleClient" "Main loop must service Modbus TCP."
 
 Assert-Contains "$firmware\data\index.html" 'data-role="operator"' "UI must include User/Operator role."
 Assert-Contains "$firmware\data\index.html" 'data-role="admin"' "UI must include Admin role."
 Assert-Contains "$firmware\data\index.html" 'data-role="manufacturer"' "UI must include Manufacturer role."
 Assert-Contains "$firmware\data\index.html" "tareWeightInput" "Operator UI must include tare weight input."
+Assert-Contains "$firmware\data\index.html" "zeroNetBtn" "Operator UI must include zero-net button."
 Assert-Contains "$firmware\data\index.html" "netWeightKg" "Operator UI must display net weight."
 Assert-Contains "$firmware\data\index.html" "adminRateInput" "Admin UI must include rate management."
+Assert-Contains "$firmware\data\index.html" 'data-fill-mode="weight"' "Operator UI must include weight entry mode."
+Assert-Contains "$firmware\data\index.html" 'data-fill-mode="amount"' "Operator UI must include amount entry mode."
+Assert-Contains "$firmware\data\index.html" "targetAmount\.value.*\/ ratePerKg" "Amount mode must calculate weight from amount and rate."
 Assert-NotContains "$firmware\data\index.html" "Apply Simulated Weight" "Production UI must not expose simulated weight control."
 
 Write-Host "Prototype contract checks passed."

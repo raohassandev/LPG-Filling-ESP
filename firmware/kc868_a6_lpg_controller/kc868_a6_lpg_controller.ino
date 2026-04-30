@@ -18,6 +18,7 @@
 #include "InputTruthTable.h"
 #include "NetworkManager.h"
 #include "OledDisplay.h"
+#include "ModbusTcpService.h"
 
 namespace {
 BoardConfig boardConfig;
@@ -34,6 +35,7 @@ OledDisplay oledDisplay(boardConfig);
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
 WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank);
+ModbusTcpService modbusTcpService(statusStore);
 
 String activeStaIp;
 
@@ -52,6 +54,7 @@ void printSerialHelp() {
   Serial.println(F("  weight"));
   Serial.println(F("  hx"));
   Serial.println(F("  tarew <emptyCylinderKg>"));
+  Serial.println(F("  zeronet"));
   Serial.println(F("  sim <kg>"));
   Serial.println(F("  start <targetKg> <ratePerKg> [targetAmount]"));
   Serial.println(F("  stop"));
@@ -111,6 +114,14 @@ void handleSerialCommand(const String& line) {
     const float tareWeightKg = command.substring(6).toFloat();
     statusStore.setTareWeight(tareWeightKg);
     Serial.printf("[SERIAL] empty cylinder tare weight set to %.3f kg\n", tareWeightKg);
+    printStatusSnapshot();
+    return;
+  }
+
+  if (command == "zeronet") {
+    const StatusSnapshot status = statusStore.snapshot();
+    statusStore.setTareWeight(status.liveWeightKg);
+    Serial.printf("[SERIAL] net weight zeroed at live weight %.3f kg\n", status.liveWeightKg);
     printStatusSnapshot();
     return;
   }
@@ -296,6 +307,7 @@ void setup() {
   fillController.begin();
   initWifi();
   webPortal.begin();
+  modbusTcpService.begin();
   updateOledStatus(true);
   printSerialHelp();
   printStatusSnapshot();
@@ -310,6 +322,7 @@ void loop() {
   fillController.tick();
   pollWifi();
   webPortal.handleClient();
+  modbusTcpService.handleClient();
   pollSerialCommands();
   updateOledStatus();
   delay(20);

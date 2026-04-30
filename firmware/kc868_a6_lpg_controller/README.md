@@ -18,6 +18,7 @@ Current scope:
 - operator tare weight, net weight, and net-weight price calculation
 - admin rate setup and local sales statistics
 - Modbus/HMI register map for live, tare, net, status, target, and E-stop
+- Modbus TCP server on port `502` for holding register reads and tare writes
 
 Hardware integration reference:
 
@@ -46,6 +47,7 @@ Serial commands after flashing:
 - `weight`
 - `tare`
 - `tarew <emptyCylinderKg>`
+- `zeronet`
 - `cal <factor>`
 - `sim 5.25`
 - `start 11.8 250`
@@ -62,6 +64,7 @@ Useful HTTP endpoints:
 - `GET /api/transactions.csv`
 - `POST /api/start`
 - `POST /api/tare`
+- `POST /api/tare-zero`
 - `POST /api/settings`
 - `POST /api/stop`
 - `POST /api/reset`
@@ -88,6 +91,8 @@ Fill sequence:
 - Slow fill turns Relay 1 off and energizes Relay 2 and Relay 3.
 - Stop, complete, abort, and fault force all relays off.
 - Fill thresholds and transaction totals use net weight, not gross/live cylinder weight.
+- Operator amount mode calculates target weight as `amount / ratePerKg`.
+- Operator weight mode calculates target amount as `weight * ratePerKg`.
 
 Modbus/HMI register map:
 
@@ -97,6 +102,14 @@ Modbus/HMI register map:
 - `0x1004`: filling status code
 - `0x1005`: target weight, kg x 100
 - `0x1006`: E-stop status, `1` = OK, `0` = tripped
+
+Modbus TCP support:
+
+- Port: `502`
+- Function `0x03`: read holding registers
+- Function `0x06`: write single register
+- Writable register: `0x1002` tare weight, kg x 100
+- RTU transport is planned after final RS485 baud, parity, and HMI wiring are selected.
 
 Recommended next implementation steps:
 

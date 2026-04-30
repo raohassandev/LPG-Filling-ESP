@@ -37,6 +37,7 @@ void WebPortal::registerRoutes() {
   server_.on("/api/settings", HTTP_GET, [this]() { handleSettings(); });
   server_.on("/api/settings", HTTP_POST, [this]() { handleUpdateSettings(); });
   server_.on("/api/tare", HTTP_POST, [this]() { handleSetTare(); });
+  server_.on("/api/tare-zero", HTTP_POST, [this]() { handleZeroNetWeight(); });
   server_.on("/api/modbus", HTTP_GET, [this]() { handleModbusMap(); });
   server_.on("/api/logs", HTTP_GET, [this]() { handleLogs(); });
   server_.on("/api/transactions", HTTP_GET, [this]() { handleTransactions(); });
@@ -114,6 +115,19 @@ void WebPortal::handleSetTare() {
   const float tareWeightKg = server_.arg("tareWeightKg").toFloat();
   statusStore_.setTareWeight(tareWeightKg);
   eventLog_.append("INFO", "tare_weight", "Operator tare weight set to " + String(tareWeightKg, 3) + " kg");
+  server_.send(200, "application/json", "{\"ok\":true}");
+}
+
+void WebPortal::handleZeroNetWeight() {
+  const StatusSnapshot status = statusStore_.snapshot();
+  if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
+      status.state == ProcessState::Settling) {
+    server_.send(409, "application/json", "{\"ok\":false,\"message\":\"net zero blocked during active fill\"}");
+    return;
+  }
+
+  statusStore_.setTareWeight(status.liveWeightKg);
+  eventLog_.append("INFO", "net_zero", "Operator zeroed net weight from live scale");
   server_.send(200, "application/json", "{\"ok\":true}");
 }
 
