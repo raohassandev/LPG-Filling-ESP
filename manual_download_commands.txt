@@ -7,7 +7,7 @@ Run these from the repo root:
 
 Connected board port seen during testing:
 
-  COM5
+  COM6
 
 
 1. Compile firmware only
@@ -19,25 +19,51 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_firmware.ps1
 2. Download/upload firmware to board
 ------------------------------------
 
-powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM5
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM6
 
 
 3. Download/upload web UI files to board SPIFFS
 -----------------------------------------------
 
-powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM5
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM6
 
 
 4. Check serial boot/status after restart
 -----------------------------------------
 
-powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM5",115200,"None",8,"One"; $p.ReadTimeout=200; $p.DtrEnable=$false; $p.RtsEnable=$false; $p.Open(); Start-Sleep -Milliseconds 200; $p.RtsEnable=$true; Start-Sleep -Milliseconds 150; $p.RtsEnable=$false; $end=(Get-Date).AddSeconds(8); while((Get-Date) -lt $end){ $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; Start-Sleep -Milliseconds 100 }; $p.WriteLine("status"); Start-Sleep -Milliseconds 500; $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; $p.Close()'
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.ReadTimeout=200; $p.DtrEnable=$false; $p.RtsEnable=$false; $p.Open(); Start-Sleep -Milliseconds 200; $p.RtsEnable=$true; Start-Sleep -Milliseconds 150; $p.RtsEnable=$false; $end=(Get-Date).AddSeconds(8); while((Get-Date) -lt $end){ $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; Start-Sleep -Milliseconds 100 }; $p.WriteLine("status"); Start-Sleep -Milliseconds 500; $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; $p.Close()'
+
+
+5. Open interactive serial console
+----------------------------------
+
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Write-Host "Serial open. Type help, hx, status, tare, reset, or exit."; while ($true) { $cmd = Read-Host ">"; if ($cmd -eq "exit") { break }; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1200; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } else { Write-Host "[no response]" } }; $p.Close()'
+
+
+6. Quick HX711/status test
+--------------------------
+
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Start-Sleep -Milliseconds 500; foreach ($cmd in @("hx","status")) { Write-Host "> $cmd"; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1200; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } }; $p.Close()'
+
+
+7. Quick tare test
+------------------
+
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Start-Sleep -Milliseconds 500; foreach ($cmd in @("reset","tare","hx","status")) { Write-Host "> $cmd"; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1500; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } }; $p.Close()'
+
+
+8. API tests
+------------
+
+Invoke-RestMethod -Uri http://192.168.0.108/api/status | ConvertTo-Json -Depth 4
+
+Invoke-RestMethod -Uri http://192.168.0.108/api/transactions | ConvertTo-Json -Depth 5
 
 
 Notes
 -----
 
-- If the board appears on a different port, replace COM5 with the new port.
+- If the board appears on a different port, replace COM6 with the new port.
 - To list ports:
 
 .\tools\local\arduino-cli.exe board list

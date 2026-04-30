@@ -19,6 +19,8 @@ Current scope:
 Hardware integration reference:
 
 - [Load Cell and HX711 Connection Guide](../../docs/load_cell_hx711_connection_guide.md)
+- [Prototype Execution Plan](../../docs/prototype_execution_plan.md)
+- [Development Plan](../../LPG_Filling_Station_Development_Plan.md)
 
 Not complete yet:
 
@@ -31,12 +33,16 @@ Not complete yet:
 Suggested compile target:
 
 - FQBN: `esp32:esp32:esp32`
-- preferred CLI in this repo: `tools/local/arduino-cli-0.35.3`
+- preferred CLI in this repo: `tools/local/arduino-cli.exe`
 
 Serial commands after flashing:
 
 - `help`
 - `status`
+- `hx`
+- `weight`
+- `tare`
+- `cal <factor>`
 - `sim 5.25`
 - `start 11.8 250`
 - `stop`
@@ -92,6 +98,76 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_firmware.ps1
 Windows upload helpers from the repo root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM5
-powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM5
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM6
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM6
+```
+
+## Terminal Commands
+
+Run all commands from the repository root:
+
+```powershell
+cd F:\Working\LPG-Filling-ESP
+```
+
+List connected serial ports:
+
+```powershell
+.\tools\local\arduino-cli.exe board list
+```
+
+If the board appears on another port, replace `COM6` in the commands below.
+
+Compile firmware:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_firmware.ps1
+```
+
+Run prototype source-contract checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test_prototype_contracts.ps1
+```
+
+Download/upload firmware to the KC868-A6:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM6
+```
+
+Download/upload the web UI to SPIFFS:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM6
+```
+
+Open a simple interactive serial console:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Write-Host "Serial open. Type help, hx, status, tare, reset, or exit."; while ($true) { $cmd = Read-Host ">"; if ($cmd -eq "exit") { break }; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1200; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } else { Write-Host "[no response]" } }; $p.Close()'
+```
+
+Quick one-shot HX711/status test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Start-Sleep -Milliseconds 500; foreach ($cmd in @("hx","status")) { Write-Host "> $cmd"; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1200; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } }; $p.Close()'
+```
+
+Quick tare and status test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM6",115200,"None",8,"One"; $p.Open(); Start-Sleep -Milliseconds 500; foreach ($cmd in @("reset","tare","hx","status")) { Write-Host "> $cmd"; $p.WriteLine($cmd); Start-Sleep -Milliseconds 1500; $text = $p.ReadExisting(); if ($text.Length -gt 0) { Write-Host $text } }; $p.Close()'
+```
+
+Check API status from the browser/network:
+
+```powershell
+Invoke-RestMethod -Uri http://192.168.0.108/api/status | ConvertTo-Json -Depth 4
+```
+
+Check transaction history:
+
+```powershell
+Invoke-RestMethod -Uri http://192.168.0.108/api/transactions | ConvertTo-Json -Depth 5
 ```
