@@ -12,6 +12,12 @@
 #include "StatusStore.h"
 #include "WebPortal.h"
 #include "WeightService.h"
+#include "RtcService.h"
+#include "TransactionLog.h"
+#include "AuthService.h"
+#include "InputTruthTable.h"
+#include "NetworkManager.h"
+#include "OledDisplay.h"
 
 namespace {
 BoardConfig boardConfig;
@@ -21,8 +27,15 @@ EventLog eventLog;
 RelayBank relayBank(boardConfig);
 InputExpander inputExpander(boardConfig);
 WeightService weightService;
-FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog);
-WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog);
+RtcService rtcService;
+TransactionLog transactionLog(rtcService);
+AuthService authService;
+OledDisplay oledDisplay(boardConfig);
+FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
+                              transactionLog);
+WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank);
+
+String activeStaIp;
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -35,6 +48,8 @@ void printSerialHelp() {
   Serial.println(F("[SERIAL] Commands:"));
   Serial.println(F("  help"));
   Serial.println(F("  status"));
+  Serial.println(F("  weight"));
+  Serial.println(F("  hx"));
   Serial.println(F("  sim <kg>"));
   Serial.println(F("  start <targetKg> <ratePerKg> [targetAmount]"));
   Serial.println(F("  stop"));
@@ -58,6 +73,24 @@ void handleSerialCommand(const String& line) {
     return;
   }
 
+  if (command == "weight" || command == "hx") {
+    Serial.printf("[WEIGHT] initialized=%u readError=%u stable=%u kg=%.3f doutPin=%u doutLevel=%d sckPin=%u sckLevel=%d\n",
+                  weightService.initialized(), weightService.readFailed(), weightService.stable(),
+                  weightService.liveWeightKg(), weightService.doutPin(), weightService.doutLevel(),
+                  weightService.sckPin(), weightService.sckLevel());
+    Serial.printf("[WEIGHT] raw=%ld tareOffset=%ld calibration=%.2f\n", weightService.lastRawValue(),
+                  weightService.tareOffsetRaw(), weightService.calibrationFactor());
+    return;
+  }
+
+  if (command.startsWith("sim ")) {
+    const float weightKg = command.substring(4).toFloat();
+    weightService.setSimulatedWeightKg(weightKg);
+    Serial.printf("[SERIAL] simulated weight set to %.3f kg\n", weightKg);
+    printStatusSnapshot();
+    return;
+  }
+
   if (command == "stop") {
     Serial.printf("[SERIAL] stop: %s\n", fillController.stopFill("serial_stop") ? "ok" : "ignored");
     printStatusSnapshot();
@@ -72,11 +105,21 @@ void handleSerialCommand(const String& line) {
     return;
   }
 
-  if (command.startsWith("sim ")) {
-    const float value = command.substring(4).toFloat();
-    weightService.setSimulatedWeightKg(value);
-    Serial.printf("[SERIAL] simulated weight set to %.3f kg\n", value);
+  if (command.startsWith("tare")) {
+    weightService.tare();
+    Serial.println(F("[SERIAL] tare completed"));
     printStatusSnapshot();
+    return;
+  }
+
+  if (command.startsWith("cal ")) {
+    const float factor = command.substring(4).toFloat();
+    if (factor > 0) {
+      weightService.setCalibrationFactor(factor);
+      Serial.printf("[SERIAL] calibration factor set to %.2f\n", factor);
+    } else {
+      Serial.println(F("[SERIAL] usage: cal <factor>"));
+    }
     return;
   }
 
@@ -156,15 +199,65 @@ void initI2c() {
 
 void initWifi() {
   const SettingsSnapshot settings = settingsStore.snapshot();
-  WiFi.mode(WIFI_AP);
-  const bool started = WiFi.softAP(settings.apSsid.c_str(), settings.apPassword.c_str());
-  if (!started) {
+  WiFi.mode(WIFI_AP_STA);
+
+  const bool apStarted = WiFi.softAP(settings.apSsid.c_str(), settings.apPassword.c_str());
+  if (!apStarted) {
     Serial.println(F("[WiFi] Failed to start fallback AP"));
-    return;
+  } else {
+    Serial.printf("[WiFi] Fallback AP started: %s\n", settings.apSsid.c_str());
+    Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
   }
 
-  Serial.printf("[WiFi] AP started: %s\n", settings.apSsid.c_str());
-  Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+  Serial.printf("[WiFi] Connecting STA to SSID: %s\n", settings.staSsid.c_str());
+  WiFi.begin(settings.staSsid.c_str(), settings.staPassword.c_str());
+
+  const unsigned long startedAt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < 15000) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    activeStaIp = WiFi.localIP().toString();
+    Serial.printf("[WiFi] STA connected: %s\n", settings.staSsid.c_str());
+    Serial.printf("[WiFi] STA IP: %s\n", activeStaIp.c_str());
+  } else {
+    activeStaIp = "";
+    Serial.println(F("[WiFi] STA failed; fallback AP remains available"));
+  }
+}
+
+void updateOledStatus(bool force = false) {
+  static unsigned long lastUpdateMs = 0;
+  if (!force && millis() - lastUpdateMs < 1000) {
+    return;
+  }
+  lastUpdateMs = millis();
+
+  const StatusSnapshot status = statusStore.snapshot();
+  const String staLine = activeStaIp.isEmpty() ? "STA: CONNECTING" : "STA: " + activeStaIp;
+  oledDisplay.showLines("LPG CONTROLLER", staLine, "AP: " + WiFi.softAPIP().toString(),
+                        "STATE: " + status.stateLabel);
+}
+
+void pollWifi() {
+  static wl_status_t lastStatus = WL_IDLE_STATUS;
+  const wl_status_t currentStatus = WiFi.status();
+  if (currentStatus == lastStatus) {
+    return;
+  }
+  lastStatus = currentStatus;
+
+  if (currentStatus == WL_CONNECTED) {
+    activeStaIp = WiFi.localIP().toString();
+    Serial.printf("[WiFi] STA IP: %s\n", activeStaIp.c_str());
+  } else {
+    activeStaIp = "";
+    Serial.printf("[WiFi] STA status changed: %u\n", static_cast<uint8_t>(currentStatus));
+  }
+  updateOledStatus(true);
 }
 }  // namespace
 
@@ -180,13 +273,19 @@ void setup() {
   initFilesystem();
   eventLog.begin();
   initI2c();
+  oledDisplay.begin();
+  oledDisplay.showLines("LPG CONTROLLER", "BOOTING", "PLEASE WAIT", "");
 
   relayBank.begin();
   inputExpander.begin();
   weightService.begin();
+  rtcService.begin();
+  transactionLog.begin();
+  authService.begin();
   fillController.begin();
   initWifi();
   webPortal.begin();
+  updateOledStatus(true);
   printSerialHelp();
   printStatusSnapshot();
   eventLog.append("INFO", "setup_complete", "System setup complete");
@@ -198,7 +297,9 @@ void loop() {
   inputExpander.poll();
   weightService.poll();
   fillController.tick();
+  pollWifi();
   webPortal.handleClient();
   pollSerialCommands();
+  updateOledStatus();
   delay(20);
 }

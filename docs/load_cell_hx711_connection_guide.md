@@ -79,14 +79,15 @@ If your HX711 module is only stable at `5V`, you must confirm the `DOUT` high le
 
 Connect:
 
-- HX711 `DOUT` -> one verified free ESP32 GPIO input
-- HX711 `SCK` -> one verified free ESP32 GPIO output
+- HX711 `DOUT` / `DT` -> KC868-A6 `IO-1` / ESP32 `GPIO32`
+- HX711 `SCK` -> KC868-A6 `IO-2` / ESP32 `GPIO33`
 
 Important:
 
 - do not use the verified onboard I2C pins `GPIO4` and `GPIO15` for HX711
 - do not assume random spare pins from internet examples
-- final pin assignment must be confirmed against the actual KC868-A6 resource map before soldering permanent wiring
+- do not use UART TX/RX pins for HX711 unless the firmware is deliberately changed and serial-console side effects are understood
+- do not use `GPIO12` for HX711 on ESP32 unless you have verified boot strapping behavior; it is safer to avoid it
 
 ### 4.3 Grounding
 
@@ -193,8 +194,7 @@ Do not:
 
 These items still need verification on the actual board:
 
-- exact two free GPIO available for HX711 `DOUT` and `SCK`
-- whether those GPIO are exposed conveniently on the KC868-A6 terminal/header layout
+- verify `IO-1` / `GPIO32` and `IO-2` / `GPIO33` on the actual terminal/header layout before permanent wiring
 - whether `3.3V` rail quality is sufficient for stable HX711 operation
 - actual noise impact when relays and external loads are active
 

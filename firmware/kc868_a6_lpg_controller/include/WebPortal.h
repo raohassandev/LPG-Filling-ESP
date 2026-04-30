@@ -4,14 +4,16 @@
 
 #include "EventLog.h"
 #include "FillController.h"
+#include "RelayBank.h"
 #include "SettingsStore.h"
 #include "StatusStore.h"
+#include "TransactionLog.h"
 #include "WeightService.h"
 
 class WebPortal {
  public:
   WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
-            SettingsStore& settingsStore, EventLog& eventLog);
+            SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog, RelayBank& relayBank);
 
   void begin();
   void handleClient();
@@ -25,6 +27,9 @@ class WebPortal {
   void handleWeight();
   void handleSettings();
   void handleLogs();
+  void handleTransactions();
+  void handleTransactionsCsv();
+  void handleSetRelay();
   void handleStart();
   void handleStop();
   void handleReset();
@@ -36,5 +41,7 @@ class WebPortal {
   WeightService& weightService_;
   SettingsStore& settingsStore_;
   EventLog& eventLog_;
+  TransactionLog& transactionLog_;
+  RelayBank& relayBank_;
   WebServer server_{80};
 };

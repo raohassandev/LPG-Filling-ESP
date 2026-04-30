@@ -7,12 +7,14 @@
 #include "RelayBank.h"
 #include "SettingsStore.h"
 #include "StatusStore.h"
+#include "TransactionLog.h"
 #include "WeightService.h"
 
 class FillController {
  public:
   FillController(StatusStore& statusStore, RelayBank& relayBank, InputExpander& inputExpander,
-                 WeightService& weightService, SettingsStore& settingsStore, EventLog& eventLog);
+                 WeightService& weightService, SettingsStore& settingsStore, EventLog& eventLog,
+                 TransactionLog& transactionLog);
 
   void begin();
   void tick();
@@ -34,5 +36,8 @@ class FillController {
   WeightService& weightService_;
   SettingsStore& settingsStore_;
   EventLog& eventLog_;
+  TransactionLog& transactionLog_;
+  uint32_t activeTransactionId_ = 0;
+  float fillStartWeightKg_ = 0.0f;
   unsigned long stateStartedMs_ = 0;
 };

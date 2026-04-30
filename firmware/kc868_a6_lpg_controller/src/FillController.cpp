@@ -1,13 +1,15 @@
 #include "FillController.h"
 
 FillController::FillController(StatusStore& statusStore, RelayBank& relayBank, InputExpander& inputExpander,
-                               WeightService& weightService, SettingsStore& settingsStore, EventLog& eventLog)
+                               WeightService& weightService, SettingsStore& settingsStore, EventLog& eventLog,
+                               TransactionLog& transactionLog)
     : statusStore_(statusStore),
       relayBank_(relayBank),
       inputExpander_(inputExpander),
       weightService_(weightService),
       settingsStore_(settingsStore),
-      eventLog_(eventLog) {}
+      eventLog_(eventLog),
+      transactionLog_(transactionLog) {}
 
 void FillController::begin() {
   relayBank_.writeAllSafe();
@@ -33,7 +35,8 @@ void FillController::tick() {
 
   const float slowFillThreshold = settingsStore_.snapshot().slowFillThreshold;
   if (status.state == ProcessState::FillingFast && status.liveWeightKg >= status.targetWeightKg * slowFillThreshold) {
-    relayBank_.writeRelay(1, false);
+    relayBank_.writeRelay(0, false);
+    relayBank_.writeRelay(1, true);
     relayBank_.writeRelay(2, true);
     syncRelays();
     transitionTo(ProcessState::FillingSlow, "FILLING_SLOW");
@@ -44,6 +47,10 @@ void FillController::tick() {
   if (status.state == ProcessState::FillingSlow && status.liveWeightKg >= status.targetWeightKg) {
     relayBank_.writeAllSafe();
     syncRelays();
+    if (activeTransactionId_ != 0) {
+      transactionLog_.completeTransaction(activeTransactionId_, status.liveWeightKg, fillStartWeightKg_);
+      activeTransactionId_ = 0;
+    }
     transitionTo(ProcessState::Complete, "COMPLETE");
     eventLog_.append("INFO", "fill_complete", "Target reached and outputs de-energized");
   }
@@ -83,10 +90,16 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
     return false;
   }
 
+  fillStartWeightKg_ = status.liveWeightKg;
+  activeTransactionId_ = transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, "controller");
+  if (activeTransactionId_ == 0) {
+    eventLog_.append("WARN", "transaction_start_failed", "Fill continuing without transaction record");
+  }
+
   statusStore_.setTargets(targetWeightKg, targetAmount, ratePerKg);
   relayBank_.writeAllSafe();
   relayBank_.writeRelay(0, true);
-  relayBank_.writeRelay(1, true);
+  relayBank_.writeRelay(2, true);
   syncRelays();
   transitionTo(ProcessState::FillingFast, "FILLING_FAST");
   eventLog_.append("INFO", "fill_start", "Fill started");
@@ -102,6 +115,10 @@ bool FillController::stopFill(const String& reasonCode) {
 
   relayBank_.writeAllSafe();
   syncRelays();
+  if (activeTransactionId_ != 0) {
+    transactionLog_.abortTransaction(activeTransactionId_, reasonCode);
+    activeTransactionId_ = 0;
+  }
   transitionTo(ProcessState::Aborted, "ABORTED", reasonCode);
   eventLog_.append("WARN", reasonCode, "Fill stopped by operator or serial command");
   return true;
@@ -154,6 +171,10 @@ void FillController::transitionTo(ProcessState state, const String& label, const
 void FillController::setFault(const String& reasonCode) {
   relayBank_.writeAllSafe();
   syncRelays();
+  if (activeTransactionId_ != 0) {
+    transactionLog_.faultTransaction(activeTransactionId_, reasonCode);
+    activeTransactionId_ = 0;
+  }
   transitionTo(ProcessState::Fault, "FAULT", reasonCode);
   eventLog_.append("ERROR", reasonCode, "Safety fault forced outputs to safe state");
 }

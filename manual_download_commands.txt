@@ -1,0 +1,75 @@
+Manual firmware download/upload commands for KC868-A6
+=====================================================
+
+Run these from the repo root:
+
+  F:\Working\LPG-Filling-ESP
+
+Connected board port seen during testing:
+
+  COM5
+
+
+1. Compile firmware only
+------------------------
+
+powershell -ExecutionPolicy Bypass -File .\scripts\build_firmware.ps1
+
+
+2. Download/upload firmware to board
+------------------------------------
+
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_firmware.ps1 -Port COM5
+
+
+3. Download/upload web UI files to board SPIFFS
+-----------------------------------------------
+
+powershell -ExecutionPolicy Bypass -File .\scripts\upload_spiffs.ps1 -Port COM5
+
+
+4. Check serial boot/status after restart
+-----------------------------------------
+
+powershell -ExecutionPolicy Bypass -Command '$p = New-Object System.IO.Ports.SerialPort "COM5",115200,"None",8,"One"; $p.ReadTimeout=200; $p.DtrEnable=$false; $p.RtsEnable=$false; $p.Open(); Start-Sleep -Milliseconds 200; $p.RtsEnable=$true; Start-Sleep -Milliseconds 150; $p.RtsEnable=$false; $end=(Get-Date).AddSeconds(8); while((Get-Date) -lt $end){ $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; Start-Sleep -Milliseconds 100 }; $p.WriteLine("status"); Start-Sleep -Milliseconds 500; $t=$p.ReadExisting(); if($t.Length -gt 0){ Write-Host -NoNewline $t }; $p.Close()'
+
+
+Notes
+-----
+
+- If the board appears on a different port, replace COM5 with the new port.
+- To list ports:
+
+.\tools\local\arduino-cli.exe board list
+
+- The firmware now tries STA mode first:
+
+  SSID: Rao
+  Password: password123
+  Last verified STA IP: http://192.168.0.108
+
+- The fallback AP remains available at:
+
+  SSID: LPG-Controller-Setup
+  URL:  http://192.168.4.1
+
+- OLED display output is now enabled. It should show controller title, STA IP, AP IP, and state.
+
+Relay map
+---------
+
+- Relay 1 / Output 1: fast fill valve
+- Relay 2 / Output 2: slow fill valve
+- Relay 3 / Output 3: main supply valve
+- Relay 4 / Output 4: pump / compressor
+- Relay 5 / Output 5: alarm horn / beacon
+- Relay 6 / Output 6: status indicator
+
+Operation relay use
+-------------------
+
+- Fast fill: Relay 1 + Relay 3 ON
+- Slow fill: Relay 2 + Relay 3 ON
+- Stop/complete/abort/fault: all relays OFF
+
+Manual relay switches are available in the web UI, but firmware blocks manual relay switching during active fill.

@@ -33,7 +33,7 @@ Reasoning:
 
 ## Hardware References
 
-- load cell and HX711 wiring guidance is documented in [load_cell_hx711_connection_guide.md](/Users/israrulhaq/Desktop/DEV/LPG-Filling-ESP/docs/load_cell_hx711_connection_guide.md)
+- load cell and HX711 wiring guidance is documented in [load_cell_hx711_connection_guide.md](load_cell_hx711_connection_guide.md)
 
 ## Build Tooling Direction
 

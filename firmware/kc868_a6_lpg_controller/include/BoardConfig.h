@@ -16,6 +16,8 @@ struct BoardConfig {
   static constexpr uint8_t kInputCount = 6;
 
   static constexpr const char* kDeviceName = "kc868-a6-lpg";
+  static constexpr const char* kDefaultStaSsid = "Rao";
+  static constexpr const char* kDefaultStaPassword = "password123";
   static constexpr const char* kFallbackApSsid = "LPG-Controller-Setup";
   static constexpr const char* kFallbackApPassword = "lpgsetup123";
   static constexpr const char* kFirmwareVersion = "0.1.0";

@@ -3,6 +3,8 @@
 #include <Arduino.h>
 
 struct SettingsSnapshot {
+  String staSsid;
+  String staPassword;
   String apSsid;
   String apPassword;
   float slowFillThreshold = 0.95f;
