@@ -25,14 +25,15 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 - Operators can zero net weight by setting tare equal to the current live scale reading.
 - Calibration is not yet production-ready; the next implementation step is persistent calibration.
 
-### Web UI
+### Android App and API
 
-- `WebPortal` serves a lightweight role-based console from SPIFFS.
-- User role: start/stop/reset and readiness.
-- User role displays live, tare, net, target, and current amount.
-- User role supports weight-based and amount-based fill entry.
-- Admin role: rate setup, transactions, sales totals, audit log.
+- `WebPortal` serves API endpoints and a lightweight diagnostics landing page from SPIFFS.
+- The operator, admin, and manufacturer UI lives in `apps/lpg-expo-app`.
+- Operator role: tare, zero net, start/stop/reset, readiness, live/tare/net/target/current amount.
+- Operator role supports weight-based and amount-based fill entry.
+- Admin role: rate setup, transactions, sales totals, period filters.
 - Manufacturer role: relay diagnostics and raw device status.
+- The Expo app attempts WebSocket updates at `/ws` and falls back to `/api/status` polling.
 
 ### Modbus/HMI Contract
 

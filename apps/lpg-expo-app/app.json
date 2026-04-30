@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "LPG Filling",
+    "slug": "lpg-filling",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.automatrix.lpgfilling"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

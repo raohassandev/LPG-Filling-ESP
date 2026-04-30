@@ -17,7 +17,8 @@ The first phase will focus on developing a working prototype that includes core 
    - Calculate net fill weight as `live weight - tare weight`.
 
 3. **Web Interface**:
-   - Use `WebPortal` for a simple web-based UI to monitor the filling process.
+   - Use `WebPortal` for controller APIs and a lightweight diagnostics landing page.
+   - Use the Expo Android app for the operator, admin, and manufacturer UI.
    - Use `NetworkManager` to handle network connectivity (Wi-Fi).
    - Operator UI must show live, tare, net, target, and amount.
    - Admin UI must manage rate per kg and show sales statistics.

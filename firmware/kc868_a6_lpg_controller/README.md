@@ -9,7 +9,8 @@ Current scope:
 - default STA mode with fallback AP for device-hosted UI
 - OLED status display for IP address and controller state
 - serial-first diagnostics
-- status API and minimal HMI
+- status API and minimal firmware-hosted API landing page
+- Android Expo app for operator, admin, and manufacturer UI
 - simulated weight path for early logic and UI testing
 - serial command interface for start, stop, reset, and simulated weight
 - persistent AP and slow-fill settings load path
@@ -25,6 +26,7 @@ Hardware integration reference:
 - [Load Cell and HX711 Connection Guide](../../docs/load_cell_hx711_connection_guide.md)
 - [Prototype Execution Plan](../../docs/prototype_execution_plan.md)
 - [Development Plan](../../LPG_Filling_Station_Development_Plan.md)
+- [Modbus and Real-Time Protocol](../../docs/modbus_and_realtime_protocol.md)
 
 Not complete yet:
 
@@ -75,6 +77,13 @@ Default WiFi:
 - STA SSID: `Rao`
 - STA password: `password123`
 - fallback AP SSID: `LPG-Controller-Setup`
+
+Android app:
+
+- path: `apps/lpg-expo-app`
+- run: `npm install`, then `npm run android`
+- default device URL: `http://192.168.0.108`
+- real-time behavior: tries `ws://<device-ip>/ws`, then falls back to `GET /api/status` every 1 second
 
 Relay map:
 
