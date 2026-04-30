@@ -39,9 +39,10 @@ String activeStaIp;
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
-  Serial.printf("[STATUS] state=%s weight=%.3f target=%.3f nozzle=%u cylinder=%u estop=%u reason=%s\n",
-                status.stateLabel.c_str(), status.liveWeightKg, status.targetWeightKg, status.nozzleEngaged,
-                status.cylinderPresent, status.emergencyStopOk, status.lastReasonCode.c_str());
+  Serial.printf("[STATUS] state=%s live=%.3f tare=%.3f net=%.3f target=%.3f rate=%.2f amount=%.2f nozzle=%u cylinder=%u estop=%u reason=%s\n",
+                status.stateLabel.c_str(), status.liveWeightKg, status.tareWeightKg, status.netWeightKg,
+                status.targetWeightKg, status.ratePerKg, status.netWeightKg * status.ratePerKg,
+                status.nozzleEngaged, status.cylinderPresent, status.emergencyStopOk, status.lastReasonCode.c_str());
 }
 
 void printSerialHelp() {
@@ -50,6 +51,7 @@ void printSerialHelp() {
   Serial.println(F("  status"));
   Serial.println(F("  weight"));
   Serial.println(F("  hx"));
+  Serial.println(F("  tarew <emptyCylinderKg>"));
   Serial.println(F("  sim <kg>"));
   Serial.println(F("  start <targetKg> <ratePerKg> [targetAmount]"));
   Serial.println(F("  stop"));
@@ -105,9 +107,17 @@ void handleSerialCommand(const String& line) {
     return;
   }
 
+  if (command.startsWith("tarew ")) {
+    const float tareWeightKg = command.substring(6).toFloat();
+    statusStore.setTareWeight(tareWeightKg);
+    Serial.printf("[SERIAL] empty cylinder tare weight set to %.3f kg\n", tareWeightKg);
+    printStatusSnapshot();
+    return;
+  }
+
   if (command.startsWith("tare")) {
     weightService.tare();
-    Serial.println(F("[SERIAL] tare completed"));
+    Serial.println(F("[SERIAL] scale tare completed"));
     printStatusSnapshot();
     return;
   }
@@ -269,6 +279,7 @@ void setup() {
   statusStore.begin();
   settingsStore.begin();
   statusStore.setBootReason("power_on");
+  statusStore.setTargets(0.0f, 0.0f, settingsStore.snapshot().ratePerKg);
 
   initFilesystem();
   eventLog.begin();

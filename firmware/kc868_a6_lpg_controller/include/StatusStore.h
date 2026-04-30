@@ -21,6 +21,8 @@ struct StatusSnapshot {
   String stateLabel = "BOOT";
   String bootReason = "unknown";
   float liveWeightKg = 0.0f;
+  float tareWeightKg = 0.0f;
+  float netWeightKg = 0.0f;
   float targetWeightKg = 0.0f;
   float targetAmount = 0.0f;
   float ratePerKg = 0.0f;
@@ -39,6 +41,7 @@ class StatusStore {
   void setBootReason(const String& value);
   void setState(ProcessState state, const String& label);
   void setWeight(float kg);
+  void setTareWeight(float kg);
   void setTargets(float targetKg, float targetAmount, float ratePerKg);
   void setRelay(uint8_t index, bool active);
   void setInput(uint8_t index, bool active);

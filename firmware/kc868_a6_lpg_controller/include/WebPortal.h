@@ -26,6 +26,9 @@ class WebPortal {
   void handleStatus();
   void handleWeight();
   void handleSettings();
+  void handleUpdateSettings();
+  void handleSetTare();
+  void handleModbusMap();
   void handleLogs();
   void handleTransactions();
   void handleTransactionsCsv();

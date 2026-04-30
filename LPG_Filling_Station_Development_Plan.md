@@ -13,14 +13,24 @@ The first phase will focus on developing a working prototype that includes core 
 2. **Sensor Integration**:
    - Use `InputExpander` to read sensor data (e.g., pressure and weight sensors).
    - Use `WeightService` to monitor the amount of LPG dispensed.
+   - Treat operator-entered empty-cylinder tare weight as a business value.
+   - Calculate net fill weight as `live weight - tare weight`.
 
 3. **Web Interface**:
    - Use `WebPortal` for a simple web-based UI to monitor the filling process.
    - Use `NetworkManager` to handle network connectivity (Wi-Fi).
+   - Operator UI must show live, tare, net, target, and amount.
+   - Admin UI must manage rate per kg and show sales statistics.
 
 4. **Data Logging**:
    - Use `EventLog` to log critical system events (e.g., start/stop of filling, errors).
    - Use `TransactionLog` to store transaction data for each filling operation.
+   - Transaction records must include tare kg, net kg, rate per kg, and final amount.
+
+5. **Modbus/HMI Contract**:
+   - Expose fast polling registers for live weight, tare weight, net weight, status, target, and E-stop.
+   - Use kg x 100 scaling for 16-bit HMI registers.
+   - Bind the register map to Modbus TCP and RTU transport after final HMI/SCADA hardware selection.
 
 5. **Efficient Resource Management**:
    - Optimize memory usage and processing to avoid overloading the board.
@@ -114,4 +124,3 @@ Once the prototype is approved, we will move forward with the full system, inclu
 ## Conclusion
 
 This plan provides a structured approach to develop the LPG filling station system in two phases: the prototype and the full system. The prototype will demonstrate the key features with minimal effort, while the full system will integrate advanced functionality, including cloud support, role-based UIs, and reporting. The code will be streamlined for efficiency, and testing will ensure the reliability of each module and the system as a whole.
-

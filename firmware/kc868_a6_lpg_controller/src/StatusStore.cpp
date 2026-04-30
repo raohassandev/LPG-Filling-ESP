@@ -14,7 +14,18 @@ void StatusStore::setState(ProcessState state, const String& label) {
   status_.uptimeMs = millis();
 }
 
-void StatusStore::setWeight(float kg) { status_.liveWeightKg = kg; }
+void StatusStore::setWeight(float kg) {
+  status_.liveWeightKg = kg;
+  status_.netWeightKg = kg - status_.tareWeightKg;
+  if (status_.netWeightKg < 0.0f) {
+    status_.netWeightKg = 0.0f;
+  }
+}
+
+void StatusStore::setTareWeight(float kg) {
+  status_.tareWeightKg = kg < 0.0f ? 0.0f : kg;
+  setWeight(status_.liveWeightKg);
+}
 
 void StatusStore::setTargets(float targetKg, float targetAmount, float ratePerKg) {
   status_.targetWeightKg = targetKg;

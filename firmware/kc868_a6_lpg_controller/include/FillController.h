@@ -38,6 +38,5 @@ class FillController {
   EventLog& eventLog_;
   TransactionLog& transactionLog_;
   uint32_t activeTransactionId_ = 0;
-  float fillStartWeightKg_ = 0.0f;
   unsigned long stateStartedMs_ = 0;
 };

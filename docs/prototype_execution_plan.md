@@ -20,14 +20,28 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 
 - `InputExpander` reads nozzle, cylinder, and E-stop states.
 - `WeightService` reads HX711 on KC868-A6 `IO-1/GPIO32` and `IO-2/GPIO33`.
+- Operators enter empty-cylinder tare weight separately from scale tare.
+- Fill control and pricing use net weight: `net = live - tare`.
 - Calibration is not yet production-ready; the next implementation step is persistent calibration.
 
 ### Web UI
 
 - `WebPortal` serves a lightweight role-based console from SPIFFS.
 - User role: start/stop/reset and readiness.
-- Admin role: transactions, sales totals, audit log.
+- User role displays live, tare, net, target, and current amount.
+- Admin role: rate setup, transactions, sales totals, audit log.
 - Manufacturer role: relay diagnostics and raw device status.
+
+### Modbus/HMI Contract
+
+- Holding register values are exposed as kg x 100 where applicable.
+- `0x1001`: live weight.
+- `0x1002`: tare weight.
+- `0x1003`: net weight.
+- `0x1004`: filling status code.
+- `0x1005`: target weight.
+- `0x1006`: E-stop status.
+- The firmware contains a compact register map so TCP/RTU transport can be connected without changing business logic.
 
 ### Logging and History
 
@@ -44,10 +58,13 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 5. Web UI loads from STA IP and fallback AP.
 6. HX711 initializes and `tare` brings empty platform near zero.
 7. Nozzle, cylinder, and E-stop UI tiles match live input states.
-8. Start moves state to `FILLING_FAST` and energizes Relay 1 + Relay 3.
-9. Slow-fill threshold moves state to `FILLING_SLOW` and energizes Relay 2 + Relay 3.
-10. Stop/reset/fault de-energize all relays.
-11. A completed or aborted fill appears in `/api/transactions`.
+8. Operator tare weight updates net weight and current amount.
+9. Start moves state to `FILLING_FAST` and energizes Relay 1 + Relay 3.
+10. Slow-fill threshold moves state to `FILLING_SLOW` and energizes Relay 2 + Relay 3.
+11. Stop/reset/fault de-energize all relays.
+12. A completed or aborted fill appears in `/api/transactions` with tare, net kg, rate, and final amount.
+13. Admin can save rate per kg and the operator UI uses that rate.
+14. `/api/modbus` returns the current Modbus register map values.
 
 ## Phase 1 Automated Checks
 
@@ -63,6 +80,7 @@ The contract test script verifies source-level assumptions that do not require h
 ## Phase 2 Backlog
 
 - Persistent calibration workflow and audit log.
+- Modbus TCP server and RS485/RTU transport binding after HMI hardware selection.
 - Manager/owner authentication enforcement.
 - Daily shift reports and export package.
 - MQTT telemetry and REST cloud sync.

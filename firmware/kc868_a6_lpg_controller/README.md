@@ -15,6 +15,9 @@ Current scope:
 - persistent AP and slow-fill settings load path
 - local append-only event log exposed by API
 - transaction records stored on SPIFFS and exposed by API
+- operator tare weight, net weight, and net-weight price calculation
+- admin rate setup and local sales statistics
+- Modbus/HMI register map for live, tare, net, status, target, and E-stop
 
 Hardware integration reference:
 
@@ -42,6 +45,7 @@ Serial commands after flashing:
 - `hx`
 - `weight`
 - `tare`
+- `tarew <emptyCylinderKg>`
 - `cal <factor>`
 - `sim 5.25`
 - `start 11.8 250`
@@ -52,10 +56,13 @@ Useful HTTP endpoints:
 
 - `GET /api/status`
 - `GET /api/settings`
+- `GET /api/modbus`
 - `GET /api/logs`
 - `GET /api/transactions`
 - `GET /api/transactions.csv`
 - `POST /api/start`
+- `POST /api/tare`
+- `POST /api/settings`
 - `POST /api/stop`
 - `POST /api/reset`
 - `POST /api/sim-weight`
@@ -80,14 +87,25 @@ Fill sequence:
 - Fast fill energizes Relay 1 and Relay 3.
 - Slow fill turns Relay 1 off and energizes Relay 2 and Relay 3.
 - Stop, complete, abort, and fault force all relays off.
+- Fill thresholds and transaction totals use net weight, not gross/live cylinder weight.
+
+Modbus/HMI register map:
+
+- `0x1001`: live weight, kg x 100
+- `0x1002`: tare weight, kg x 100
+- `0x1003`: net weight, kg x 100
+- `0x1004`: filling status code
+- `0x1005`: target weight, kg x 100
+- `0x1006`: E-stop status, `1` = OK, `0` = tripped
 
 Recommended next implementation steps:
 
 1. verify input truth table on real hardware
 2. verify relay truth table on real hardware
 3. verify HX711 pin availability and calibration on the actual KC868-A6 wiring
-4. harden process state machine and fault handling
-5. finalize production security and network mode policy
+4. bind Modbus register map to final TCP/RTU transport
+5. harden process state machine and fault handling
+6. finalize production security and network mode policy
 
 Windows build helper from the repo root:
 

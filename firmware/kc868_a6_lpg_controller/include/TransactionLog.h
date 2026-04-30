@@ -25,7 +25,8 @@ struct TransactionRecord
 
     float targetWeightKg = 0.0f;
     float finalWeightKg = 0.0f;
-    float netWeightKg = 0.0f; // finalWeightKg - startWeightKg
+    float tareWeightKg = 0.0f;
+    float netWeightKg = 0.0f; // finalWeightKg - tareWeightKg
 
     float ratePerKg = 0.0f;
     float targetAmount = 0.0f;
@@ -49,8 +50,8 @@ public:
     void begin();
 
     // Transaction management
-    uint32_t startTransaction(float targetKg, float ratePerKg, float targetAmount, const String &source);
-    bool completeTransaction(uint32_t id, float finalWeightKg, float startWeightKg);
+    uint32_t startTransaction(float targetKg, float ratePerKg, float targetAmount, float tareWeightKg, const String &source);
+    bool completeTransaction(uint32_t id, float finalWeightKg, float netWeightKg);
     bool abortTransaction(uint32_t id, const String &reason);
     bool faultTransaction(uint32_t id, const String &faultCode);
 

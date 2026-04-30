@@ -34,7 +34,7 @@ void FillController::tick() {
   }
 
   const float slowFillThreshold = settingsStore_.snapshot().slowFillThreshold;
-  if (status.state == ProcessState::FillingFast && status.liveWeightKg >= status.targetWeightKg * slowFillThreshold) {
+  if (status.state == ProcessState::FillingFast && status.netWeightKg >= status.targetWeightKg * slowFillThreshold) {
     relayBank_.writeRelay(0, false);
     relayBank_.writeRelay(1, true);
     relayBank_.writeRelay(2, true);
@@ -44,11 +44,11 @@ void FillController::tick() {
     return;
   }
 
-  if (status.state == ProcessState::FillingSlow && status.liveWeightKg >= status.targetWeightKg) {
+  if (status.state == ProcessState::FillingSlow && status.netWeightKg >= status.targetWeightKg) {
     relayBank_.writeAllSafe();
     syncRelays();
     if (activeTransactionId_ != 0) {
-      transactionLog_.completeTransaction(activeTransactionId_, status.liveWeightKg, fillStartWeightKg_);
+      transactionLog_.completeTransaction(activeTransactionId_, status.liveWeightKg, status.netWeightKg);
       activeTransactionId_ = 0;
     }
     transitionTo(ProcessState::Complete, "COMPLETE");
@@ -90,8 +90,8 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
     return false;
   }
 
-  fillStartWeightKg_ = status.liveWeightKg;
-  activeTransactionId_ = transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, "controller");
+  activeTransactionId_ =
+      transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, status.tareWeightKg, "controller");
   if (activeTransactionId_ == 0) {
     eventLog_.append("WARN", "transaction_start_failed", "Fill continuing without transaction record");
   }

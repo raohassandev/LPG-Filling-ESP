@@ -3,6 +3,7 @@
 #include <SPIFFS.h>
 
 #include "BoardConfig.h"
+#include "ModbusRegisterMap.h"
 
 namespace {
 String jsonBool(bool value) { return value ? "true" : "false"; }
@@ -34,6 +35,9 @@ void WebPortal::registerRoutes() {
   server_.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
   server_.on("/api/weight", HTTP_GET, [this]() { handleWeight(); });
   server_.on("/api/settings", HTTP_GET, [this]() { handleSettings(); });
+  server_.on("/api/settings", HTTP_POST, [this]() { handleUpdateSettings(); });
+  server_.on("/api/tare", HTTP_POST, [this]() { handleSetTare(); });
+  server_.on("/api/modbus", HTTP_GET, [this]() { handleModbusMap(); });
   server_.on("/api/logs", HTTP_GET, [this]() { handleLogs(); });
   server_.on("/api/transactions", HTTP_GET, [this]() { handleTransactions(); });
   server_.on("/api/transactions.csv", HTTP_GET, [this]() { handleTransactionsCsv(); });
@@ -70,6 +74,10 @@ void WebPortal::handleStatus() { server_.send(200, "application/json", statusJso
 void WebPortal::handleWeight() {
   String body = "{\"weightKg\":";
   body += String(weightService_.liveWeightKg(), 3);
+  body += ",\"tareWeightKg\":";
+  body += String(statusStore_.snapshot().tareWeightKg, 3);
+  body += ",\"netWeightKg\":";
+  body += String(statusStore_.snapshot().netWeightKg, 3);
   body += "}";
   server_.send(200, "application/json", body);
 }
@@ -78,8 +86,53 @@ void WebPortal::handleSettings() {
   const SettingsSnapshot settings = settingsStore_.snapshot();
   String body = "{";
   body += "\"apSsid\":\"" + settings.apSsid + "\",";
-  body += "\"slowFillThreshold\":" + String(settings.slowFillThreshold, 2);
+  body += "\"slowFillThreshold\":" + String(settings.slowFillThreshold, 2) + ",";
+  body += "\"ratePerKg\":" + String(settings.ratePerKg, 2);
   body += "}";
+  server_.send(200, "application/json", body);
+}
+
+void WebPortal::handleUpdateSettings() {
+  const float ratePerKg = server_.arg("ratePerKg").toFloat();
+  const bool ok = settingsStore_.setRatePerKg(ratePerKg);
+  if (ok) {
+    const StatusSnapshot status = statusStore_.snapshot();
+    statusStore_.setTargets(status.targetWeightKg, status.targetAmount, ratePerKg);
+    eventLog_.append("INFO", "rate_update", "Rate per kg updated from admin UI");
+  }
+  server_.send(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"invalid rate\"}");
+}
+
+void WebPortal::handleSetTare() {
+  const StatusSnapshot status = statusStore_.snapshot();
+  if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
+      status.state == ProcessState::Settling) {
+    server_.send(409, "application/json", "{\"ok\":false,\"message\":\"tare blocked during active fill\"}");
+    return;
+  }
+
+  const float tareWeightKg = server_.arg("tareWeightKg").toFloat();
+  statusStore_.setTareWeight(tareWeightKg);
+  eventLog_.append("INFO", "tare_weight", "Operator tare weight set to " + String(tareWeightKg, 3) + " kg");
+  server_.send(200, "application/json", "{\"ok\":true}");
+}
+
+void WebPortal::handleModbusMap() {
+  const StatusSnapshot status = statusStore_.snapshot();
+  String body = "{\"scale\":\"kg_x100\",\"registers\":{";
+  body += "\"0x1001\":{\"name\":\"liveWeight\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kLiveWeight, status)) + "},";
+  body += "\"0x1002\":{\"name\":\"tareWeight\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kTareWeight, status)) + "},";
+  body += "\"0x1003\":{\"name\":\"netWeight\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kNetWeight, status)) + "},";
+  body += "\"0x1004\":{\"name\":\"fillingStatus\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kFillingStatus, status)) + "},";
+  body += "\"0x1005\":{\"name\":\"targetWeight\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kTargetWeight, status)) + "},";
+  body += "\"0x1006\":{\"name\":\"estopStatus\",\"value\":" +
+          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kEstopStatus, status)) + "}";
+  body += "}}";
   server_.send(200, "application/json", body);
 }
 
@@ -166,6 +219,9 @@ String WebPortal::statusJson() const {
   body += "\"state\":\"" + status.stateLabel + "\",";
   body += "\"bootReason\":\"" + status.bootReason + "\",";
   body += "\"weightKg\":" + String(status.liveWeightKg, 3) + ",";
+  body += "\"liveWeightKg\":" + String(status.liveWeightKg, 3) + ",";
+  body += "\"tareWeightKg\":" + String(status.tareWeightKg, 3) + ",";
+  body += "\"netWeightKg\":" + String(status.netWeightKg, 3) + ",";
   body += "\"weightInitialized\":" + jsonBool(weightService_.initialized()) + ",";
   body += "\"weightReadError\":" + jsonBool(weightService_.readFailed()) + ",";
   body += "\"weightStable\":" + jsonBool(weightService_.stable()) + ",";
@@ -175,6 +231,7 @@ String WebPortal::statusJson() const {
   body += "\"hx711SckLevel\":" + String(weightService_.sckLevel()) + ",";
   body += "\"targetWeightKg\":" + String(status.targetWeightKg, 3) + ",";
   body += "\"targetAmount\":" + String(status.targetAmount, 2) + ",";
+  body += "\"currentAmount\":" + String(status.netWeightKg * status.ratePerKg, 2) + ",";
   body += "\"ratePerKg\":" + String(status.ratePerKg, 2) + ",";
   body += "\"nozzleEngaged\":" + jsonBool(status.nozzleEngaged) + ",";
   body += "\"cylinderPresent\":" + jsonBool(status.cylinderPresent) + ",";
@@ -182,6 +239,7 @@ String WebPortal::statusJson() const {
   body += "\"reasonCode\":\"" + status.lastReasonCode + "\",";
   body += "\"uptimeMs\":" + String(status.uptimeMs) + ",";
   body += "\"transactionCount\":" + String(transactionLog_.totalCount()) + ",";
+  body += "\"modbus\":{\"liveWeight\":4097,\"tareWeight\":4098,\"netWeight\":4099,\"fillingStatus\":4100,\"targetWeight\":4101,\"estopStatus\":4102},";
   body += "\"relays\":[";
 
   for (uint8_t i = 0; i < 6; ++i) {
