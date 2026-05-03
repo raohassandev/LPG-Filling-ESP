@@ -3,49 +3,35 @@
 
 void LpgNetworkManager::begin()
 {
-    // Default to hybrid mode (AP + STA)
+    WiFi.mode(WIFI_AP_STA);
     startAP();
-    startSTA();
+    // STA is started separately via connectSTA()
 }
 
 void LpgNetworkManager::poll()
 {
-    // Check STA connection status
-    if (currentMode_ != NetworkMode::APOnly)
+    if (currentMode_ == NetworkMode::APOnly) return;
+
+    const wl_status_t wifiStatus = WiFi.status();
+
+    if (wifiStatus == WL_CONNECTED)
     {
-        wl_status_t wifiStatus = WiFi.status();
-
-        switch (wifiStatus)
+        if (status_ != NetworkStatus::Connected)
         {
-        case WL_CONNECTED:
-            if (status_ != NetworkStatus::Connected)
-            {
-                updateStatus(NetworkStatus::Connected);
-                Serial.printf("[NET] STA connected to: %s\n", WiFi.SSID().c_str());
-                Serial.printf("[NET] STA IP: %s\n", WiFi.localIP().toString().c_str());
-            }
-            break;
-
-        case WL_NO_SSID_AVAIL:
-        case WL_CONNECT_FAILED:
-        case WL_IDLE_STATUS:
-        case WL_DISCONNECTED:
-            if (status_ == NetworkStatus::Connected)
-            {
-                updateStatus(NetworkStatus::Disconnected);
-                Serial.println("[NET] STA disconnected");
-
-                // Auto-reconnect if enabled
-                if (autoReconnect_ && staConfigured_)
-                {
-                    Serial.println("[NET] Attempting STA reconnect...");
-                    startSTA();
-                }
-            }
-            break;
-
-        default:
-            break;
+            updateStatus(NetworkStatus::Connected);
+            Serial.printf("[NET] STA connected: %s  IP: %s\n",
+                          WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+        }
+    }
+    else if (status_ == NetworkStatus::Connected)
+    {
+        updateStatus(NetworkStatus::Disconnected);
+        Serial.println("[NET] STA disconnected");
+        if (autoReconnect_ && staConfigured_)
+        {
+            updateStatus(NetworkStatus::Connecting);
+            WiFi.begin(staSsid_.c_str(), staPassword_.c_str()); // non-blocking
+            Serial.println("[NET] STA reconnect initiated");
         }
     }
 }

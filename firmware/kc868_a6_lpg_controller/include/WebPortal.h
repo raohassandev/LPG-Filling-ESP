@@ -1,7 +1,10 @@
 #pragma once
 
 #include <WebServer.h>
+#include <WebSocketsServer.h>
 
+#include "AuthService.h"
+#include "NetworkManager.h"
 #include "EventLog.h"
 #include "FillController.h"
 #include "RelayBank.h"
@@ -13,7 +16,8 @@
 class WebPortal {
  public:
   WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
-            SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog, RelayBank& relayBank);
+            SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
+            RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager);
 
   void begin();
   void handleClient();
@@ -37,8 +41,20 @@ class WebPortal {
   void handleStart();
   void handleStop();
   void handleReset();
+  void handleHwTare();
   void handleSetSimWeight();
+  void handleClearSim();
+  void handleCalibrate();
+  void handleLogin();
+  void handleLogout();
+  void handleGetWifi();
+  void handleSetWifi();
+  void handleGetNetwork();
   String statusJson() const;
+  void broadcastStatus();
+  bool requireAuth(UserRole minRole);
+  void sendCorsHeaders();
+  void sendJson(int code, const String& body);
 
   StatusStore& statusStore_;
   FillController& fillController_;
@@ -47,5 +63,9 @@ class WebPortal {
   EventLog& eventLog_;
   TransactionLog& transactionLog_;
   RelayBank& relayBank_;
+  AuthService& authService_;
+  LpgNetworkManager& networkManager_;
   WebServer server_{80};
+  WebSocketsServer wsServer_{81};
+  unsigned long lastBroadcastMs_{0};
 };

@@ -1,47 +1,55 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LPG Controller API</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: "Segoe UI", Arial, sans-serif;
-        background: #edf1f5;
-        color: #17212b;
-      }
-      main {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 24px 14px;
-      }
-      section {
-        background: #fff;
-        border: 1px solid #d7dee8;
-        border-radius: 8px;
-        padding: 18px;
-      }
-      h1 { margin: 0 0 8px; font-size: 1.8rem; }
-      p { color: #647282; line-height: 1.5; }
-      code {
-        display: block;
-        padding: 12px;
-        border-radius: 8px;
-        background: #f7f9fc;
-        color: #263340;
-        overflow-wrap: anywhere;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <section>
-        <h1>LPG Controller API</h1>
-        <p>The operator, admin, and manufacturer UI has moved to the Android Expo app in this repository.</p>
-        <p>Use these local endpoints for diagnostics and third-party integration:</p>
-        <code>/api/status<br>/api/settings<br>/api/transactions<br>/api/modbus<br>Modbus TCP: port 502</code>
-      </section>
-    </main>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LPG Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Arial,sans-serif;background:#edf1f5;color:#17212b;padding:16px}
+h1{font-size:1.5rem;font-weight:900;margin-bottom:4px}
+.sub{color:#647282;font-size:.9rem;margin-bottom:20px}
+.cards{display:flex;flex-wrap:wrap;gap:12px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:18px;flex:1;min-width:200px}
+.card h2{font-size:1rem;font-weight:800;margin-bottom:8px}
+.card p{color:#647282;font-size:.85rem;line-height:1.5;margin-bottom:12px}
+a.btn{display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px;font-weight:800;font-size:.9rem}
+.status{font-size:.8rem;padding:12px;background:#f7f9fc;border-radius:8px;margin-top:12px}
+.status span{font-weight:700}
+.ok{color:#14823f}.err{color:#b42318}
+</style>
+</head>
+<body>
+<h1>LPG Controller</h1>
+<p class="sub" id="ver">Loading...</p>
+<div class="cards">
+  <div class="card">
+    <h2>WiFi Settings</h2>
+    <p>Configure the network the controller connects to as a station.</p>
+    <a class="btn" href="/wifi.html">Configure WiFi</a>
+  </div>
+  <div class="card">
+    <h2>Modbus TCP</h2>
+    <p>Register map and server configuration for SCADA / HMI integration.</p>
+    <a class="btn" href="/modbus.html">View Modbus</a>
+  </div>
+</div>
+<div class="status" id="net">Checking network...</div>
+<script>
+async function load(){
+  try{
+    const v=await fetch('/api/version').then(r=>r.json());
+    document.getElementById('ver').textContent=v.device+' · firmware '+v.firmwareVersion;
+  }catch{}
+  try{
+    const n=await fetch('/api/network').then(r=>r.json());
+    const el=document.getElementById('net');
+    el.innerHTML=
+      'AP: <span>'+n.apSSID+'</span> @ '+n.apIP+' &nbsp;|&nbsp; '+
+      'STA: <span class="'+(n.staConnected?'ok':'err')+'">'+(n.staConnected?n.staSSID+' @ '+n.staIP:'disconnected')+'</span>';
+  }catch{}
+}
+load();
+</script>
+</body>
 </html>

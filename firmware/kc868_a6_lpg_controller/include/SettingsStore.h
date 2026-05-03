@@ -16,6 +16,7 @@ class SettingsStore {
   void begin();
   SettingsSnapshot snapshot() const;
   bool setRatePerKg(float value);
+  bool setWifi(const String& staSsid, const String& staPassword);
 
  private:
   SettingsSnapshot settings_;

@@ -42,6 +42,18 @@ void SettingsStore::begin() {
 
 SettingsSnapshot SettingsStore::snapshot() const { return settings_; }
 
+bool SettingsStore::setWifi(const String& staSsid, const String& staPassword) {
+  if (staSsid.isEmpty() || staPassword.length() < 8) return false;
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) return false;
+  preferences.putString("sta_ssid", staSsid);
+  preferences.putString("sta_pass", staPassword);
+  preferences.end();
+  settings_.staSsid    = staSsid;
+  settings_.staPassword = staPassword;
+  return true;
+}
+
 bool SettingsStore::setRatePerKg(float value) {
   if (value <= 0.0f || value > 100000.0f) {
     return false;

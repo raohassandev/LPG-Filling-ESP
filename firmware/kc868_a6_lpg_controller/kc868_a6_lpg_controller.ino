@@ -2,6 +2,7 @@
 #include <SPIFFS.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 
 #include "BoardConfig.h"
 #include "FillController.h"
@@ -32,12 +33,11 @@ RtcService rtcService;
 TransactionLog transactionLog(rtcService);
 AuthService authService;
 OledDisplay oledDisplay(boardConfig);
+LpgNetworkManager networkManager;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
-WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank);
+WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager);
 ModbusTcpService modbusTcpService(statusStore);
-
-String activeStaIp;
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -218,37 +218,6 @@ void initI2c() {
   Serial.printf("[I2C] Initialized SDA=%u SCL=%u\n", boardConfig.kI2cSdaPin, boardConfig.kI2cSclPin);
 }
 
-void initWifi() {
-  const SettingsSnapshot settings = settingsStore.snapshot();
-  WiFi.mode(WIFI_AP_STA);
-
-  const bool apStarted = WiFi.softAP(settings.apSsid.c_str(), settings.apPassword.c_str());
-  if (!apStarted) {
-    Serial.println(F("[WiFi] Failed to start fallback AP"));
-  } else {
-    Serial.printf("[WiFi] Fallback AP started: %s\n", settings.apSsid.c_str());
-    Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
-  }
-
-  Serial.printf("[WiFi] Connecting STA to SSID: %s\n", settings.staSsid.c_str());
-  WiFi.begin(settings.staSsid.c_str(), settings.staPassword.c_str());
-
-  const unsigned long startedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < 15000) {
-    delay(250);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    activeStaIp = WiFi.localIP().toString();
-    Serial.printf("[WiFi] STA connected: %s\n", settings.staSsid.c_str());
-    Serial.printf("[WiFi] STA IP: %s\n", activeStaIp.c_str());
-  } else {
-    activeStaIp = "";
-    Serial.println(F("[WiFi] STA failed; fallback AP remains available"));
-  }
-}
 
 void updateOledStatus(bool force = false) {
   static unsigned long lastUpdateMs = 0;
@@ -258,27 +227,11 @@ void updateOledStatus(bool force = false) {
   lastUpdateMs = millis();
 
   const StatusSnapshot status = statusStore.snapshot();
-  const String staLine = activeStaIp.isEmpty() ? "STA: CONNECTING" : "STA: " + activeStaIp;
-  oledDisplay.showLines("LPG CONTROLLER", staLine, "AP: " + WiFi.softAPIP().toString(),
+  const String staLine = networkManager.isSTAConnected()
+                             ? "STA: " + networkManager.staIP()
+                             : "STA: CONNECTING";
+  oledDisplay.showLines("LPG CONTROLLER", staLine, "AP: " + networkManager.apIP(),
                         "STATE: " + status.stateLabel);
-}
-
-void pollWifi() {
-  static wl_status_t lastStatus = WL_IDLE_STATUS;
-  const wl_status_t currentStatus = WiFi.status();
-  if (currentStatus == lastStatus) {
-    return;
-  }
-  lastStatus = currentStatus;
-
-  if (currentStatus == WL_CONNECTED) {
-    activeStaIp = WiFi.localIP().toString();
-    Serial.printf("[WiFi] STA IP: %s\n", activeStaIp.c_str());
-  } else {
-    activeStaIp = "";
-    Serial.printf("[WiFi] STA status changed: %u\n", static_cast<uint8_t>(currentStatus));
-  }
-  updateOledStatus(true);
 }
 }  // namespace
 
@@ -305,8 +258,15 @@ void setup() {
   transactionLog.begin();
   authService.begin();
   fillController.begin();
-  initWifi();
+  networkManager.begin();
+  networkManager.connectSTA(settingsStore.snapshot().staSsid, settingsStore.snapshot().staPassword);
+  if (!MDNS.begin("lpg-controller")) {
+    Serial.println(F("[MDNS] Failed to start"));
+  } else {
+    Serial.println(F("[MDNS] Started: lpg-controller.local"));
+  }
   webPortal.begin();
+  MDNS.addService("http", "tcp", 80);
   modbusTcpService.begin();
   updateOledStatus(true);
   printSerialHelp();
@@ -320,7 +280,7 @@ void loop() {
   inputExpander.poll();
   weightService.poll();
   fillController.tick();
-  pollWifi();
+  networkManager.poll();
   webPortal.handleClient();
   modbusTcpService.handleClient();
   pollSerialCommands();

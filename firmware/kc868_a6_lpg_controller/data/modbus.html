@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modbus TCP – LPG Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Arial,sans-serif;background:#edf1f5;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:16px}
+h1{font-size:1.4rem;font-weight:900;margin-bottom:16px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:18px;max-width:560px;margin-bottom:12px}
+h2{font-size:1rem;font-weight:800;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f3f7;font-size:.9rem}
+.row:last-child{border:none}
+.label{color:#647282;font-weight:700}
+.val{font-weight:800;font-family:monospace}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;padding:8px 6px;color:#647282;font-weight:700;border-bottom:2px solid #d7dee8}
+td{padding:8px 6px;border-bottom:1px solid #f0f3f7}
+td:first-child{font-family:monospace;font-weight:800;color:#0f766e}
+.unit{color:#647282;font-size:.8rem}
+.live{font-weight:800}
+</style>
+</head>
+<body>
+<a href="/">← Back</a>
+<h1>Modbus TCP</h1>
+
+<div class="card">
+  <h2>Server Configuration</h2>
+  <div class="row"><span class="label">Protocol</span><span class="val">Modbus TCP</span></div>
+  <div class="row"><span class="label">Port</span><span class="val">502</span></div>
+  <div class="row"><span class="label">Unit ID</span><span class="val">1</span></div>
+  <div class="row"><span class="label">Function Code</span><span class="val">03 — Read Holding Registers</span></div>
+  <div class="row"><span class="label">Value Scale</span><span class="val">kg × 100 (integer)</span></div>
+</div>
+
+<div class="card">
+  <h2>Holding Registers — Live Values</h2>
+  <table>
+    <tr><th>Register</th><th>Name</th><th>Value</th><th>Unit</th></tr>
+    <tr><td>0x1001</td><td>Live Weight</td><td class="live" id="r1001">—</td><td class="unit">kg × 100</td></tr>
+    <tr><td>0x1002</td><td>Tare Weight</td><td class="live" id="r1002">—</td><td class="unit">kg × 100</td></tr>
+    <tr><td>0x1003</td><td>Net Weight</td><td class="live" id="r1003">—</td><td class="unit">kg × 100</td></tr>
+    <tr><td>0x1004</td><td>Filling Status</td><td class="live" id="r1004">—</td><td class="unit">0=idle 1=filling 2=complete</td></tr>
+    <tr><td>0x1005</td><td>Target Weight</td><td class="live" id="r1005">—</td><td class="unit">kg × 100</td></tr>
+    <tr><td>0x1006</td><td>E-Stop Status</td><td class="live" id="r1006">—</td><td class="unit">1=OK 0=tripped</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Connection Example (Python)</h2>
+  <pre style="background:#f7f9fc;padding:12px;border-radius:8px;font-size:.8rem;overflow-x:auto;line-height:1.6">from pymodbus.client import ModbusTcpClient
+c = ModbusTcpClient('<span id="devip">192.168.x.x</span>', port=502)
+c.connect()
+r = c.read_holding_registers(0x1001, count=6, slave=1)
+live_kg = r.registers[0] / 100.0</pre>
+</div>
+
+<script>
+async function refresh(){
+  try{
+    const d=await fetch('/api/modbus').then(r=>r.json());
+    const regs=d.registers;
+    document.getElementById('r1001').textContent=regs['0x1001'].value;
+    document.getElementById('r1002').textContent=regs['0x1002'].value;
+    document.getElementById('r1003').textContent=regs['0x1003'].value;
+    document.getElementById('r1004').textContent=regs['0x1004'].value;
+    document.getElementById('r1005').textContent=regs['0x1005'].value;
+    document.getElementById('r1006').textContent=regs['0x1006'].value;
+  }catch{}
+  try{
+    const n=await fetch('/api/network').then(r=>r.json());
+    if(n.staConnected) document.getElementById('devip').textContent=n.staIP;
+    else document.getElementById('devip').textContent=n.apIP;
+  }catch{}
+}
+refresh();
+setInterval(refresh,2000);
+</script>
+</body>
+</html>

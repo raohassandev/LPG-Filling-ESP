@@ -1,7 +1,15 @@
 #include "WeightService.h"
 
+#include <Preferences.h>
+
 void WeightService::begin()
 {
+    Preferences prefs;
+    prefs.begin("weight", true);
+    calibrationFactor_ = prefs.getFloat("cal", calibrationFactor_);
+    prefs.end();
+    Serial.printf("[WEIGHT] Calibration factor loaded: %.2f\n", calibrationFactor_);
+
     // Configure GPIO pins
     pinMode(kHx711DoutPin, INPUT_PULLUP);
     pinMode(kHx711SckPin, OUTPUT);
@@ -29,6 +37,12 @@ void WeightService::begin()
 
 void WeightService::poll()
 {
+    if (simActive_)
+    {
+        liveWeightKg_ = simulatedWeightKg_;
+        return;
+    }
+
     if (!hx711Initialized_)
     {
         liveWeightKg_ = simulatedWeightKg_;
@@ -52,10 +66,7 @@ void WeightService::poll()
         liveWeightKg_ = weightKg;
         isStable_ = checkStability(weightKg);
     }
-    else
-    {
-        readError_ = true;
-    }
+    // else: HX711 is mid-conversion (DOUT HIGH is normal at 10 SPS) — not an error
 }
 
 long WeightService::readRawHx711()
@@ -178,17 +189,27 @@ void WeightService::tare()
 void WeightService::setCalibrationFactor(float factor)
 {
     calibrationFactor_ = factor;
+    Preferences prefs;
+    prefs.begin("weight", false);
+    prefs.putFloat("cal", factor);
+    prefs.end();
+    Serial.printf("[WEIGHT] Calibration factor saved: %.2f\n", factor);
 }
 
 void WeightService::setSimulatedWeightKg(float weightKg)
 {
     simulatedWeightKg_ = weightKg;
-    if (!hx711Initialized_)
-    {
-        liveWeightKg_ = weightKg;
-        readError_ = false;
-        isStable_ = true;
-    }
+    simActive_ = true;
+    liveWeightKg_ = weightKg;
+    readError_ = false;
+    isStable_ = true;
+}
+
+void WeightService::clearSimulation()
+{
+    simActive_ = false;
+    simulatedWeightKg_ = 0.0f;
+    Serial.println("[WEIGHT] Simulation cleared — reading live sensor");
 }
 
 bool WeightService::checkStability(float newWeight)
@@ -207,8 +228,8 @@ bool WeightService::checkStability(float newWeight)
     float mean = sum / kStabilityWindow;
     float variance = (sumSq / kStabilityWindow) - (mean * mean);
 
-    // Stability threshold: variance < 0.01 (10g variance)
-    return variance < 0.01f;
+    // Stability threshold: variance < 0.04 (~200g std-dev for 100kg cell)
+    return variance < 0.04f;
 }
 
 void WeightService::clearStabilityHistory(float value)

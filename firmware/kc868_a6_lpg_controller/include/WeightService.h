@@ -19,6 +19,8 @@ public:
   void setCalibrationFactor(float factor);
   float calibrationFactor() const { return calibrationFactor_; }
   void setSimulatedWeightKg(float weightKg);
+  void clearSimulation();
+  bool simActive() const { return simActive_; }
   long lastRawValue() const { return lastRawValue_; }
   long tareOffsetRaw() const { return tareOffsetRaw_; }
 
@@ -39,12 +41,13 @@ private:
   long tareOffsetRaw_ = 0;
   float liveWeightKg_ = 0.0f;
   float simulatedWeightKg_ = 0.0f;
+  bool simActive_ = false;
   long lastRawValue_ = 0;
   bool hx711Initialized_ = false;
   bool readError_ = false;
 
   // Stability detection
-  static constexpr uint8_t kStabilityWindow = 5;
+  static constexpr uint8_t kStabilityWindow = 10;
   float weightHistory_[kStabilityWindow] = {0};
   uint8_t historyIndex_ = 0;
   bool isStable_ = false;

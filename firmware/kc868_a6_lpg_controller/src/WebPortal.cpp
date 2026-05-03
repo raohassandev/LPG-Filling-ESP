@@ -11,24 +11,64 @@ String jsonBool(bool value) { return value ? "true" : "false"; }
 
 WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
                      SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
-                     RelayBank& relayBank)
+                     RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager)
     : statusStore_(statusStore),
       fillController_(fillController),
       weightService_(weightService),
       settingsStore_(settingsStore),
       eventLog_(eventLog),
       transactionLog_(transactionLog),
-      relayBank_(relayBank) {}
+      relayBank_(relayBank),
+      authService_(authService),
+      networkManager_(networkManager) {}
 
 void WebPortal::begin() {
   registerRoutes();
   server_.begin();
   Serial.println(F("[WEB] HTTP server started on port 80"));
+
+  wsServer_.begin();
+  wsServer_.onEvent([](uint8_t, WStype_t type, uint8_t*, size_t) {
+    if (type == WStype_CONNECTED) Serial.println(F("[WS] Client connected"));
+    if (type == WStype_DISCONNECTED) Serial.println(F("[WS] Client disconnected"));
+  });
+  Serial.println(F("[WS] WebSocket server started on port 81"));
 }
 
-void WebPortal::handleClient() { server_.handleClient(); }
+void WebPortal::handleClient() {
+  server_.handleClient();
+  wsServer_.loop();
+  broadcastStatus();
+}
+
+void WebPortal::broadcastStatus() {
+  if (millis() - lastBroadcastMs_ < 200) return;
+  lastBroadcastMs_ = millis();
+  if (wsServer_.connectedClients() == 0) return;
+  String payload = statusJson();
+  wsServer_.broadcastTXT(payload);
+}
+
+void WebPortal::sendCorsHeaders() {
+  server_.sendHeader("Access-Control-Allow-Origin", "*");
+  server_.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server_.sendHeader("Access-Control-Allow-Headers", "*");
+}
+
+void WebPortal::sendJson(int code, const String& body) {
+  sendCorsHeaders();
+  server_.send(code, "application/json", body);
+}
 
 void WebPortal::registerRoutes() {
+  server_.onNotFound([this]() {
+    if (server_.method() == HTTP_OPTIONS) {
+      sendCorsHeaders();
+      server_.send(204);
+    } else {
+      sendJson(404, "{\"ok\":false,\"message\":\"not found\"}");
+    }
+  });
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/api/health", HTTP_GET, [this]() { handleHealth(); });
   server_.on("/api/version", HTTP_GET, [this]() { handleVersion(); });
@@ -36,8 +76,9 @@ void WebPortal::registerRoutes() {
   server_.on("/api/weight", HTTP_GET, [this]() { handleWeight(); });
   server_.on("/api/settings", HTTP_GET, [this]() { handleSettings(); });
   server_.on("/api/settings", HTTP_POST, [this]() { handleUpdateSettings(); });
-  server_.on("/api/tare", HTTP_POST, [this]() { handleSetTare(); });
+  server_.on("/api/tare",      HTTP_POST, [this]() { handleSetTare(); });
   server_.on("/api/tare-zero", HTTP_POST, [this]() { handleZeroNetWeight(); });
+  server_.on("/api/tare-hw",   HTTP_POST, [this]() { handleHwTare(); });
   server_.on("/api/modbus", HTTP_GET, [this]() { handleModbusMap(); });
   server_.on("/api/logs", HTTP_GET, [this]() { handleLogs(); });
   server_.on("/api/transactions", HTTP_GET, [this]() { handleTransactions(); });
@@ -46,20 +87,28 @@ void WebPortal::registerRoutes() {
   server_.on("/api/start", HTTP_POST, [this]() { handleStart(); });
   server_.on("/api/stop", HTTP_POST, [this]() { handleStop(); });
   server_.on("/api/reset", HTTP_POST, [this]() { handleReset(); });
-  server_.on("/api/sim-weight", HTTP_POST, [this]() { handleSetSimWeight(); });
+  server_.on("/api/sim-weight",  HTTP_POST, [this]() { handleSetSimWeight(); });
+  server_.on("/api/sim-clear",   HTTP_POST, [this]() { handleClearSim(); });
+  server_.on("/api/calibrate",   HTTP_POST, [this]() { handleCalibrate(); });
+  server_.on("/api/login",   HTTP_POST, [this]() { handleLogin(); });
+  server_.on("/api/logout",  HTTP_POST, [this]() { handleLogout(); });
+  server_.on("/api/wifi",    HTTP_GET,  [this]() { handleGetWifi(); });
+  server_.on("/api/wifi",    HTTP_POST, [this]() { handleSetWifi(); });
+  server_.on("/api/network", HTTP_GET,  [this]() { handleGetNetwork(); });
 }
 
 void WebPortal::handleRoot() {
   File file = SPIFFS.open("/index.html", "r");
   if (!file) {
-    server_.send(404, "text/plain", "index.html not found");
+    sendJson(404, "{\"ok\":false,\"message\":\"index.html not found\"}");
     return;
   }
+  sendCorsHeaders();
   server_.streamFile(file, "text/html");
   file.close();
 }
 
-void WebPortal::handleHealth() { server_.send(200, "application/json", "{\"ok\":true}"); }
+void WebPortal::handleHealth() { sendJson(200, "{\"ok\":true}"); }
 
 void WebPortal::handleVersion() {
   String body = "{\"device\":\"";
@@ -67,20 +116,27 @@ void WebPortal::handleVersion() {
   body += "\",\"firmwareVersion\":\"";
   body += BoardConfig::kFirmwareVersion;
   body += "\"}";
-  server_.send(200, "application/json", body);
+  sendJson(200, body);
 }
 
-void WebPortal::handleStatus() { server_.send(200, "application/json", statusJson()); }
+void WebPortal::handleStatus() { sendJson(200, statusJson()); }
 
 void WebPortal::handleWeight() {
-  String body = "{\"weightKg\":";
-  body += String(weightService_.liveWeightKg(), 3);
-  body += ",\"tareWeightKg\":";
-  body += String(statusStore_.snapshot().tareWeightKg, 3);
-  body += ",\"netWeightKg\":";
-  body += String(statusStore_.snapshot().netWeightKg, 3);
+  const StatusSnapshot snap = statusStore_.snapshot();
+  String body = "{";
+  body += "\"weightKg\":"    + String(weightService_.liveWeightKg(), 3) + ",";
+  body += "\"tareWeightKg\":" + String(snap.tareWeightKg, 3) + ",";
+  body += "\"netWeightKg\":"  + String(snap.netWeightKg, 3) + ",";
+  body += "\"rawValue\":"     + String(weightService_.lastRawValue()) + ",";
+  body += "\"tareRawValue\":" + String(weightService_.tareOffsetRaw()) + ",";
+  body += "\"calFactor\":"    + String(weightService_.calibrationFactor(), 2) + ",";
+  body += "\"simActive\":"    + String(weightService_.simActive() ? "true" : "false") + ",";
+  body += "\"initialized\":"  + String(weightService_.initialized() ? "true" : "false") + ",";
+  body += "\"readError\":"    + String(weightService_.readFailed() ? "true" : "false") + ",";
+  body += "\"doutLevel\":"    + String(weightService_.doutLevel()) + ",";
+  body += "\"sckLevel\":"     + String(weightService_.sckLevel());
   body += "}";
-  server_.send(200, "application/json", body);
+  sendJson(200, body);
 }
 
 void WebPortal::handleSettings() {
@@ -90,10 +146,11 @@ void WebPortal::handleSettings() {
   body += "\"slowFillThreshold\":" + String(settings.slowFillThreshold, 2) + ",";
   body += "\"ratePerKg\":" + String(settings.ratePerKg, 2);
   body += "}";
-  server_.send(200, "application/json", body);
+  sendJson(200, body);
 }
 
 void WebPortal::handleUpdateSettings() {
+  if (!requireAuth(UserRole::Admin)) return;
   const float ratePerKg = server_.arg("ratePerKg").toFloat();
   const bool ok = settingsStore_.setRatePerKg(ratePerKg);
   if (ok) {
@@ -101,34 +158,50 @@ void WebPortal::handleUpdateSettings() {
     statusStore_.setTargets(status.targetWeightKg, status.targetAmount, ratePerKg);
     eventLog_.append("INFO", "rate_update", "Rate per kg updated from admin UI");
   }
-  server_.send(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"invalid rate\"}");
+  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"invalid rate\"}");
 }
 
 void WebPortal::handleSetTare() {
+  if (!requireAuth(UserRole::Operator)) return;
   const StatusSnapshot status = statusStore_.snapshot();
   if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
       status.state == ProcessState::Settling) {
-    server_.send(409, "application/json", "{\"ok\":false,\"message\":\"tare blocked during active fill\"}");
+    sendJson(409, "{\"ok\":false,\"message\":\"tare blocked during active fill\"}");
     return;
   }
 
   const float tareWeightKg = server_.arg("tareWeightKg").toFloat();
   statusStore_.setTareWeight(tareWeightKg);
   eventLog_.append("INFO", "tare_weight", "Operator tare weight set to " + String(tareWeightKg, 3) + " kg");
-  server_.send(200, "application/json", "{\"ok\":true}");
+  sendJson(200, "{\"ok\":true}");
 }
 
-void WebPortal::handleZeroNetWeight() {
+void WebPortal::handleHwTare() {
+  if (!requireAuth(UserRole::Maintenance)) return;
   const StatusSnapshot status = statusStore_.snapshot();
   if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
       status.state == ProcessState::Settling) {
-    server_.send(409, "application/json", "{\"ok\":false,\"message\":\"net zero blocked during active fill\"}");
+    sendJson(409, "{\"ok\":false,\"message\":\"tare blocked during active fill\"}");
+    return;
+  }
+  weightService_.tare();
+  statusStore_.setTareWeight(0.0f);
+  eventLog_.append("INFO", "hw_tare", "Hardware tare completed");
+  sendJson(200, "{\"ok\":true,\"rawOffset\":" + String(weightService_.tareOffsetRaw()) + "}");
+}
+
+void WebPortal::handleZeroNetWeight() {
+  if (!requireAuth(UserRole::Operator)) return;
+  const StatusSnapshot status = statusStore_.snapshot();
+  if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
+      status.state == ProcessState::Settling) {
+    sendJson(409, "{\"ok\":false,\"message\":\"net zero blocked during active fill\"}");
     return;
   }
 
   statusStore_.setTareWeight(status.liveWeightKg);
   eventLog_.append("INFO", "net_zero", "Operator zeroed net weight from live scale");
-  server_.send(200, "application/json", "{\"ok\":true}");
+  sendJson(200, "{\"ok\":true}");
 }
 
 void WebPortal::handleModbusMap() {
@@ -147,32 +220,35 @@ void WebPortal::handleModbusMap() {
   body += "\"0x1006\":{\"name\":\"estopStatus\",\"value\":" +
           String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kEstopStatus, status)) + "}";
   body += "}}";
-  server_.send(200, "application/json", body);
+  sendJson(200, body);
 }
 
 void WebPortal::handleLogs() {
+  sendCorsHeaders();
   server_.send(200, "text/plain", eventLog_.tail());
 }
 
 void WebPortal::handleTransactions() {
-  server_.send(200, "application/json", transactionLog_.exportJson());
+  sendJson(200, transactionLog_.exportJson());
 }
 
 void WebPortal::handleTransactionsCsv() {
+  sendCorsHeaders();
   server_.send(200, "text/csv", transactionLog_.exportCsv());
 }
 
 void WebPortal::handleSetRelay() {
+  if (!requireAuth(UserRole::Maintenance)) return;
   const StatusSnapshot status = statusStore_.snapshot();
   if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
       status.state == ProcessState::Settling) {
-    server_.send(409, "application/json", "{\"ok\":false,\"message\":\"manual relay control blocked during fill\"}");
+    sendJson(409, "{\"ok\":false,\"message\":\"manual relay control blocked during fill\"}");
     return;
   }
 
   const int index = server_.arg("index").toInt();
   if (index < 0 || index >= BoardConfig::kRelayCount) {
-    server_.send(400, "application/json", "{\"ok\":false,\"message\":\"invalid relay index\"}");
+    sendJson(400, "{\"ok\":false,\"message\":\"invalid relay index\"}");
     return;
   }
 
@@ -184,10 +260,11 @@ void WebPortal::handleSetRelay() {
     eventLog_.append("WARN", "manual_relay", "Manual relay " + String(index + 1) + (active ? " on" : " off"));
   }
 
-  server_.send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+  sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
 void WebPortal::handleStart() {
+  if (!requireAuth(UserRole::Operator)) return;
   const float targetWeightKg = server_.arg("targetWeightKg").toFloat();
   const float ratePerKg = server_.arg("ratePerKg").toFloat();
   float targetAmount = server_.arg("targetAmount").toFloat();
@@ -202,16 +279,18 @@ void WebPortal::handleStart() {
   body += ",\"message\":\"";
   body += reason;
   body += "\"}";
-  server_.send(ok ? 200 : 400, "application/json", body);
+  sendJson(ok ? 200 : 400, body);
 }
 
 void WebPortal::handleStop() {
+  if (!requireAuth(UserRole::Operator)) return;
   const bool ok = fillController_.stopFill("operator_stop");
-  server_.send(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true,\"message\":\"stopped\"}"
-                                              : "{\"ok\":false,\"message\":\"no active fill\"}");
+  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true,\"message\":\"stopped\"}"
+                              : "{\"ok\":false,\"message\":\"no active fill\"}");
 }
 
 void WebPortal::handleReset() {
+  if (!requireAuth(UserRole::Operator)) return;
   String reason;
   const bool ok = fillController_.resetToIdle(reason);
   String body = "{\"ok\":";
@@ -219,12 +298,122 @@ void WebPortal::handleReset() {
   body += ",\"message\":\"";
   body += reason;
   body += "\"}";
-  server_.send(ok ? 200 : 400, "application/json", body);
+  sendJson(ok ? 200 : 400, body);
 }
 
 void WebPortal::handleSetSimWeight() {
+  if (!requireAuth(UserRole::Maintenance)) return;
   weightService_.setSimulatedWeightKg(server_.arg("weightKg").toFloat());
-  server_.send(200, "application/json", "{\"ok\":true}");
+  sendJson(200, "{\"ok\":true}");
+}
+
+void WebPortal::handleClearSim() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  weightService_.clearSimulation();
+  sendJson(200, "{\"ok\":true}");
+}
+
+void WebPortal::handleCalibrate() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const String factorArg = server_.arg("factor");
+  const String knownKgArg = server_.arg("knownKg");
+  if (!factorArg.isEmpty()) {
+    // Direct factor set
+    const float factor = factorArg.toFloat();
+    if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"factor cannot be zero\"}"); return; }
+    weightService_.setCalibrationFactor(factor);
+    sendJson(200, "{\"ok\":true,\"calFactor\":" + String(factor, 2) + "}");
+  } else if (!knownKgArg.isEmpty()) {
+    // Auto-calculate from known weight: factor = (raw - tare) / knownKg
+    const float knownKg = knownKgArg.toFloat();
+    if (knownKg <= 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"knownKg must be positive\"}"); return; }
+    const long raw = weightService_.lastRawValue();
+    const long tare = weightService_.tareOffsetRaw();
+    const float factor = static_cast<float>(raw - tare) / knownKg;
+    if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"raw equals tare — place known weight first\"}"); return; }
+    weightService_.setCalibrationFactor(factor);
+    sendJson(200, "{\"ok\":true,\"calFactor\":" + String(factor, 2) + ",\"raw\":" + String(raw) + ",\"tare\":" + String(tare) + "}");
+  } else {
+    sendJson(400, "{\"ok\":false,\"message\":\"provide factor= or knownKg=\"}");
+  }
+}
+
+bool WebPortal::requireAuth(UserRole minRole) {
+  const String token = server_.arg("token");
+  if (token.isEmpty()) {
+    sendJson(401, "{\"ok\":false,\"message\":\"token required\"}");
+    return false;
+  }
+  if (!authService_.sessionValid()) {
+    sendJson(401, "{\"ok\":false,\"message\":\"session expired\"}");
+    return false;
+  }
+  if (authService_.getCurrentSession().sessionId != token) {
+    sendJson(401, "{\"ok\":false,\"message\":\"invalid token\"}");
+    return false;
+  }
+  if (!authService_.hasPermission(minRole)) {
+    sendJson(403, "{\"ok\":false,\"message\":\"insufficient role\"}");
+    return false;
+  }
+  authService_.refreshSession();
+  return true;
+}
+
+void WebPortal::handleLogin() {
+  const String username = server_.arg("username");
+  const String password = server_.arg("password");
+  if (authService_.login(username, password)) {
+    const SessionInfo session = authService_.getCurrentSession();
+    String roleStr;
+    switch (session.role) {
+      case UserRole::Admin:       roleStr = "admin"; break;
+      case UserRole::Maintenance: roleStr = "maintenance"; break;
+      default:                    roleStr = "operator"; break;
+    }
+    sendJson(200, "{\"ok\":true,\"token\":\"" + session.sessionId + "\",\"role\":\"" + roleStr + "\"}");
+  } else {
+    sendJson(401, "{\"ok\":false,\"message\":\"invalid credentials\"}");
+  }
+}
+
+void WebPortal::handleGetWifi() {
+  const SettingsSnapshot s = settingsStore_.snapshot();
+  String body = "{\"staSsid\":\"" + s.staSsid + "\",\"apSsid\":\"" + s.apSsid + "\"}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleSetWifi() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const String ssid = server_.arg("staSsid");
+  const String pass = server_.arg("staPassword");
+  if (!settingsStore_.setWifi(ssid, pass)) {
+    sendJson(400, "{\"ok\":false,\"message\":\"SSID required and password must be 8+ chars\"}");
+    return;
+  }
+  eventLog_.append("INFO", "wifi_update", "WiFi STA credentials updated");
+  networkManager_.connectSTA(ssid, pass);
+  sendJson(200, "{\"ok\":true,\"message\":\"WiFi credentials saved. Reconnecting...\"}");
+}
+
+void WebPortal::handleGetNetwork() {
+  String body = "{";
+  body += "\"staConnected\":" + String(networkManager_.isSTAConnected() ? "true" : "false") + ",";
+  body += "\"staSSID\":\""    + networkManager_.staSSID() + "\",";
+  body += "\"staIP\":\""      + networkManager_.staIP()   + "\",";
+  body += "\"apSSID\":\""     + networkManager_.apSSID()  + "\",";
+  body += "\"apIP\":\""       + networkManager_.apIP()    + "\"";
+  body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleLogout() {
+  const String token = server_.arg("token");
+  if (!token.isEmpty() && authService_.sessionValid() &&
+      authService_.getCurrentSession().sessionId == token) {
+    authService_.logout();
+  }
+  sendJson(200, "{\"ok\":true}");
 }
 
 String WebPortal::statusJson() const {

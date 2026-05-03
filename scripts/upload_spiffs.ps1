@@ -7,15 +7,32 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$mkspiffs = Join-Path $env:LOCALAPPDATA "Arduino15\packages\esp32\tools\mkspiffs\0.2.3\mkspiffs.exe"
-$esptool = Join-Path $env:LOCALAPPDATA "Arduino15\packages\esp32\tools\esptool_py\5.2.0\esptool.exe"
+$arduino15Tools = Join-Path $env:LOCALAPPDATA "Arduino15\packages\esp32\tools"
 
-if (-not (Test-Path $mkspiffs)) {
-  throw "mkspiffs was not found. Install the esp32 Arduino core first."
+$mkspiffs = $null
+if (Test-Path $arduino15Tools) {
+  $mkspiffs = Get-ChildItem "$arduino15Tools\mkspiffs" -Recurse -Filter "mkspiffs.exe" -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $mkspiffs) {
+  $found = Get-Command mkspiffs -ErrorAction SilentlyContinue
+  if ($found) { $mkspiffs = $found.Source }
+}
+if (-not $mkspiffs) {
+  throw "mkspiffs not found. Install the esp32 Arduino core via Board Manager."
 }
 
-if (-not (Test-Path $esptool)) {
-  throw "esptool was not found. Install the esp32 Arduino core first."
+$esptool = $null
+if (Test-Path $arduino15Tools) {
+  $esptool = Get-ChildItem "$arduino15Tools\esptool_py" -Recurse -Filter "esptool.exe" -ErrorAction SilentlyContinue |
+             Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $esptool) {
+  $found = Get-Command esptool -ErrorAction SilentlyContinue
+  if ($found) { $esptool = $found.Source }
+}
+if (-not $esptool) {
+  throw "esptool not found. Install the esp32 Arduino core via Board Manager."
 }
 
 $resolvedSketchDir = (Resolve-Path $SketchDir).Path
@@ -39,5 +56,5 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Uploading SPIFFS image: $imagePath"
 Write-Host "Using port: $Port"
 Write-Host "Using offset: $Offset"
-& $esptool --chip esp32 --port $Port --baud 921600 --before default-reset --after hard-reset write-flash -z --flash-mode keep --flash-freq keep --flash-size keep $Offset $imagePath
+& $esptool --chip esp32 --port $Port --baud 921600 --before default_reset --after hard_reset write_flash -z --flash_mode keep --flash_freq keep --flash_size keep $Offset $imagePath
 exit $LASTEXITCODE

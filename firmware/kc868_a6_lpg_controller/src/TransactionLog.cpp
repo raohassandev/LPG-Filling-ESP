@@ -344,13 +344,21 @@ bool TransactionLog::parseRecordLine(const String &line, TransactionRecord &reco
 
     char buffer[416] = {0};
     line.toCharArray(buffer, sizeof(buffer));
+    // Strip trailing \r if present (from println's \r\n)
+    size_t bufLen = strlen(buffer);
+    if (bufLen > 0 && buffer[bufLen - 1] == '\r') buffer[bufLen - 1] = '\0';
+
+    // Split on '|' preserving empty fields (strtok skips them, so use manual split)
     char *tokens[17] = {0};
     uint8_t count = 0;
-    char *token = strtok(buffer, "|");
-    while (token && count < 17)
+    char *p = buffer;
+    while (count < 17)
     {
-        tokens[count++] = token;
-        token = strtok(NULL, "|");
+        tokens[count++] = p;
+        char *delim = strchr(p, '|');
+        if (!delim) break;
+        *delim = '\0';
+        p = delim + 1;
     }
 
     if (count < 16)

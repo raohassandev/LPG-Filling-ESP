@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,11 +10,22 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+function showAlert(title, message) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n${message}`);
+  } else {
+    const { Alert } = require("react-native");
+    Alert.alert(title, message);
+  }
+}
 import {
   applyTare,
   connectStatusStream,
   fetchSettings,
   fetchTransactions,
+  login,
+  logout,
   normalizeDeviceUrl,
   resetFill,
   saveRate,
@@ -22,6 +33,12 @@ import {
   stopFill,
   zeroNet,
 } from "./src/api";
+import { DEFAULT_DEVICE_URL, DEV_AUTO_LOGIN_ROLE, DEV_CREDENTIALS } from "./src/constants/device";
+
+// On web the app talks to the dev proxy (localhost:4000) which forwards /api/* to the device.
+// On native the app connects directly to the device IP.
+const INITIAL_URL = Platform.OS === "web" ? "http://localhost:4000" : DEFAULT_DEVICE_URL;
+import { NO_AUTH_TOKEN } from "./src/services/controllerApi";
 
 const relayPurposes = [
   "Fast fill valve",
@@ -77,8 +94,8 @@ function Button({ label, onPress, tone = "primary" }) {
 }
 
 export default function App() {
-  const [deviceUrl, setDeviceUrl] = useState("http://192.168.0.108");
-  const [activeUrl, setActiveUrl] = useState("http://192.168.0.108");
+  const [activeUrl, setActiveUrl] = useState(INITIAL_URL);
+  const [connectionKey, setConnectionKey] = useState(0);
   const [role, setRole] = useState("operator");
   const [mode, setMode] = useState("weight");
   const [streamMode, setStreamMode] = useState("connecting");
@@ -89,7 +106,12 @@ export default function App() {
   const [targetAmount, setTargetAmount] = useState("2950.00");
   const [rate, setRate] = useState("250.00");
   const [adminRate, setAdminRate] = useState("250.00");
-  const [period, setPeriod] = useState("today");
+  const [period, setPeriod] = useState("all");
+  const [authToken, setAuthToken] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginRole, setLoginRole] = useState(DEV_AUTO_LOGIN_ROLE);
+  const [loginPassword, setLoginPassword] = useState(DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE]);
+  const [loginError, setLoginError] = useState("");
 
   const effectiveRate = Number(rate || status.ratePerKg || 0);
 
@@ -122,7 +144,15 @@ export default function App() {
       stop();
       clearInterval(timer);
     };
-  }, [activeUrl]);
+  }, [activeUrl, connectionKey]);
+
+  useEffect(() => {
+    setAuthToken("");
+    setAuthLoading(true);
+    login(activeUrl, DEV_AUTO_LOGIN_ROLE, DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE])
+      .then((result) => { setAuthToken(result.token); setAuthLoading(false); })
+      .catch(() => setAuthLoading(false));
+  }, [activeUrl, connectionKey]);
 
   const summary = useMemo(() => {
     const filtered = transactions.filter((item) => inPeriod(item, period));
@@ -155,12 +185,34 @@ export default function App() {
     }
   }
 
+  async function handleLogin() {
+    setLoginError("");
+    try {
+      const result = await login(activeUrl, loginRole, loginPassword);
+      setAuthToken(result.token);
+    } catch (err) {
+      setLoginError(err.message || "Login failed");
+    }
+  }
+
+  async function handleLogout() {
+    if (authToken && authToken !== NO_AUTH_TOKEN) {
+      try { await logout(activeUrl, authToken); } catch {}
+    }
+    setAuthToken("");
+  }
+
   async function runCommand(action, success) {
     try {
       await action();
-      Alert.alert("Done", success);
+      showAlert("Done", success);
     } catch (error) {
-      Alert.alert("Rejected", error.message);
+      const msg = error.message || "";
+      if (authToken !== NO_AUTH_TOKEN &&
+          (msg.includes("token") || msg.includes("session") || msg.includes("credentials"))) {
+        setAuthToken("");
+      }
+      showAlert("Rejected", msg);
     }
   }
 
@@ -179,9 +231,48 @@ export default function App() {
         </View>
 
         <View style={styles.deviceRow}>
-          <TextInput value={deviceUrl} onChangeText={setDeviceUrl} style={styles.input} autoCapitalize="none" />
-          <Button label="Connect" onPress={() => setActiveUrl(normalizeDeviceUrl(deviceUrl))} tone="dark" />
+          <View style={styles.deviceStatus}>
+            <Text style={streamMode === "connected" ? styles.deviceDotOk : styles.deviceDotOff}>●</Text>
+            <Text style={styles.deviceLabel} numberOfLines={1}>{normalizeDeviceUrl(activeUrl)}</Text>
+          </View>
+          <Pressable style={styles.reconnectBtn} onPress={() => { setConnectionKey(k => k + 1); setAuthToken(""); }}>
+            <Text style={styles.buttonText}>Reconnect</Text>
+          </Pressable>
         </View>
+
+        {authLoading ? (
+          <View style={styles.card}>
+            <Text style={styles.label}>Connecting to device...</Text>
+          </View>
+        ) : !authToken ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Sign In</Text>
+            <Text style={styles.label}>Role</Text>
+            <View style={styles.roleRow}>
+              {["operator", "maintenance", "admin"].map((r) => (
+                <Pressable
+                  key={r}
+                  style={[styles.roleOption, loginRole === r && styles.roleOptionActive]}
+                  onPress={() => { setLoginRole(r); setLoginPassword(DEV_CREDENTIALS[r] ?? ""); }}
+                >
+                  <Text style={[styles.roleOptionText, loginRole === r && styles.roleOptionTextActive]}>{r}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              style={styles.input}
+              secureTextEntry
+              placeholder="Password"
+              autoCapitalize="none"
+            />
+            {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+            <Button label="Sign In" onPress={handleLogin} />
+          </View>
+        ) : (
+          <>
 
         <View style={styles.tabs}>
           {["operator", "admin", "manufacturer"].map((item) => (
@@ -210,8 +301,8 @@ export default function App() {
             <Text style={styles.label}>Tare Weight / Empty Cylinder</Text>
             <TextInput value={tareWeight} onChangeText={setTareWeight} keyboardType="decimal-pad" style={styles.input} />
             <View style={styles.actionRow}>
-              <Button label="Apply Tare" onPress={() => runCommand(() => applyTare(activeUrl, tareWeight), "Tare saved")} />
-              <Button label="Zero Net" onPress={() => runCommand(() => zeroNet(activeUrl), "Net weight zeroed")} tone="dark" />
+              <Button label="Apply Tare" onPress={() => runCommand(() => applyTare(activeUrl, tareWeight, authToken), "Tare saved")} />
+              <Button label="Zero Net" onPress={() => runCommand(() => zeroNet(activeUrl, authToken), "Net weight zeroed")} tone="dark" />
             </View>
 
             <Text style={styles.label}>Input Mode</Text>
@@ -228,10 +319,10 @@ export default function App() {
             <TextInput value={targetAmount} onChangeText={(value) => syncTargets(mode, "amount", value)} editable={mode === "amount"} keyboardType="decimal-pad" style={styles.input} />
 
             <View style={styles.actionRow}>
-              <Button label="Start Fill" onPress={() => runCommand(() => startFill(activeUrl, targetWeight, rate, targetAmount), "Fill started")} />
-              <Button label="Stop" onPress={() => runCommand(() => stopFill(activeUrl), "Fill stopped")} tone="danger" />
+              <Button label="Start Fill" onPress={() => runCommand(() => startFill(activeUrl, targetWeight, rate, targetAmount, authToken), "Fill started")} />
+              <Button label="Stop" onPress={() => runCommand(() => stopFill(activeUrl, authToken), "Fill stopped")} tone="danger" />
             </View>
-            <Button label="Reset To Idle" onPress={() => runCommand(() => resetFill(activeUrl), "Controller reset")} tone="dark" />
+            <Button label="Reset To Idle" onPress={() => runCommand(() => resetFill(activeUrl, authToken), "Controller reset")} tone="dark" />
           </View>
         )}
 
@@ -240,7 +331,8 @@ export default function App() {
             <Text style={styles.sectionTitle}>Admin</Text>
             <Text style={styles.label}>Rate per Kg</Text>
             <TextInput value={adminRate} onChangeText={setAdminRate} keyboardType="decimal-pad" style={styles.input} />
-            <Button label="Save Rate" onPress={() => runCommand(() => saveRate(activeUrl, adminRate), "Rate saved")} />
+            <Button label="Save Rate" onPress={() => runCommand(() => saveRate(activeUrl, adminRate, authToken), "Rate saved")} />
+            <Button label="Sign Out" onPress={handleLogout} tone="light" />
 
             <View style={styles.periodRow}>
               {["today", "week", "month", "year", "all"].map((item) => (
@@ -281,6 +373,9 @@ export default function App() {
             <Text style={styles.raw}>{JSON.stringify(status, null, 2)}</Text>
           </View>
         )}
+
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -295,7 +390,12 @@ const styles = StyleSheet.create({
   state: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, fontWeight: "900" },
   stateOk: { backgroundColor: "#e8f6ee", color: "#14823f" },
   stateWarn: { backgroundColor: "#fff3dc", color: "#b54708" },
-  deviceRow: { gap: 8, marginBottom: 10 },
+  deviceRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  deviceStatus: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  deviceDotOk: { color: "#14823f", fontSize: 14 },
+  deviceDotOff: { color: "#b54708", fontSize: 14 },
+  deviceLabel: { flex: 1, color: "#647282", fontSize: 13 },
+  reconnectBtn: { backgroundColor: "#334155", borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
   tabs: { flexDirection: "row", backgroundColor: "#f7f9fc", borderRadius: 8, padding: 4, borderWidth: 1, borderColor: "#d7dee8", marginBottom: 12 },
   tab: { flex: 1, padding: 10, borderRadius: 6, alignItems: "center" },
   tabActive: { backgroundColor: "#155e75" },
@@ -333,4 +433,10 @@ const styles = StyleSheet.create({
   relayState: { marginTop: 6, color: "#b42318", fontWeight: "900" },
   relayOn: { color: "#14823f" },
   raw: { fontFamily: "monospace", color: "#263340", backgroundColor: "#f7f9fc", padding: 10, borderRadius: 8 },
+  errorText: { color: "#b42318", marginTop: 8, fontWeight: "700" },
+  roleRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
+  roleOption: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", backgroundColor: "#e8eef5", borderWidth: 1, borderColor: "#d7dee8" },
+  roleOptionActive: { backgroundColor: "#155e75", borderColor: "#155e75" },
+  roleOptionText: { fontWeight: "800", textTransform: "capitalize", color: "#334155" },
+  roleOptionTextActive: { color: "#fff" },
 });

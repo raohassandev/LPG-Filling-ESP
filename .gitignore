@@ -8,3 +8,4 @@ tools/local/
 *.map
 *.partitions.bin
 firmware/kc868_a6_lpg_controller/build/
+apps/lpg-expo-app/node_modules/

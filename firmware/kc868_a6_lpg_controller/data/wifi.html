@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WiFi Settings – LPG Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Arial,sans-serif;background:#edf1f5;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:16px}
+h1{font-size:1.4rem;font-weight:900;margin-bottom:16px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:18px;max-width:480px}
+.card+.card{margin-top:12px}
+h2{font-size:1rem;font-weight:800;margin-bottom:12px}
+label{display:block;font-size:.85rem;font-weight:700;color:#647282;margin:10px 0 4px}
+input{width:100%;border:1px solid #d7dee8;border-radius:8px;padding:10px 12px;font-size:1rem;color:#17212b}
+input:focus{outline:2px solid #0f766e;border-color:#0f766e}
+button{margin-top:14px;width:100%;background:#0f766e;color:#fff;border:none;border-radius:8px;padding:11px;font-size:1rem;font-weight:800;cursor:pointer}
+button:active{opacity:.8}
+.msg{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:.9rem;font-weight:700;display:none}
+.ok{background:#e8f6ee;color:#14823f}
+.err{background:#fdebea;color:#b42318}
+.status{background:#f7f9fc;border-radius:8px;padding:12px;font-size:.85rem;line-height:1.7}
+.status .label{color:#647282;font-weight:700}
+.conn{color:#14823f;font-weight:700}
+.disc{color:#b42318;font-weight:700}
+</style>
+</head>
+<body>
+<a href="/">← Back</a>
+<h1>WiFi Settings</h1>
+
+<div class="card">
+  <h2>Current Network Status</h2>
+  <div class="status" id="status">Loading...</div>
+</div>
+
+<div class="card">
+  <h2>Station (STA) Credentials</h2>
+  <p style="font-size:.85rem;color:#647282;margin-bottom:4px">The network the controller joins to reach your LAN / internet.</p>
+  <label>SSID (Network Name)</label>
+  <input id="ssid" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Your WiFi network name">
+  <label>Password</label>
+  <input id="pass" type="password" autocomplete="current-password" placeholder="Minimum 8 characters">
+  <div style="font-size:.8rem;color:#647282;margin-top:8px">
+    Admin password required. The controller will reconnect immediately after saving.
+  </div>
+  <label>Admin Password</label>
+  <input id="token" type="password" autocomplete="current-password" placeholder="Admin session token">
+  <button onclick="save()">Save &amp; Reconnect</button>
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+async function loadStatus(){
+  try{
+    const n=await fetch('/api/network').then(r=>r.json());
+    document.getElementById('status').innerHTML=
+      '<span class="label">AP SSID:</span> '+n.apSSID+' &nbsp; <span class="label">AP IP:</span> '+n.apIP+'<br>'+
+      '<span class="label">STA:</span> <span class="'+(n.staConnected?'conn':'disc')+'">'+(n.staConnected?n.staSSID+' &nbsp; '+n.staIP:'disconnected')+'</span>';
+    if(n.staConnected) document.getElementById('ssid').value=n.staSSID;
+  }catch(e){
+    document.getElementById('status').textContent='Could not fetch network status.';
+  }
+}
+
+async function save(){
+  const ssid=document.getElementById('ssid').value.trim();
+  const pass=document.getElementById('pass').value;
+  const token=document.getElementById('token').value.trim();
+  const msg=document.getElementById('msg');
+  msg.style.display='none';
+
+  if(!ssid){showMsg('SSID cannot be empty.','err');return;}
+  if(pass.length<8){showMsg('Password must be at least 8 characters.','err');return;}
+  if(!token){showMsg('Admin token required.','err');return;}
+
+  try{
+    const r=await fetch('/api/wifi?staSsid='+encodeURIComponent(ssid)+'&staPassword='+encodeURIComponent(pass)+'&token='+encodeURIComponent(token),{method:'POST'});
+    const j=await r.json();
+    if(j.ok){
+      showMsg('Saved! Controller is reconnecting to "'+ssid+'". This page will reload in 5s.','ok');
+      setTimeout(()=>location.reload(),5000);
+    }else{
+      showMsg(j.message||'Error saving settings.','err');
+    }
+  }catch(e){
+    showMsg('Request failed: '+e.message,'err');
+  }
+}
+
+function showMsg(text,cls){
+  const el=document.getElementById('msg');
+  el.textContent=text;
+  el.className='msg '+cls;
+  el.style.display='block';
+}
+
+loadStatus();
+</script>
+</body>
+</html>
