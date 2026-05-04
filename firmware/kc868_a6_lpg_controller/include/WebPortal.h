@@ -44,6 +44,8 @@ class WebPortal {
   void handleHwTare();
   void handleSetSimWeight();
   void handleClearSim();
+  void handleSetSimInputs();
+  void handleClearSimInputs();
   void handleCalibrate();
   void handleLogin();
   void handleLogout();

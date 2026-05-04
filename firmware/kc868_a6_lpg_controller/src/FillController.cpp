@@ -143,8 +143,14 @@ bool FillController::resetToIdle(String& reason) {
 }
 
 void FillController::syncInputs() {
-  const bool cylinderPresent = inputExpander_.inputState(0);
-  const bool nozzleEngaged = inputExpander_.inputState(1);
+  bool cylinderPresent, nozzleEngaged;
+  if (simInputsActive_) {
+    cylinderPresent = simCylinderPresent_;
+    nozzleEngaged   = simNozzleEngaged_;
+  } else {
+    cylinderPresent = inputExpander_.inputState(0);
+    nozzleEngaged   = inputExpander_.inputState(1);
+  }
   const bool emergencyOk = !inputExpander_.inputState(3);
 
   statusStore_.setCylinderPresent(cylinderPresent);
@@ -154,6 +160,18 @@ void FillController::syncInputs() {
   for (uint8_t i = 0; i < 6; ++i) {
     statusStore_.setInput(i, inputExpander_.inputState(i));
   }
+}
+
+void FillController::setSimInputs(bool cylinderPresent, bool nozzleEngaged) {
+  simInputsActive_    = true;
+  simCylinderPresent_ = cylinderPresent;
+  simNozzleEngaged_   = nozzleEngaged;
+  Serial.printf("[CTRL] Sim inputs active: cylinder=%d nozzle=%d\n", cylinderPresent, nozzleEngaged);
+}
+
+void FillController::clearSimInputs() {
+  simInputsActive_ = false;
+  Serial.println("[CTRL] Sim inputs cleared — reading physical inputs");
 }
 
 void FillController::syncRelays() {

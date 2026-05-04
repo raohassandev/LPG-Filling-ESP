@@ -23,6 +23,10 @@ class FillController {
   bool stopFill(const String& reasonCode);
   bool resetToIdle(String& reason);
 
+  // Simulation — override physical inputs for automated testing
+  void setSimInputs(bool cylinderPresent, bool nozzleEngaged);
+  void clearSimInputs();
+
  private:
   void syncInputs();
   void syncRelays();
@@ -39,4 +43,8 @@ class FillController {
   TransactionLog& transactionLog_;
   uint32_t activeTransactionId_ = 0;
   unsigned long stateStartedMs_ = 0;
+
+  bool simInputsActive_    = false;
+  bool simCylinderPresent_ = false;
+  bool simNozzleEngaged_   = false;
 };

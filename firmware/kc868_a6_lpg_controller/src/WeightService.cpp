@@ -7,8 +7,20 @@ void WeightService::begin()
     Preferences prefs;
     prefs.begin("weight", true);
     calibrationFactor_ = prefs.getFloat("cal", calibrationFactor_);
+    if (prefs.getBool("cal2_on", false)) {
+        calLow_.rawAbs  = prefs.getLong("cal2_lr", 0);
+        calLow_.kg      = prefs.getFloat("cal2_lk", 0.0f);
+        calHigh_.rawAbs = prefs.getLong("cal2_hr", 0);
+        calHigh_.kg     = prefs.getFloat("cal2_hk", 0.0f);
+        hasTwoPoints_   = (calLow_.rawAbs != calHigh_.rawAbs) && (calLow_.kg != calHigh_.kg);
+    }
     prefs.end();
-    Serial.printf("[WEIGHT] Calibration factor loaded: %.2f\n", calibrationFactor_);
+    if (hasTwoPoints_) {
+        Serial.printf("[WEIGHT] Two-point cal loaded: low=%.3fkg@%ld  high=%.3fkg@%ld\n",
+                      calLow_.kg, calLow_.rawAbs, calHigh_.kg, calHigh_.rawAbs);
+    } else {
+        Serial.printf("[WEIGHT] Single-point cal loaded: factor=%.2f\n", calibrationFactor_);
+    }
 
     // Configure GPIO pins
     pinMode(kHx711DoutPin, INPUT_PULLUP);
@@ -60,7 +72,15 @@ void WeightService::poll()
         readError_ = false;
         lastRawValue_ = rawValue;
 
-        float weightKg = static_cast<float>(rawValue - tareOffsetRaw_) / calibrationFactor_;
+        float weightKg;
+        if (hasTwoPoints_) {
+            const float span = static_cast<float>(calHigh_.rawAbs - calLow_.rawAbs);
+            weightKg = (span != 0.0f)
+                ? calLow_.kg + static_cast<float>(rawValue - calLow_.rawAbs) * (calHigh_.kg - calLow_.kg) / span
+                : 0.0f;
+        } else {
+            weightKg = static_cast<float>(rawValue - tareOffsetRaw_) / calibrationFactor_;
+        }
 
         // Update history and check stability
         liveWeightKg_ = weightKg;
@@ -193,7 +213,47 @@ void WeightService::setCalibrationFactor(float factor)
     prefs.begin("weight", false);
     prefs.putFloat("cal", factor);
     prefs.end();
-    Serial.printf("[WEIGHT] Calibration factor saved: %.2f\n", factor);
+    Serial.printf("[WEIGHT] Single-point factor saved: %.2f\n", factor);
+}
+
+void WeightService::setCalPoint(uint8_t point, float knownKg)
+{
+    CalPoint& pt = (point == 1) ? calLow_ : calHigh_;
+    pt.rawAbs = lastRawValue_;
+    pt.kg     = knownKg;
+
+    hasTwoPoints_ = (calLow_.rawAbs != calHigh_.rawAbs)
+                 && (calLow_.kg     != calHigh_.kg)
+                 && !(calLow_.rawAbs == 0 && calLow_.kg == 0.0f)
+                 && !(calHigh_.rawAbs == 0 && calHigh_.kg == 0.0f);
+
+    persistCalPoints();
+    Serial.printf("[WEIGHT] Cal point %d set: %.3fkg @ raw %ld  two-point=%s\n",
+                  point, knownKg, pt.rawAbs, hasTwoPoints_ ? "YES" : "NO");
+}
+
+void WeightService::clearCalPoints()
+{
+    calLow_  = CalPoint{};
+    calHigh_ = CalPoint{};
+    hasTwoPoints_ = false;
+    Preferences prefs;
+    prefs.begin("weight", false);
+    prefs.putBool("cal2_on", false);
+    prefs.end();
+    Serial.println("[WEIGHT] Two-point cal cleared");
+}
+
+void WeightService::persistCalPoints()
+{
+    Preferences prefs;
+    prefs.begin("weight", false);
+    prefs.putLong("cal2_lr",  calLow_.rawAbs);
+    prefs.putFloat("cal2_lk", calLow_.kg);
+    prefs.putLong("cal2_hr",  calHigh_.rawAbs);
+    prefs.putFloat("cal2_hk", calHigh_.kg);
+    prefs.putBool("cal2_on",  hasTwoPoints_);
+    prefs.end();
 }
 
 void WeightService::setSimulatedWeightKg(float weightKg)

@@ -1,5 +1,6 @@
 #include "NetworkManager.h"
 #include "BoardConfig.h"
+#include <ESPmDNS.h>
 
 void LpgNetworkManager::begin()
 {
@@ -21,6 +22,7 @@ void LpgNetworkManager::poll()
             updateStatus(NetworkStatus::Connected);
             Serial.printf("[NET] STA connected: %s  IP: %s\n",
                           WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+            if (mdnsRestart_) { startMdns(); mdnsRestart_ = false; }
         }
     }
     else if (status_ == NetworkStatus::Connected)
@@ -30,8 +32,10 @@ void LpgNetworkManager::poll()
         if (autoReconnect_ && staConfigured_)
         {
             updateStatus(NetworkStatus::Connecting);
-            WiFi.begin(staSsid_.c_str(), staPassword_.c_str()); // non-blocking
+            WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
             Serial.println("[NET] STA reconnect initiated");
+            // mDNS will restart when poll() sees WL_CONNECTED next tick
+            mdnsRestart_ = true;
         }
     }
 }
@@ -118,6 +122,18 @@ void LpgNetworkManager::startAP()
     Serial.printf("[NET] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
 }
 
+void LpgNetworkManager::startMdns()
+{
+    MDNS.end();
+    delay(100);
+    if (MDNS.begin("lpg-controller")) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.println("[NET] mDNS started: lpg-controller.local");
+    } else {
+        Serial.println("[NET] mDNS start failed");
+    }
+}
+
 bool LpgNetworkManager::startSTA()
 {
     if (!staConfigured_)
@@ -139,6 +155,7 @@ bool LpgNetworkManager::startSTA()
 
     if (WiFi.status() == WL_CONNECTED)
     {
+        startMdns();
         return true;
     }
 

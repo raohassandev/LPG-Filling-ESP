@@ -133,3 +133,23 @@ export function zeroNet(deviceUrl, token) {
 export function saveRate(deviceUrl, ratePerKg, token) {
   return postCommand(deviceUrl, "/api/settings", { ratePerKg }, token);
 }
+
+export function fetchWeight(deviceUrl) {
+  return getJson(deviceUrl, "/api/weight");
+}
+
+export function hwTare(deviceUrl, token) {
+  return postCommand(deviceUrl, "/api/tare-hw", {}, token);
+}
+
+export function calibrateKnown(deviceUrl, knownKg, token) {
+  return postCommand(deviceUrl, "/api/calibrate", { knownKg }, token);
+}
+
+export function calibratePoint(deviceUrl, point, knownKg, token) {
+  return postCommand(deviceUrl, "/api/calibrate", { knownKg, point }, token);
+}
+
+export function calibrateFactor(deviceUrl, factor, token) {
+  return postCommand(deviceUrl, "/api/calibrate", { factor }, token);
+}

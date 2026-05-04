@@ -59,8 +59,10 @@ private:
     String staPassword_;
 
     unsigned long lastStatusChange_ = 0;
+    bool mdnsRestart_ = false;
 
     void updateStatus(NetworkStatus newStatus);
     void startAP();
     bool startSTA();
+    void startMdns();
 };

@@ -89,6 +89,8 @@ void WebPortal::registerRoutes() {
   server_.on("/api/reset", HTTP_POST, [this]() { handleReset(); });
   server_.on("/api/sim-weight",  HTTP_POST, [this]() { handleSetSimWeight(); });
   server_.on("/api/sim-clear",   HTTP_POST, [this]() { handleClearSim(); });
+  server_.on("/api/sim-inputs",       HTTP_POST, [this]() { handleSetSimInputs(); });
+  server_.on("/api/sim-inputs-clear", HTTP_POST, [this]() { handleClearSimInputs(); });
   server_.on("/api/calibrate",   HTTP_POST, [this]() { handleCalibrate(); });
   server_.on("/api/login",   HTTP_POST, [this]() { handleLogin(); });
   server_.on("/api/logout",  HTTP_POST, [this]() { handleLogout(); });
@@ -123,6 +125,7 @@ void WebPortal::handleStatus() { sendJson(200, statusJson()); }
 
 void WebPortal::handleWeight() {
   const StatusSnapshot snap = statusStore_.snapshot();
+  const bool twoPoint = weightService_.hasTwoPoints();
   String body = "{";
   body += "\"weightKg\":"    + String(weightService_.liveWeightKg(), 3) + ",";
   body += "\"tareWeightKg\":" + String(snap.tareWeightKg, 3) + ",";
@@ -130,6 +133,13 @@ void WebPortal::handleWeight() {
   body += "\"rawValue\":"     + String(weightService_.lastRawValue()) + ",";
   body += "\"tareRawValue\":" + String(weightService_.tareOffsetRaw()) + ",";
   body += "\"calFactor\":"    + String(weightService_.calibrationFactor(), 2) + ",";
+  body += "\"calMode\":\""    + String(twoPoint ? "two-point" : "single") + "\",";
+  if (twoPoint) {
+    body += "\"calLowRaw\":"  + String(weightService_.calLowPoint().rawAbs)  + ",";
+    body += "\"calLowKg\":"   + String(weightService_.calLowPoint().kg, 3)   + ",";
+    body += "\"calHighRaw\":" + String(weightService_.calHighPoint().rawAbs) + ",";
+    body += "\"calHighKg\":"  + String(weightService_.calHighPoint().kg, 3)  + ",";
+  }
   body += "\"simActive\":"    + String(weightService_.simActive() ? "true" : "false") + ",";
   body += "\"initialized\":"  + String(weightService_.initialized() ? "true" : "false") + ",";
   body += "\"readError\":"    + String(weightService_.readFailed() ? "true" : "false") + ",";
@@ -313,28 +323,64 @@ void WebPortal::handleClearSim() {
   sendJson(200, "{\"ok\":true}");
 }
 
+void WebPortal::handleSetSimInputs() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const bool cylinder = server_.arg("cylinderPresent") == "1" || server_.arg("cylinderPresent") == "true";
+  const bool nozzle   = server_.arg("nozzleEngaged")   == "1" || server_.arg("nozzleEngaged")   == "true";
+  fillController_.setSimInputs(cylinder, nozzle);
+  sendJson(200, "{\"ok\":true}");
+}
+
+void WebPortal::handleClearSimInputs() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  fillController_.clearSimInputs();
+  sendJson(200, "{\"ok\":true}");
+}
+
 void WebPortal::handleCalibrate() {
   if (!requireAuth(UserRole::Maintenance)) return;
-  const String factorArg = server_.arg("factor");
+  const String factorArg  = server_.arg("factor");
   const String knownKgArg = server_.arg("knownKg");
+  const String pointArg   = server_.arg("point");
+
   if (!factorArg.isEmpty()) {
-    // Direct factor set
+    // Direct single-point factor — clears two-point mode
     const float factor = factorArg.toFloat();
     if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"factor cannot be zero\"}"); return; }
+    weightService_.clearCalPoints();
     weightService_.setCalibrationFactor(factor);
-    sendJson(200, "{\"ok\":true,\"calFactor\":" + String(factor, 2) + "}");
+    sendJson(200, "{\"ok\":true,\"mode\":\"single\",\"calFactor\":" + String(factor, 2) + "}");
+
   } else if (!knownKgArg.isEmpty()) {
-    // Auto-calculate from known weight: factor = (raw - tare) / knownKg
     const float knownKg = knownKgArg.toFloat();
     if (knownKg <= 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"knownKg must be positive\"}"); return; }
-    const long raw = weightService_.lastRawValue();
-    const long tare = weightService_.tareOffsetRaw();
-    const float factor = static_cast<float>(raw - tare) / knownKg;
-    if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"raw equals tare — place known weight first\"}"); return; }
-    weightService_.setCalibrationFactor(factor);
-    sendJson(200, "{\"ok\":true,\"calFactor\":" + String(factor, 2) + ",\"raw\":" + String(raw) + ",\"tare\":" + String(tare) + "}");
+
+    if (!pointArg.isEmpty()) {
+      // Two-point calibration: point=1 (low) or point=2 (high)
+      const int pt = pointArg.toInt();
+      if (pt != 1 && pt != 2) { sendJson(400, "{\"ok\":false,\"message\":\"point must be 1 or 2\"}"); return; }
+      weightService_.setCalPoint(static_cast<uint8_t>(pt), knownKg);
+      const bool active = weightService_.hasTwoPoints();
+      String body = "{\"ok\":true,\"mode\":\"" + String(active ? "two-point" : "two-point-partial") + "\"";
+      body += ",\"point\":"    + String(pt);
+      body += ",\"rawAbs\":"   + String(pt == 1 ? weightService_.calLowPoint().rawAbs : weightService_.calHighPoint().rawAbs);
+      body += ",\"kg\":"       + String(knownKg, 3);
+      body += ",\"twoPointActive\":" + String(active ? "true" : "false") + "}";
+      sendJson(200, body);
+
+    } else {
+      // Legacy single-point: factor = (raw - tare) / knownKg
+      const long raw  = weightService_.lastRawValue();
+      const long tare = weightService_.tareOffsetRaw();
+      const float factor = static_cast<float>(raw - tare) / knownKg;
+      if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"raw equals tare — place known weight first\"}"); return; }
+      weightService_.clearCalPoints();
+      weightService_.setCalibrationFactor(factor);
+      sendJson(200, "{\"ok\":true,\"mode\":\"single\",\"calFactor\":" + String(factor, 2)
+               + ",\"raw\":" + String(raw) + ",\"tare\":" + String(tare) + "}");
+    }
   } else {
-    sendJson(400, "{\"ok\":false,\"message\":\"provide factor= or knownKg=\"}");
+    sendJson(400, "{\"ok\":false,\"message\":\"provide factor=, knownKg=, or knownKg= with point=1|2\"}");
   }
 }
 
