@@ -2,61 +2,48 @@
 
 void AuthService::begin()
 {
-    prefs_.begin("auth", false);
-
-    // Initialize default users if first run
-    if (!prefs_.getString("admin_user").length())
-    {
-        prefs_.putString("admin_user", kDefaultAdmin);
-        prefs_.putString("admin_hash", hashPassword(kDefaultAdminPass));
-        prefs_.putString("operator_user", kDefaultOperator);
-        prefs_.putString("operator_hash", hashPassword(kDefaultOperatorPass));
-        prefs_.putString("maintenance_user", kDefaultMaintenance);
-        prefs_.putString("maintenance_hash", hashPassword(kDefaultMaintenancePass));
-
-        userCount_ = 3;
-        Serial.println("[AUTH] Default users initialized");
-    }
-    else
-    {
-        // Count existing users
-        userCount_ = 0;
-        if (prefs_.getString("admin_user").length())
-            userCount_++;
-        if (prefs_.getString("operator_user").length())
-            userCount_++;
-        if (prefs_.getString("maintenance_user").length())
-            userCount_++;
-    }
-
-    Serial.printf("[AUTH] Auth service initialized, %u users\n", userCount_);
+    userStore_.begin();
+    Serial.printf("[AUTH] Auth service ready, %u user(s)\n", userStore_.count());
 }
 
-bool AuthService::login(const String &username, const String &password)
+bool AuthService::login(const String& username, const String& password)
 {
-    UserRole role;
-    if (validateUser(username, password, role))
-    {
-        currentRole_ = role;
-        currentSession_.sessionId = String(millis());
-        currentSession_.role = role;
-        currentSession_.createdAt = millis();
-        currentSession_.lastActivity = millis();
-        currentSession_.active = true;
+    UserRoleLevel storeRole;
+    bool blocked, canSetRate;
 
-        Serial.printf("[AUTH] User logged in: %s, role: %u\n", username.c_str(), static_cast<uint8_t>(role));
-        return true;
+    if (!userStore_.validateCredentials(username, password, storeRole, blocked, canSetRate)) {
+        Serial.printf("[AUTH] Login failed: %s\n", username.c_str());
+        return false;
     }
 
-    Serial.printf("[AUTH] Login failed for user: %s\n", username.c_str());
-    return false;
+    if (blocked) {
+        Serial.printf("[AUTH] Login refused — blocked: %s\n", username.c_str());
+        return false;
+    }
+
+    // Map UserRoleLevel → UserRole (values are identical by design)
+    currentRole_       = static_cast<UserRole>(static_cast<uint8_t>(storeRole));
+    currentUsername_   = username;
+    currentCanSetRate_ = canSetRate || (currentRole_ == UserRole::Admin);
+
+    currentSession_.sessionId    = String(millis());
+    currentSession_.role         = currentRole_;
+    currentSession_.createdAt    = millis();
+    currentSession_.lastActivity = millis();
+    currentSession_.active       = true;
+
+    Serial.printf("[AUTH] Login: %s role=%u canSetRate=%d\n",
+                  username.c_str(), (uint8_t)currentRole_, currentCanSetRate_);
+    return true;
 }
 
 void AuthService::logout()
 {
-    currentRole_ = UserRole::None;
+    Serial.printf("[AUTH] Logout: %s\n", currentUsername_.c_str());
+    currentRole_       = UserRole::None;
+    currentUsername_   = "";
+    currentCanSetRate_ = false;
     currentSession_.active = false;
-    Serial.println("[AUTH] User logged out");
 }
 
 bool AuthService::hasPermission(UserRole required)
@@ -66,177 +53,61 @@ bool AuthService::hasPermission(UserRole required)
 
 bool AuthService::sessionValid()
 {
-    if (!currentSession_.active)
-    {
-        return false;
-    }
-
-    if (millis() - currentSession_.lastActivity > kSessionTimeoutMs)
-    {
+    if (!currentSession_.active) return false;
+    if (millis() - currentSession_.lastActivity > kSessionTimeoutMs) {
         logout();
         return false;
     }
-
     return true;
 }
 
 void AuthService::refreshSession()
 {
     if (currentSession_.active)
-    {
         currentSession_.lastActivity = millis();
-    }
 }
 
-bool AuthService::changePassword(const String &oldPassword, const String &newPassword)
+bool AuthService::changePassword(const String& oldPassword, const String& newPassword)
 {
-    // Get current username based on role
-    String username;
-    String key;
-
-    switch (currentRole_)
-    {
-    case UserRole::Admin:
-        username = prefs_.getString("admin_user");
-        key = "admin_hash";
-        break;
-    case UserRole::Maintenance:
-        username = prefs_.getString("maintenance_user");
-        key = "maintenance_hash";
-        break;
-    case UserRole::Operator:
-        username = prefs_.getString("operator_user");
-        key = "operator_hash";
-        break;
-    default:
+    if (currentUsername_.isEmpty()) return false;
+    // Verify old password first
+    UserRoleLevel role; bool blocked, csr;
+    if (!userStore_.validateCredentials(currentUsername_, oldPassword, role, blocked, csr))
         return false;
-    }
-
-    // Verify old password
-    String storedHash = prefs_.getString(key.c_str());
-    if (storedHash != hashPassword(oldPassword))
-    {
-        Serial.println("[AUTH] Password change failed: incorrect old password");
-        return false;
-    }
-
-    // Set new password
-    prefs_.putString(key.c_str(), hashPassword(newPassword));
-    Serial.println("[AUTH] Password changed successfully");
-    return true;
+    return userStore_.updatePassword(currentUsername_, newPassword);
 }
 
-bool AuthService::resetPassword(const String &newPassword)
-{
-    // Only admin can reset passwords
-    if (currentRole_ != UserRole::Admin)
-    {
-        return false;
-    }
+// --- Admin-guarded user management ---
 
-    // This would be used to reset other users' passwords
-    // Implementation depends on specific requirements
-    return false;
+bool AuthService::createUser(const String& username, const String& password,
+                              UserRoleLevel role, bool canSetRate)
+{
+    if (!hasPermission(UserRole::Admin)) return false;
+    return userStore_.createUser(username, password, role, canSetRate);
 }
 
-bool AuthService::setUserPassword(const String &username, const String &password)
+bool AuthService::updatePassword(const String& username, const String& newPassword)
 {
-    if (currentRole_ != UserRole::Admin)
-    {
-        return false;
-    }
-
-    String hash = hashPassword(password);
-
-    if (username == prefs_.getString("admin_user"))
-    {
-        prefs_.putString("admin_hash", hash);
-    }
-    else if (username == prefs_.getString("operator_user"))
-    {
-        prefs_.putString("operator_hash", hash);
-    }
-    else if (username == prefs_.getString("maintenance_user"))
-    {
-        prefs_.putString("maintenance_hash", hash);
-    }
-    else
-    {
-        return false;
-    }
-
-    return true;
+    if (!hasPermission(UserRole::Admin)) return false;
+    return userStore_.updatePassword(username, newPassword);
 }
 
-bool AuthService::deleteUser(const String &username)
+bool AuthService::setBlocked(const String& username, bool blocked)
 {
-    // Admin cannot be deleted
-    if (username == prefs_.getString("admin_user"))
-    {
-        return false;
-    }
-
-    if (currentRole_ != UserRole::Admin)
-    {
-        return false;
-    }
-
-    if (username == prefs_.getString("operator_user"))
-    {
-        prefs_.remove("operator_user");
-        prefs_.remove("operator_hash");
-        userCount_--;
-    }
-    else if (username == prefs_.getString("maintenance_user"))
-    {
-        prefs_.remove("maintenance_user");
-        prefs_.remove("maintenance_hash");
-        userCount_--;
-    }
-    else
-    {
-        return false;
-    }
-
-    return true;
+    if (!hasPermission(UserRole::Admin)) return false;
+    return userStore_.setBlocked(username, blocked);
 }
 
-String AuthService::hashPassword(const String &password)
+bool AuthService::setCanSetRate(const String& username, bool canSetRate)
 {
-    // Simple hash - in production use proper hashing like bcrypt
-    // This is just a placeholder
-    uint32_t hash = 5381;
-    for (size_t i = 0; i < password.length(); i++)
-    {
-        hash = ((hash << 5) + hash) + password.charAt(i);
-    }
-    return String(hash);
+    if (!hasPermission(UserRole::Admin)) return false;
+    return userStore_.setCanSetRate(username, canSetRate);
 }
 
-bool AuthService::validateUser(const String &username, const String &password, UserRole &role)
+bool AuthService::deleteUser(const String& username)
 {
-    String hash = hashPassword(password);
-
-    if (username == prefs_.getString("admin_user") &&
-        hash == prefs_.getString("admin_hash"))
-    {
-        role = UserRole::Admin;
-        return true;
-    }
-
-    if (username == prefs_.getString("maintenance_user") &&
-        hash == prefs_.getString("maintenance_hash"))
-    {
-        role = UserRole::Maintenance;
-        return true;
-    }
-
-    if (username == prefs_.getString("operator_user") &&
-        hash == prefs_.getString("operator_hash"))
-    {
-        role = UserRole::Operator;
-        return true;
-    }
-
-    return false;
+    if (!hasPermission(UserRole::Admin)) return false;
+    // Cannot delete self
+    if (username.equalsIgnoreCase(currentUsername_)) return false;
+    return userStore_.deleteUser(username);
 }

@@ -85,8 +85,9 @@ export function connectStatusStream(deviceUrl, onStatus, onMode) {
   };
 }
 
-export async function fetchTransactions(deviceUrl) {
-  const data = await getJson(deviceUrl, "/api/transactions");
+export async function fetchTransactions(deviceUrl, token = "") {
+  const path = token ? `/api/transactions?token=${encodeURIComponent(token)}` : "/api/transactions";
+  const data = await requestJson(deviceUrl, path);
   return Array.isArray(data.transactions) ? data.transactions : [];
 }
 
@@ -152,4 +153,27 @@ export function calibratePoint(deviceUrl, point, knownKg, token) {
 
 export function calibrateFactor(deviceUrl, factor, token) {
   return postCommand(deviceUrl, "/api/calibrate", { factor }, token);
+}
+
+export async function fetchUsers(deviceUrl, token) {
+  const data = await requestJson(deviceUrl, `/api/users?token=${encodeURIComponent(token)}`);
+  return Array.isArray(data.users) ? data.users : [];
+}
+
+export function createUser(deviceUrl, username, password, role, canSetRate, token) {
+  return postCommand(deviceUrl, "/api/users", { username, password, role, canSetRate: canSetRate ? "1" : "0" }, token);
+}
+
+export function updateUser(deviceUrl, username, fields, token) {
+  return postCommand(deviceUrl, "/api/users/update", { username, ...fields }, token);
+}
+
+export function deleteUser(deviceUrl, username, token) {
+  return postCommand(deviceUrl, "/api/users/delete", { username }, token);
+}
+
+export async function fetchTransactionsForUser(deviceUrl, username, token) {
+  const path = `/api/transactions?token=${encodeURIComponent(token)}${username ? `&username=${encodeURIComponent(username)}` : ""}`;
+  const data = await requestJson(deviceUrl, path);
+  return Array.isArray(data.transactions) ? data.transactions : [];
 }

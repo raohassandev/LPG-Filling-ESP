@@ -19,8 +19,12 @@ import {
   calibrateKnown,
   calibratePoint,
   connectStatusStream,
+  createUser,
+  deleteUser,
   fetchSettings,
   fetchTransactions,
+  fetchTransactionsForUser,
+  fetchUsers,
   fetchWeight,
   hwTare,
   login,
@@ -29,6 +33,7 @@ import {
   saveRate,
   startFill,
   stopFill,
+  updateUser,
   zeroNet,
 } from "./src/api";
 import {
@@ -281,7 +286,7 @@ function SegControl({ options, value, onChange }) {
 
 function SignInScreen({ activeUrl, onUrlChange, onLogin, streamMode }) {
   const [urlDraft,  setUrlDraft]  = useState(activeUrl);
-  const [role,      setRole]      = useState(DEV_AUTO_LOGIN_ROLE);
+  const [username,  setUsername]  = useState(DEV_AUTO_LOGIN_ROLE === "admin" ? "admin" : DEV_AUTO_LOGIN_ROLE === "maintenance" ? "manufacturer" : "operator");
   const [password,  setPassword]  = useState(DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE] ?? "");
   const [error,     setError]     = useState("");
   const [busy,      setBusy]      = useState(false);
@@ -293,8 +298,8 @@ function SignInScreen({ activeUrl, onUrlChange, onLogin, streamMode }) {
     const url = urlDraft.trim() || activeUrl;
     if (url !== activeUrl) onUrlChange(url);
     try {
-      const r = await login(url, role, password);
-      onLogin(r.token);
+      const r = await login(url, username, password);
+      onLogin(r);
     } catch (err) {
       setError(err.message || "Login failed");
       shake();
@@ -321,15 +326,13 @@ function SignInScreen({ activeUrl, onUrlChange, onLogin, streamMode }) {
         </Text>
       )}
 
-      <Field label="Role">
-        <SegControl
-          options={[
-            { key: "operator",    label: "Operator" },
-            { key: "maintenance", label: "Maintenance" },
-            { key: "admin",       label: "Admin" },
-          ]}
-          value={role}
-          onChange={(r) => { setRole(r); setPassword(DEV_CREDENTIALS[r] ?? ""); }}
+      <Field label="Username">
+        <TextInput
+          value={username} onChangeText={setUsername}
+          style={A.input} autoCapitalize="none" autoCorrect={false}
+          returnKeyType="next"
+          placeholder="admin / operator / manufacturer"
+          placeholderTextColor={C.muted}
         />
       </Field>
 
@@ -482,6 +485,184 @@ function CalibrationPanel({ activeUrl, authToken }) {
   );
 }
 
+// ─── SettingsWifiPanel ────────────────────────────────────────────────────────
+
+function SettingsWifiPanel({ activeUrl, authToken }) {
+  const [ssid,   setSsid]   = useState("");
+  const [pass,   setPass]   = useState("");
+  const [result, setResult] = useState(null);
+  const [busy,   setBusy]   = useState(false);
+
+  async function save() {
+    setBusy(true); setResult(null);
+    try {
+      await fetch(`${activeUrl}/api/wifi?token=${encodeURIComponent(authToken)}&staSsid=${encodeURIComponent(ssid)}&staPassword=${encodeURIComponent(pass)}`, { method: "POST" });
+      setResult({ ok: true, msg: "WiFi saved. Board will reconnect." });
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Failed" });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 4 }]}>WiFi (STA)</Text>
+      <Field label="Network SSID">
+        <TextInput value={ssid} onChangeText={setSsid} style={A.input}
+          autoCapitalize="none" autoCorrect={false} placeholder="Your WiFi name"
+          placeholderTextColor={C.muted} returnKeyType="next" />
+      </Field>
+      <Field label="Password">
+        <TextInput value={pass} onChangeText={setPass} style={A.input}
+          secureTextEntry autoCapitalize="none" placeholder="8+ characters"
+          placeholderTextColor={C.muted} returnKeyType="done" />
+      </Field>
+      <View style={{ height: 12 }} />
+      <Btn label={busy ? "Saving…" : "Save WiFi"} tone="ghost" full disabled={busy || !ssid}
+        onPress={save} />
+      {result && (
+        <Text style={[T.caption, { color: result.ok ? C.green : C.red, marginTop: 8, textAlign: "center" }]}>
+          {result.msg}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── UsersPanel ───────────────────────────────────────────────────────────────
+
+const ROLE_LABELS = { 1: "Operator", 2: "Manufacturer", 3: "Admin" };
+const ROLE_VALUES = [{ key: "1", label: "Operator" }, { key: "2", label: "Manufacturer" }, { key: "3", label: "Admin" }];
+
+function UsersPanel({ activeUrl, authToken }) {
+  const [users,    setUsers]    = useState([]);
+  const [busy,     setBusy]     = useState(false);
+  const [newUser,  setNewUser]  = useState({ username: "", password: "", role: "1", canSetRate: false });
+  const [result,   setResult]   = useState(null);
+
+  async function load() {
+    try { setUsers(await fetchUsers(activeUrl, authToken)); } catch {}
+  }
+
+  useEffect(() => { load(); }, [activeUrl, authToken]);
+
+  async function doCreate() {
+    if (!newUser.username || !newUser.password) return;
+    setBusy(true); setResult(null);
+    try {
+      await createUser(activeUrl, newUser.username, newUser.password, newUser.role, newUser.canSetRate, authToken);
+      setNewUser({ username: "", password: "", role: "1", canSetRate: false });
+      setResult({ ok: true, msg: "User created" });
+      load();
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Failed" });
+    } finally { setBusy(false); }
+  }
+
+  async function toggle(username, field, currentVal) {
+    setBusy(true);
+    try {
+      await updateUser(activeUrl, username, { [field]: currentVal ? "0" : "1" }, authToken);
+      load();
+    } catch {} finally { setBusy(false); }
+  }
+
+  async function doDelete(username) {
+    if (Platform.OS !== "web") {
+      const { Alert } = require("react-native");
+      Alert.alert("Delete user", `Delete "${username}"?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: async () => {
+          try { await deleteUser(activeUrl, username, authToken); load(); } catch {}
+        }},
+      ]);
+    } else {
+      if (!window.confirm(`Delete user "${username}"?`)) return;
+      try { await deleteUser(activeUrl, username, authToken); load(); } catch {}
+    }
+  }
+
+  return (
+    <View style={S.card}>
+      <Text style={T.cardTitle}>User Management</Text>
+
+      {/* user list */}
+      {users.length === 0
+        ? <Text style={[T.body, { color: C.muted, textAlign: "center", paddingVertical: 12 }]}>No users</Text>
+        : users.map((u) => (
+          <View key={u.username} style={[S.txnRow, { alignItems: "center" }]}>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Text style={[T.body, { fontWeight: "800" }]}>{u.username}</Text>
+                <Pill label={u.role} ok={u.role !== "blocked"} sm />
+                {u.blocked && <Pill label="Blocked" ok={false} sm />}
+                {u.canSetRate && <Pill label="Set Rate" ok={true} sm />}
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              <Pressable
+                style={[S.tareBtn, u.blocked && { backgroundColor: C.tealLight }]}
+                onPress={() => toggle(u.username, "blocked", u.blocked)}
+                disabled={busy}
+              >
+                <Text style={[S.tareBtnTxt, { color: u.blocked ? C.teal : C.red }]}>{u.blocked ? "Unblock" : "Block"}</Text>
+              </Pressable>
+              <Pressable
+                style={[S.tareBtn, u.canSetRate && { backgroundColor: C.tealLight }]}
+                onPress={() => toggle(u.username, "canSetRate", u.canSetRate)}
+                disabled={busy}
+              >
+                <Text style={[S.tareBtnTxt, { color: u.canSetRate ? C.teal : C.slate }]}>Rate</Text>
+              </Pressable>
+              {u.role !== "admin" && (
+                <Pressable style={[S.tareBtn, { backgroundColor: C.redLight }]}
+                  onPress={() => doDelete(u.username)} disabled={busy}>
+                  <Text style={[S.tareBtnTxt, { color: C.red }]}>Del</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        ))
+      }
+
+      {/* create user form */}
+      <View style={S.panelDivider} />
+      <Text style={[T.label, { marginBottom: 8, marginTop: 4 }]}>Create User</Text>
+      <Field label="Username">
+        <TextInput value={newUser.username} onChangeText={(v) => setNewUser((p) => ({ ...p, username: v }))}
+          style={A.input} autoCapitalize="none" placeholder="username" placeholderTextColor={C.muted} />
+      </Field>
+      <Field label="Password">
+        <TextInput value={newUser.password} onChangeText={(v) => setNewUser((p) => ({ ...p, password: v }))}
+          style={A.input} secureTextEntry placeholder="password" placeholderTextColor={C.muted} />
+      </Field>
+      <Field label="Role">
+        <SegControl options={ROLE_VALUES} value={newUser.role}
+          onChange={(r) => setNewUser((p) => ({ ...p, role: r }))} />
+      </Field>
+      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, gap: 12 }}>
+        <Pressable onPress={() => setNewUser((p) => ({ ...p, canSetRate: !p.canSetRate }))} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2,
+            borderColor: newUser.canSetRate ? C.teal : C.border,
+            backgroundColor: newUser.canSetRate ? C.teal : "transparent",
+            alignItems: "center", justifyContent: "center" }}>
+            {newUser.canSetRate && <Text style={{ color: C.white, fontSize: 13, fontWeight: "900" }}>✓</Text>}
+          </View>
+          <Text style={[T.body, { color: C.secondary }]}>Allow rate setting</Text>
+        </Pressable>
+      </View>
+      <View style={{ height: 12 }} />
+      <Btn label={busy ? "Creating…" : "Create User"} tone="primary" full
+        disabled={busy || !newUser.username || !newUser.password} onPress={doCreate} />
+      {result && (
+        <Text style={[T.caption, { color: result.ok ? C.green : C.red, marginTop: 8, textAlign: "center" }]}>
+          {result.msg}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 // ─── SetupScreen ──────────────────────────────────────────────────────────────
 
 function SafetyBadge({ label, ok }) {
@@ -495,7 +676,7 @@ function SafetyBadge({ label, ok }) {
   );
 }
 
-function SetupScreen({ status, activeUrl, authToken, onLogout, transactions }) {
+function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, authCanSetRate, onLogout, transactions }) {
   const [tareWeight,  setTareWeight]  = useState(fmt.money(status.tareWeightKg));
   const [targetWeight,setTargetWeight]= useState("11.800");
   const [targetAmount,setTargetAmount]= useState("2950.00");
@@ -650,8 +831,9 @@ function SetupScreen({ status, activeUrl, authToken, onLogout, transactions }) {
               <Text style={A.fieldLbl}>Rate / kg</Text>
               <View style={S.rateInputWrap}>
                 <Text style={S.rateUnit}>PKR</Text>
-                <TextInput value={rate} onChangeText={(v) => { setRate(v); syncTargets(inputMode); }}
-                  keyboardType="decimal-pad" style={S.rateInput}
+                <TextInput value={rate} onChangeText={authCanSetRate ? (v) => { setRate(v); syncTargets(inputMode); } : undefined}
+                  editable={authCanSetRate}
+                  keyboardType="decimal-pad" style={[S.rateInput, !authCanSetRate && { color: C.muted }]}
                   returnKeyType="done" placeholderTextColor={C.muted} placeholder="0.00" />
               </View>
             </View>
@@ -678,30 +860,44 @@ function SetupScreen({ status, activeUrl, authToken, onLogout, transactions }) {
           </Pressable>
         </Animated.View>
 
-        {/* secondary nav */}
+        {/* secondary nav — role-gated */}
         <View style={S.secNav}>
-          {[["admin", "Admin"], ["diag", "Diagnostics"]].map(([k, lbl]) => (
-            <Pressable key={k} style={[S.secBtn, secTab === k && S.secBtnOn]} onPress={() => setSecTab(secTab === k ? null : k)}>
-              <Text style={[T.caption, { fontWeight: "700", color: secTab === k ? C.white : C.slate }]}>{lbl}</Text>
+          {(authRole === "admin" || authRole === "manufacturer") && (
+            <Pressable style={[S.secBtn, secTab === "history" && S.secBtnOn]} onPress={() => setSecTab(secTab === "history" ? null : "history")}>
+              <Text style={[T.caption, { fontWeight: "700", color: secTab === "history" ? C.white : C.slate }]}>History</Text>
             </Pressable>
-          ))}
+          )}
+          {(authRole === "admin" || authRole === "manufacturer") && (
+            <Pressable style={[S.secBtn, secTab === "users" && S.secBtnOn]} onPress={() => setSecTab(secTab === "users" ? null : "users")}>
+              <Text style={[T.caption, { fontWeight: "700", color: secTab === "users" ? C.white : C.slate }]}>Users</Text>
+            </Pressable>
+          )}
+          {(authRole === "admin" || authRole === "manufacturer") && (
+            <Pressable style={[S.secBtn, secTab === "settings" && S.secBtnOn]} onPress={() => setSecTab(secTab === "settings" ? null : "settings")}>
+              <Text style={[T.caption, { fontWeight: "700", color: secTab === "settings" ? C.white : C.slate }]}>Settings</Text>
+            </Pressable>
+          )}
+          {authRole === "manufacturer" && (
+            <Pressable style={[S.secBtn, secTab === "diag" && S.secBtnOn]} onPress={() => setSecTab(secTab === "diag" ? null : "diag")}>
+              <Text style={[T.caption, { fontWeight: "700", color: secTab === "diag" ? C.white : C.slate }]}>Diagnostics</Text>
+            </Pressable>
+          )}
+          {authRole === "operator" && (
+            <Pressable style={[S.secBtn, secTab === "history" && S.secBtnOn]} onPress={() => setSecTab(secTab === "history" ? null : "history")}>
+              <Text style={[T.caption, { fontWeight: "700", color: secTab === "history" ? C.white : C.slate }]}>My History</Text>
+            </Pressable>
+          )}
           <Pressable style={S.secBtn} onPress={onLogout}>
-            <Text style={[T.caption, { fontWeight: "700", color: C.slate }]}>Sign Out</Text>
+            <Text style={[T.caption, { fontWeight: "700", color: C.slate }]}>Sign Out ({authUsername})</Text>
           </Pressable>
         </View>
 
-        {/* admin panel */}
-        {secTab === "admin" && (
+        {/* history panel */}
+        {secTab === "history" && (
           <View style={S.card}>
-            <Text style={T.cardTitle}>Admin</Text>
-            <Field label="Rate per kg">
-              <View style={A.inputRow}>
-                <TextInput value={adminRate} onChangeText={setAdminRate}
-                  keyboardType="decimal-pad" style={[A.input, A.inputFlex]}
-                  returnKeyType="done" placeholderTextColor={C.muted} />
-                <Btn label="Save" onPress={() => run(() => saveRate(activeUrl, adminRate, authToken), "Rate saved")} tone="ghost" />
-              </View>
-            </Field>
+            <Text style={T.cardTitle}>
+              {authRole === "operator" ? "My Transactions" : "All Transactions"}
+            </Text>
             <View style={S.periodRow}>
               {["today","week","month","year","all"].map((p) => (
                 <Pressable key={p} style={[S.chip, period === p && S.chipOn]} onPress={() => setPeriod(p)}>
@@ -730,13 +926,14 @@ function SetupScreen({ status, activeUrl, authToken, onLogout, transactions }) {
                   const dateStr = (ts > 1000000000)
                     ? new Date(ts * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                     : null;
-                  const isOk = item.status === "1";
+                  const isOk = Number(item.status) === 1;
                   return (
                     <View key={item.transactionId || item.id} style={S.txnRow}>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 3 }}>
                           <Text style={[T.body, { fontWeight: "800" }]}>{item.transactionId || item.id}</Text>
                           <Pill label={isOk ? "OK" : "ERR"} ok={isOk} sm />
+                          {!!item.operator && <Text style={[T.caption, { color: C.slate }]}>{item.operator}</Text>}
                         </View>
                         <View style={S.txnDetail}>
                           <Text style={[T.caption, { color: C.teal, fontWeight: "800", minWidth: 72 }]}>
@@ -762,7 +959,28 @@ function SetupScreen({ status, activeUrl, authToken, onLogout, transactions }) {
           </View>
         )}
 
-        {/* diagnostics panel */}
+        {/* users panel (admin+) */}
+        {secTab === "users" && (
+          <UsersPanel activeUrl={activeUrl} authToken={authToken} />
+        )}
+
+        {/* settings panel (admin+) */}
+        {secTab === "settings" && (
+          <View style={S.card}>
+            <Text style={T.cardTitle}>Settings</Text>
+            <Field label="Rate per kg">
+              <View style={A.inputRow}>
+                <TextInput value={adminRate} onChangeText={setAdminRate}
+                  keyboardType="decimal-pad" style={[A.input, A.inputFlex]}
+                  returnKeyType="done" placeholderTextColor={C.muted} />
+                <Btn label="Save" onPress={() => run(() => saveRate(activeUrl, adminRate, authToken), "Rate saved")} tone="ghost" />
+              </View>
+            </Field>
+            <SettingsWifiPanel activeUrl={activeUrl} authToken={authToken} />
+          </View>
+        )}
+
+        {/* diagnostics panel (manufacturer only) */}
         {secTab === "diag" && (
           <View style={S.card}>
             <Text style={T.cardTitle}>Diagnostics</Text>
@@ -967,38 +1185,54 @@ function FaultScreen({ status, activeUrl, authToken }) {
 // ─── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [activeUrl,    setActiveUrl]    = useState(INITIAL_URL);
-  const [connectionKey,setConnectionKey]= useState(0);
-  const [streamMode,   setStreamMode]   = useState("connecting");
-  const [status,       setStatus]       = useState({});
-  const [transactions, setTransactions] = useState([]);
-  const [authToken,    setAuthToken]    = useState("");
-  const [authLoading,  setAuthLoading]  = useState(true);
+  const [activeUrl,      setActiveUrl]      = useState(INITIAL_URL);
+  const [connectionKey,  setConnectionKey]  = useState(0);
+  const [streamMode,     setStreamMode]     = useState("connecting");
+  const [status,         setStatus]         = useState({});
+  const [transactions,   setTransactions]   = useState([]);
+  const [authToken,      setAuthToken]      = useState("");
+  const [authRole,       setAuthRole]       = useState("operator");
+  const [authUsername,   setAuthUsername]   = useState("");
+  const [authCanSetRate, setAuthCanSetRate] = useState(false);
+  const [authLoading,    setAuthLoading]    = useState(true);
 
   useEffect(() => {
     const stop = connectStatusStream(activeUrl, setStatus, setStreamMode);
+    return () => stop();
+  }, [activeUrl, connectionKey]);
+
+  useEffect(() => {
+    if (!authToken) return;
     const refresh = async () => {
       try {
-        setTransactions(await fetchTransactions(activeUrl));
+        const txns = await fetchTransactionsForUser(activeUrl, "", authToken);
+        setTransactions(txns);
         const s = await fetchSettings(activeUrl);
         if (s.ratePerKg) setStatus((p) => ({ ...p, ratePerKg: s.ratePerKg }));
       } catch {}
     };
     refresh();
     const t = setInterval(refresh, 5000);
-    return () => { stop(); clearInterval(t); };
-  }, [activeUrl, connectionKey]);
+    return () => clearInterval(t);
+  }, [activeUrl, connectionKey, authToken]);
+
+  function applySession(r) {
+    setAuthToken(r.token || "");
+    setAuthRole(r.role || "operator");
+    setAuthUsername(r.username || "");
+    setAuthCanSetRate(!!r.canSetRate || r.role === "admin" || r.role === "manufacturer");
+  }
 
   useEffect(() => {
     setAuthToken(""); setAuthLoading(true);
     login(activeUrl, DEV_AUTO_LOGIN_ROLE, DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE])
-      .then((r) => { setAuthToken(r.token); setAuthLoading(false); })
+      .then((r) => { applySession(r); setAuthLoading(false); })
       .catch(()  => setAuthLoading(false));
   }, [activeUrl, connectionKey]);
 
   async function handleLogout() {
     if (authToken && authToken !== NO_AUTH_TOKEN) { try { await logout(activeUrl, authToken); } catch {} }
-    setAuthToken("");
+    setAuthToken(""); setAuthRole("operator"); setAuthUsername(""); setAuthCanSetRate(false);
   }
 
   const phase    = getPhase(status.state);
@@ -1030,7 +1264,7 @@ export default function App() {
         </View>
       ) : !authToken ? (
         <ScrollView contentContainerStyle={S.centerScroll}>
-          <SignInScreen activeUrl={activeUrl} onUrlChange={setActiveUrl} onLogin={setAuthToken} streamMode={streamMode} />
+          <SignInScreen activeUrl={activeUrl} onUrlChange={setActiveUrl} onLogin={applySession} streamMode={streamMode} />
         </ScrollView>
       ) : filling ? (
         <FillScreen status={status} activeUrl={activeUrl} authToken={authToken} />
@@ -1043,7 +1277,9 @@ export default function App() {
           <FaultScreen status={status} activeUrl={activeUrl} authToken={authToken} />
         </ScrollView>
       ) : (
-        <SetupScreen status={status} activeUrl={activeUrl} authToken={authToken} onLogout={handleLogout} transactions={transactions} />
+        <SetupScreen status={status} activeUrl={activeUrl} authToken={authToken}
+          authRole={authRole} authUsername={authUsername} authCanSetRate={authCanSetRate}
+          onLogout={handleLogout} transactions={transactions} />
       )}
     </SafeAreaView>
   );

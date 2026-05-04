@@ -70,7 +70,8 @@ void TransactionLog::begin()
     Serial.printf("[TXN] Transaction log initialized, next ID: %u\n", nextTransactionId_);
 }
 
-uint32_t TransactionLog::startTransaction(float targetKg, float ratePerKg, float targetAmount, float tareWeightKg, const String &source)
+uint32_t TransactionLog::startTransaction(float targetKg, float ratePerKg, float targetAmount, float tareWeightKg,
+                                           const String& source, const String& operatorUsername)
 {
     TransactionRecord record;
     record.id = nextTransactionId_;
@@ -81,9 +82,10 @@ uint32_t TransactionLog::startTransaction(float targetKg, float ratePerKg, float
     record.ratePerKg = ratePerKg;
     record.targetAmount = targetAmount;
     record.status = TransactionStatus::Pending;
+    record.operatorUsername = operatorUsername;
     record.operatorSource = source;
     record.firmwareVersion = BoardConfig::kFirmwareVersion;
-    record.configVersion = "1.0.0"; // TODO: Get from settings
+    record.configVersion = "1.0.0";
 
     if (saveTransaction(record))
     {
@@ -192,38 +194,60 @@ std::vector<TransactionRecord> TransactionLog::getRecentTransactions(uint8_t cou
     return records;
 }
 
+static String txnToJson(const TransactionRecord& r) {
+    String j = "{";
+    j += "\"id\":"             + String(r.id)                           + ",";
+    j += "\"transactionId\":\"" + r.transactionId                       + "\",";
+    j += "\"startTime\":"       + String(r.startTimeUnix)               + ",";
+    j += "\"endTime\":"         + String(r.endTimeUnix)                 + ",";
+    j += "\"targetKg\":"        + String(r.targetWeightKg)              + ",";
+    j += "\"finalKg\":"         + String(r.finalWeightKg)               + ",";
+    j += "\"tareKg\":"          + String(r.tareWeightKg)                + ",";
+    j += "\"netKg\":"           + String(r.netWeightKg)                 + ",";
+    j += "\"ratePerKg\":"       + String(r.ratePerKg)                   + ",";
+    j += "\"targetAmount\":"    + String(r.targetAmount)                + ",";
+    j += "\"finalAmount\":"     + String(r.finalAmount)                 + ",";
+    j += "\"status\":"          + String(static_cast<uint8_t>(r.status))+ ",";
+    j += "\"reasonCode\":\""    + r.reasonCode                          + "\",";
+    j += "\"faultCode\":\""     + r.faultCode                          + "\",";
+    j += "\"operator\":\""      + r.operatorUsername                    + "\"";
+    j += "}";
+    return j;
+}
+
 String TransactionLog::exportJson() const
 {
     String json = "{\"transactions\":[";
-
+    bool first = true;
     for (uint32_t i = 1; i < nextTransactionId_; i++)
     {
         TransactionRecord record;
         if (loadTransaction(i, record))
         {
-            if (i > 1)
-            {
-                json += ",";
-            }
-            json += "{";
-            json += "\"id\":" + String(record.id) + ",";
-            json += "\"transactionId\":\"" + record.transactionId + "\",";
-            json += "\"startTime\":" + String(record.startTimeUnix) + ",";
-            json += "\"endTime\":" + String(record.endTimeUnix) + ",";
-            json += "\"targetKg\":" + String(record.targetWeightKg) + ",";
-            json += "\"finalKg\":" + String(record.finalWeightKg) + ",";
-            json += "\"tareKg\":" + String(record.tareWeightKg) + ",";
-            json += "\"netKg\":" + String(record.netWeightKg) + ",";
-            json += "\"ratePerKg\":" + String(record.ratePerKg) + ",";
-            json += "\"targetAmount\":" + String(record.targetAmount) + ",";
-            json += "\"finalAmount\":" + String(record.finalAmount) + ",";
-            json += "\"status\":\"" + String(static_cast<uint8_t>(record.status)) + "\",";
-            json += "\"reasonCode\":\"" + record.reasonCode + "\",";
-            json += "\"faultCode\":\"" + record.faultCode + "\"";
-            json += "}";
+            if (!first) json += ",";
+            first = false;
+            json += txnToJson(record);
         }
     }
+    json += "]}";
+    return json;
+}
 
+String TransactionLog::exportJsonForUser(const String& username) const
+{
+    String json = "{\"transactions\":[";
+    bool first = true;
+    for (uint32_t i = 1; i < nextTransactionId_; i++)
+    {
+        TransactionRecord record;
+        if (loadTransaction(i, record) &&
+            record.operatorUsername.equalsIgnoreCase(username))
+        {
+            if (!first) json += ",";
+            first = false;
+            json += txnToJson(record);
+        }
+    }
     json += "]}";
     return json;
 }
@@ -281,10 +305,10 @@ bool TransactionLog::saveTransaction(const TransactionRecord &record)
         return false;
     }
 
-    // Serialize record manually
-    char buffer[416] = {0};
+    // Serialize record: 18 pipe-delimited fields
+    char buffer[450] = {0};
     snprintf(buffer, sizeof(buffer),
-             "%u|%s|%u|%u|%.3f|%.3f|%.3f|%.3f|%.2f|%.2f|%.2f|%u|%s|%s|%s|%s|%s",
+             "%u|%s|%u|%u|%.3f|%.3f|%.3f|%.3f|%.2f|%.2f|%.2f|%u|%s|%s|%s|%s|%s|%s",
              record.id,
              record.transactionId.c_str(),
              record.startTimeUnix,
@@ -299,6 +323,7 @@ bool TransactionLog::saveTransaction(const TransactionRecord &record)
              static_cast<uint8_t>(record.status),
              record.reasonCode.c_str(),
              record.faultCode.c_str(),
+             record.operatorUsername.c_str(),
              record.operatorSource.c_str(),
              record.firmwareVersion.c_str(),
              record.configVersion.c_str());
@@ -348,11 +373,11 @@ bool TransactionLog::parseRecordLine(const String &line, TransactionRecord &reco
     size_t bufLen = strlen(buffer);
     if (bufLen > 0 && buffer[bufLen - 1] == '\r') buffer[bufLen - 1] = '\0';
 
-    // Split on '|' preserving empty fields (strtok skips them, so use manual split)
-    char *tokens[17] = {0};
+    // Split on '|' preserving empty fields
+    char *tokens[18] = {0};
     uint8_t count = 0;
     char *p = buffer;
-    while (count < 17)
+    while (count < 18)
     {
         tokens[count++] = p;
         char *delim = strchr(p, '|');
@@ -361,44 +386,55 @@ bool TransactionLog::parseRecordLine(const String &line, TransactionRecord &reco
         p = delim + 1;
     }
 
-    if (count < 16)
-    {
-        return false;
-    }
+    if (count < 16) return false;
 
-    record.id = atoi(tokens[0]);
+    record.id            = atoi(tokens[0]);
     record.transactionId = tokens[1];
     record.startTimeUnix = atoi(tokens[2]);
-    record.endTimeUnix = atoi(tokens[3]);
+    record.endTimeUnix   = atoi(tokens[3]);
     record.targetWeightKg = atof(tokens[4]);
-    record.finalWeightKg = atof(tokens[5]);
-    if (count >= 17)
-    {
-        record.tareWeightKg = atof(tokens[6]);
-        record.netWeightKg = atof(tokens[7]);
-        record.ratePerKg = atof(tokens[8]);
-        record.targetAmount = atof(tokens[9]);
-        record.finalAmount = atof(tokens[10]);
-        record.status = static_cast<TransactionStatus>(atoi(tokens[11]));
-        record.reasonCode = tokens[12];
-        record.faultCode = tokens[13];
-        record.operatorSource = tokens[14];
+    record.finalWeightKg  = atof(tokens[5]);
+
+    if (count >= 18) {
+        // Current format: tare at [6], operatorUsername at [14]
+        record.tareWeightKg     = atof(tokens[6]);
+        record.netWeightKg      = atof(tokens[7]);
+        record.ratePerKg        = atof(tokens[8]);
+        record.targetAmount     = atof(tokens[9]);
+        record.finalAmount      = atof(tokens[10]);
+        record.status           = static_cast<TransactionStatus>(atoi(tokens[11]));
+        record.reasonCode       = tokens[12];
+        record.faultCode        = tokens[13];
+        record.operatorUsername = tokens[14];
+        record.operatorSource   = tokens[15];
+        record.firmwareVersion  = tokens[16];
+        record.configVersion    = tokens[17];
+    } else if (count >= 17) {
+        // Legacy format: tare at [6], no operatorUsername
+        record.tareWeightKg    = atof(tokens[6]);
+        record.netWeightKg     = atof(tokens[7]);
+        record.ratePerKg       = atof(tokens[8]);
+        record.targetAmount    = atof(tokens[9]);
+        record.finalAmount     = atof(tokens[10]);
+        record.status          = static_cast<TransactionStatus>(atoi(tokens[11]));
+        record.reasonCode      = tokens[12];
+        record.faultCode       = tokens[13];
+        record.operatorSource  = tokens[14];
         record.firmwareVersion = tokens[15];
-        record.configVersion = tokens[16];
-    }
-    else
-    {
-        record.tareWeightKg = 0.0f;
-        record.netWeightKg = atof(tokens[6]);
-        record.ratePerKg = atof(tokens[7]);
-        record.targetAmount = atof(tokens[8]);
-        record.finalAmount = atof(tokens[9]);
-        record.status = static_cast<TransactionStatus>(atoi(tokens[10]));
-        record.reasonCode = tokens[11];
-        record.faultCode = tokens[12];
-        record.operatorSource = tokens[13];
+        record.configVersion   = tokens[16];
+    } else {
+        // Oldest format: no tare field
+        record.tareWeightKg    = 0.0f;
+        record.netWeightKg     = atof(tokens[6]);
+        record.ratePerKg       = atof(tokens[7]);
+        record.targetAmount    = atof(tokens[8]);
+        record.finalAmount     = atof(tokens[9]);
+        record.status          = static_cast<TransactionStatus>(atoi(tokens[10]));
+        record.reasonCode      = tokens[11];
+        record.faultCode       = tokens[12];
+        record.operatorSource  = tokens[13];
         record.firmwareVersion = tokens[14];
-        record.configVersion = tokens[15];
+        record.configVersion   = tokens[15];
     }
 
     return record.id > 0;

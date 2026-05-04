@@ -56,7 +56,8 @@ void FillController::tick() {
   }
 }
 
-bool FillController::startFill(float targetWeightKg, float ratePerKg, float targetAmount, String& reason) {
+bool FillController::startFill(float targetWeightKg, float ratePerKg, float targetAmount, String& reason,
+                               const String& operatorUsername) {
   syncInputs();
   const StatusSnapshot status = statusStore_.snapshot();
 
@@ -91,7 +92,7 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
   }
 
   activeTransactionId_ =
-      transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, status.tareWeightKg, "controller");
+      transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, status.tareWeightKg, "api", operatorUsername);
   if (activeTransactionId_ == 0) {
     eventLog_.append("WARN", "transaction_start_failed", "Fill continuing without transaction record");
   }

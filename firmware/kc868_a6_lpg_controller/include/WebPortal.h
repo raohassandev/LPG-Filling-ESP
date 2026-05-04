@@ -52,6 +52,10 @@ class WebPortal {
   void handleGetWifi();
   void handleSetWifi();
   void handleGetNetwork();
+  void handleListUsers();
+  void handleCreateUser();
+  void handleUpdateUser();
+  void handleDeleteUser();
   String statusJson() const;
   void broadcastStatus();
   bool requireAuth(UserRole minRole);

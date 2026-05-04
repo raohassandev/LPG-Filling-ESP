@@ -97,6 +97,10 @@ void WebPortal::registerRoutes() {
   server_.on("/api/wifi",    HTTP_GET,  [this]() { handleGetWifi(); });
   server_.on("/api/wifi",    HTTP_POST, [this]() { handleSetWifi(); });
   server_.on("/api/network", HTTP_GET,  [this]() { handleGetNetwork(); });
+  server_.on("/api/users",         HTTP_GET,    [this]() { handleListUsers(); });
+  server_.on("/api/users",         HTTP_POST,   [this]() { handleCreateUser(); });
+  server_.on("/api/users/update",  HTTP_POST,   [this]() { handleUpdateUser(); });
+  server_.on("/api/users/delete",  HTTP_POST,   [this]() { handleDeleteUser(); });
 }
 
 void WebPortal::handleRoot() {
@@ -160,7 +164,12 @@ void WebPortal::handleSettings() {
 }
 
 void WebPortal::handleUpdateSettings() {
-  if (!requireAuth(UserRole::Admin)) return;
+  // Allow admin OR operators delegated canSetRate
+  if (!requireAuth(UserRole::Operator)) return;
+  if (!authService_.canCurrentUserSetRate()) {
+    sendJson(403, "{\"ok\":false,\"message\":\"rate setting not permitted for this account\"}");
+    return;
+  }
   const float ratePerKg = server_.arg("ratePerKg").toFloat();
   const bool ok = settingsStore_.setRatePerKg(ratePerKg);
   if (ok) {
@@ -239,7 +248,17 @@ void WebPortal::handleLogs() {
 }
 
 void WebPortal::handleTransactions() {
-  sendJson(200, transactionLog_.exportJson());
+  if (!requireAuth(UserRole::Operator)) return;
+  const String filterUser = server_.arg("username");
+  // Operators can only see their own history; Admin+ can see all or filter
+  if (!filterUser.isEmpty()) {
+    sendJson(200, transactionLog_.exportJsonForUser(filterUser));
+  } else if (authService_.hasPermission(UserRole::Admin)) {
+    sendJson(200, transactionLog_.exportJson());
+  } else {
+    // Operator with no filter: show own history
+    sendJson(200, transactionLog_.exportJsonForUser(authService_.currentUsername()));
+  }
 }
 
 void WebPortal::handleTransactionsCsv() {
@@ -282,7 +301,8 @@ void WebPortal::handleStart() {
     targetAmount = targetWeightKg * ratePerKg;
   }
   String reason;
-  const bool ok = fillController_.startFill(targetWeightKg, ratePerKg, targetAmount, reason);
+  const bool ok = fillController_.startFill(targetWeightKg, ratePerKg, targetAmount, reason,
+                                             authService_.currentUsername());
 
   String body = "{\"ok\":";
   body += jsonBool(ok);
@@ -414,10 +434,16 @@ void WebPortal::handleLogin() {
     String roleStr;
     switch (session.role) {
       case UserRole::Admin:       roleStr = "admin"; break;
-      case UserRole::Maintenance: roleStr = "maintenance"; break;
+      case UserRole::Maintenance: roleStr = "manufacturer"; break;
       default:                    roleStr = "operator"; break;
     }
-    sendJson(200, "{\"ok\":true,\"token\":\"" + session.sessionId + "\",\"role\":\"" + roleStr + "\"}");
+    String body = "{\"ok\":true";
+    body += ",\"token\":\""      + session.sessionId + "\"";
+    body += ",\"role\":\""       + roleStr + "\"";
+    body += ",\"username\":\""   + authService_.currentUsername() + "\"";
+    body += ",\"canSetRate\":"   + String(authService_.canCurrentUserSetRate() ? "true" : "false");
+    body += "}";
+    sendJson(200, body);
   } else {
     sendJson(401, "{\"ok\":false,\"message\":\"invalid credentials\"}");
   }
@@ -460,6 +486,61 @@ void WebPortal::handleLogout() {
     authService_.logout();
   }
   sendJson(200, "{\"ok\":true}");
+}
+
+// --- User management handlers ---
+
+void WebPortal::handleListUsers() {
+  if (!requireAuth(UserRole::Admin)) return;
+  sendJson(200, "{\"ok\":true,\"users\":" + authService_.listUsersJson() + "}");
+}
+
+void WebPortal::handleCreateUser() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const String username   = server_.arg("username");
+  const String password   = server_.arg("password");
+  const uint8_t roleVal   = (uint8_t)server_.arg("role").toInt();
+  const bool canSetRate   = server_.arg("canSetRate") == "1" || server_.arg("canSetRate") == "true";
+
+  if (username.isEmpty() || password.isEmpty() || roleVal < 1 || roleVal > 3) {
+    sendJson(400, "{\"ok\":false,\"message\":\"username, password and role (1-3) required\"}");
+    return;
+  }
+
+  const bool ok = authService_.createUser(username, password, static_cast<UserRoleLevel>(roleVal), canSetRate);
+  sendJson(ok ? 200 : 409,
+           ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"user exists or limit reached\"}");
+}
+
+void WebPortal::handleUpdateUser() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const String username = server_.arg("username");
+  if (username.isEmpty()) {
+    sendJson(400, "{\"ok\":false,\"message\":\"username required\"}");
+    return;
+  }
+
+  bool ok = true;
+  const String newPass    = server_.arg("password");
+  const String blockedArg = server_.arg("blocked");
+  const String csrArg     = server_.arg("canSetRate");
+
+  if (!newPass.isEmpty())    ok = ok && authService_.updatePassword(username, newPass);
+  if (!blockedArg.isEmpty()) ok = ok && authService_.setBlocked(username, blockedArg == "1" || blockedArg == "true");
+  if (!csrArg.isEmpty())     ok = ok && authService_.setCanSetRate(username, csrArg == "1" || csrArg == "true");
+
+  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"update failed\"}");
+}
+
+void WebPortal::handleDeleteUser() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const String username = server_.arg("username");
+  if (username.isEmpty()) {
+    sendJson(400, "{\"ok\":false,\"message\":\"username required\"}");
+    return;
+  }
+  const bool ok = authService_.deleteUser(username);
+  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"cannot delete user\"}");
 }
 
 String WebPortal::statusJson() const {

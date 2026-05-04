@@ -37,7 +37,8 @@ struct TransactionRecord
     String faultCode;
 
     // Metadata
-    String operatorSource; // "serial" or "api"
+    String operatorUsername;  // logged-in user who started the fill
+    String operatorSource;    // "serial" or "api"
     String firmwareVersion;
     String configVersion;
 };
@@ -50,7 +51,8 @@ public:
     void begin();
 
     // Transaction management
-    uint32_t startTransaction(float targetKg, float ratePerKg, float targetAmount, float tareWeightKg, const String &source);
+    uint32_t startTransaction(float targetKg, float ratePerKg, float targetAmount, float tareWeightKg,
+                              const String& source, const String& operatorUsername = "");
     bool completeTransaction(uint32_t id, float finalWeightKg, float netWeightKg);
     bool abortTransaction(uint32_t id, const String &reason);
     bool faultTransaction(uint32_t id, const String &faultCode);
@@ -68,6 +70,7 @@ public:
 
     // Export
     String exportJson() const;
+    String exportJsonForUser(const String& username) const;
     String exportCsv() const;
 
 private:

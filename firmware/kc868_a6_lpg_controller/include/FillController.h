@@ -19,7 +19,8 @@ class FillController {
   void begin();
   void tick();
 
-  bool startFill(float targetWeightKg, float ratePerKg, float targetAmount, String& reason);
+  bool startFill(float targetWeightKg, float ratePerKg, float targetAmount, String& reason,
+                 const String& operatorUsername = "");
   bool stopFill(const String& reasonCode);
   bool resetToIdle(String& reason);
 
