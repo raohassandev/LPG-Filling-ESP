@@ -1,109 +1,157 @@
 #include "ModbusTcpService.h"
-
 #include "ModbusRegisterMap.h"
 
 namespace {
-constexpr uint8_t kFunctionReadHolding = 0x03;
-constexpr uint8_t kFunctionWriteSingle = 0x06;
-constexpr uint8_t kExceptionIllegalFunction = 0x01;
-constexpr uint8_t kExceptionIllegalAddress = 0x02;
-constexpr uint8_t kExceptionIllegalValue = 0x03;
 
-uint16_t readU16(const uint8_t* data) {
-  return (static_cast<uint16_t>(data[0]) << 8) | data[1];
+// Function codes
+constexpr uint8_t kFcReadHolding    = 0x03;
+constexpr uint8_t kFcWriteSingle    = 0x06;
+constexpr uint8_t kFcWriteMultiple  = 0x10;
+
+// Exception codes
+constexpr uint8_t kExcIllegalFunc   = 0x01;
+constexpr uint8_t kExcIllegalAddr   = 0x02;
+constexpr uint8_t kExcIllegalValue  = 0x03;
+
+uint16_t readU16(const uint8_t* p) {
+    return (static_cast<uint16_t>(p[0]) << 8) | p[1];
 }
 
-void writeU16(uint8_t* data, uint16_t value) {
-  data[0] = static_cast<uint8_t>(value >> 8);
-  data[1] = static_cast<uint8_t>(value & 0xff);
+void writeU16(uint8_t* p, uint16_t v) {
+    p[0] = static_cast<uint8_t>(v >> 8);
+    p[1] = static_cast<uint8_t>(v & 0xFF);
 }
 
-bool supportedRegister(uint16_t address) {
-  return address >= ModbusRegisterMap::kLiveWeight && address <= ModbusRegisterMap::kEstopStatus;
+bool inRange(uint16_t addr) {
+    return addr >= ModbusRegisterMap::kRegisterBase &&
+           addr <  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount;
 }
+
 }  // namespace
 
-ModbusTcpService::ModbusTcpService(StatusStore& statusStore) : statusStore_(statusStore) {}
+ModbusTcpService::ModbusTcpService(StatusStore& statusStore, SettingsStore& settingsStore,
+                                    FillController& fillController, TransactionLog& transactionLog)
+    : statusStore_(statusStore),
+      settingsStore_(settingsStore),
+      fillController_(fillController),
+      transactionLog_(transactionLog) {}
 
 void ModbusTcpService::begin() {
-  server_.begin();
-  server_.setNoDelay(true);
-  Serial.println(F("[MODBUS] TCP server started on port 502"));
+    server_.begin();
+    server_.setNoDelay(true);
+    Serial.println(F("[MODBUS] TCP server started on port 502"));
+    Serial.printf("[MODBUS] Registers 0x%04X–0x%04X (%u regs, dec %u–%u)\n",
+                  ModbusRegisterMap::kRegisterBase,
+                  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount - 1,
+                  ModbusRegisterMap::kRegisterCount,
+                  ModbusRegisterMap::kRegisterBase,
+                  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount - 1);
 }
 
 void ModbusTcpService::handleClient() {
-  WiFiClient client = server_.available();
-  if (!client) {
-    return;
-  }
+    WiFiClient client = server_.available();
+    if (!client) return;
 
-  const unsigned long startedAt = millis();
-  while (client.connected() && client.available() < 12 && millis() - startedAt < 20) {
-    delay(1);
-  }
+    const unsigned long t0 = millis();
+    while (client.connected() && client.available() < 8 && millis() - t0 < 50)
+        delay(1);
 
-  uint8_t request[64] = {0};
-  const int length = client.read(request, sizeof(request));
-  if (length >= 12) {
-    handleRequest(client, request, static_cast<uint16_t>(length));
-  }
-  client.stop();
+    uint8_t req[260] = {0};
+    const int len = client.read(req, sizeof(req));
+    if (len >= 8)
+        handleRequest(client, req, static_cast<uint16_t>(len));
+
+    client.stop();
 }
 
-void ModbusTcpService::handleRequest(WiFiClient& client, const uint8_t* request, uint16_t length) {
-  const uint8_t unitId = request[6];
-  const uint8_t functionCode = request[7];
-  const uint16_t address = readU16(&request[8]);
-  const uint16_t value = readU16(&request[10]);
+void ModbusTcpService::handleRequest(WiFiClient& client, const uint8_t* req, uint16_t len) {
+    // MBAP header: TransactionID(2) ProtocolID(2) Length(2) UnitID(1) FunctionCode(1)
+    const uint8_t  fc      = req[7];
+    const uint16_t startAddr = readU16(&req[8]);
+    const uint16_t word2     = readU16(&req[10]);  // quantity (FC03) / value (FC06) / quantity (FC16)
 
-  if (functionCode == kFunctionReadHolding) {
-    const uint16_t quantity = value;
-    if (quantity == 0 || quantity > ModbusRegisterMap::kRegisterCount || !supportedRegister(address) ||
-        !supportedRegister(address + quantity - 1)) {
-      sendException(client, request, functionCode, kExceptionIllegalAddress);
-      return;
+    // ── FC03: Read Holding Registers ─────────────────────────────────────────
+    if (fc == kFcReadHolding) {
+        const uint16_t qty = word2;
+        if (qty == 0 || qty > ModbusRegisterMap::kRegisterCount ||
+            !inRange(startAddr) || !inRange(startAddr + qty - 1)) {
+            sendException(client, req, fc, kExcIllegalAddr);
+            return;
+        }
+
+        const StatusSnapshot status = statusStore_.snapshot();
+        uint8_t resp[9 + 2 * 125] = {0};
+        memcpy(resp, req, 4);                                     // echo TID + PID
+        writeU16(&resp[4], static_cast<uint16_t>(3 + qty * 2));  // PDU length
+        resp[6] = req[6];                                         // unit ID
+        resp[7] = fc;
+        resp[8] = static_cast<uint8_t>(qty * 2);                 // byte count
+
+        for (uint16_t i = 0; i < qty; ++i) {
+            uint16_t val = ModbusRegisterMap::readHoldingRegister(startAddr + i, status, transactionLog_);
+            writeU16(&resp[9 + i * 2], val);
+        }
+
+        client.write(resp, static_cast<size_t>(9 + qty * 2));
+        return;
     }
 
-    uint8_t response[32] = {0};
-    memcpy(response, request, 4);
-    writeU16(&response[4], static_cast<uint16_t>(3 + quantity * 2));
-    response[6] = unitId;
-    response[7] = functionCode;
-    response[8] = static_cast<uint8_t>(quantity * 2);
-
-    const StatusSnapshot status = statusStore_.snapshot();
-    for (uint16_t i = 0; i < quantity; ++i) {
-      writeU16(&response[9 + i * 2], ModbusRegisterMap::readHoldingRegister(address + i, status));
+    // ── FC06: Write Single Register ──────────────────────────────────────────
+    if (fc == kFcWriteSingle) {
+        if (!inRange(startAddr)) {
+            sendException(client, req, fc, kExcIllegalAddr);
+            return;
+        }
+        if (!ModbusRegisterMap::writeHoldingRegister(startAddr, word2,
+                                                      statusStore_, settingsStore_, fillController_)) {
+            sendException(client, req, fc, kExcIllegalValue);
+            return;
+        }
+        client.write(req, 12);  // echo request
+        return;
     }
 
-    client.write(response, static_cast<size_t>(9 + quantity * 2));
-    return;
-  }
+    // ── FC16: Write Multiple Registers ───────────────────────────────────────
+    if (fc == kFcWriteMultiple) {
+        const uint16_t qty  = word2;
+        // byte count at req[12], data starts at req[13]
+        if (len < static_cast<uint16_t>(13 + qty * 2) ||
+            qty == 0 || qty > ModbusRegisterMap::kRegisterCount ||
+            !inRange(startAddr) || !inRange(startAddr + qty - 1)) {
+            sendException(client, req, fc, kExcIllegalAddr);
+            return;
+        }
 
-  if (functionCode == kFunctionWriteSingle) {
-    if (!supportedRegister(address)) {
-      sendException(client, request, functionCode, kExceptionIllegalAddress);
-      return;
+        for (uint16_t i = 0; i < qty; ++i) {
+            const uint16_t addr = startAddr + i;
+            const uint16_t val  = readU16(&req[13 + i * 2]);
+            // silently skip read-only registers so a bulk write doesn't abort
+            ModbusRegisterMap::writeHoldingRegister(addr, val,
+                                                     statusStore_, settingsStore_, fillController_);
+        }
+
+        // FC16 response: echo MBAP + fc + startAddr(2) + qty(2)
+        uint8_t resp[12] = {0};
+        memcpy(resp, req, 4);
+        writeU16(&resp[4], 6);
+        resp[6] = req[6];
+        resp[7] = fc;
+        writeU16(&resp[8],  startAddr);
+        writeU16(&resp[10], qty);
+        client.write(resp, 12);
+        return;
     }
-    if (!ModbusRegisterMap::writeHoldingRegister(address, value, statusStore_)) {
-      sendException(client, request, functionCode, kExceptionIllegalValue);
-      return;
-    }
 
-    client.write(request, 12);
-    return;
-  }
-
-  sendException(client, request, functionCode, kExceptionIllegalFunction);
+    sendException(client, req, fc, kExcIllegalFunc);
 }
 
-void ModbusTcpService::sendException(WiFiClient& client, const uint8_t* request, uint8_t functionCode,
-                                     uint8_t exceptionCode) {
-  uint8_t response[9] = {0};
-  memcpy(response, request, 4);
-  writeU16(&response[4], 3);
-  response[6] = request[6];
-  response[7] = functionCode | 0x80;
-  response[8] = exceptionCode;
-  client.write(response, sizeof(response));
+void ModbusTcpService::sendException(WiFiClient& client, const uint8_t* req,
+                                      uint8_t fc, uint8_t exCode) {
+    uint8_t resp[9] = {0};
+    memcpy(resp, req, 4);
+    writeU16(&resp[4], 3);
+    resp[6] = req[6];
+    resp[7] = fc | 0x80;
+    resp[8] = exCode;
+    client.write(resp, 9);
 }

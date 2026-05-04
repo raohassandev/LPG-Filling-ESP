@@ -53,6 +53,8 @@ void StatusStore::setCylinderPresent(bool present) { status_.cylinderPresent = p
 
 void StatusStore::setEmergencyStopOk(bool ok) { status_.emergencyStopOk = ok; }
 
+void StatusStore::setWeightStable(bool stable) { status_.weightStable = stable; }
+
 void StatusStore::setReasonCode(const String& code) { status_.lastReasonCode = code; }
 
 StatusSnapshot StatusStore::snapshot() const {

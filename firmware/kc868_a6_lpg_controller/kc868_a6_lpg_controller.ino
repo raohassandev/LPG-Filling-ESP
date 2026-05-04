@@ -37,7 +37,7 @@ LpgNetworkManager networkManager;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
 WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager);
-ModbusTcpService modbusTcpService(statusStore);
+ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog);
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -279,6 +279,7 @@ void setup() {
 void loop() {
   inputExpander.poll();
   weightService.poll();
+  statusStore.setWeightStable(weightService.stable());
   fillController.tick();
   networkManager.poll();
   webPortal.handleClient();

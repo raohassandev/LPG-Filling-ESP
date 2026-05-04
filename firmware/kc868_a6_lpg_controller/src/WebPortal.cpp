@@ -225,19 +225,32 @@ void WebPortal::handleZeroNetWeight() {
 
 void WebPortal::handleModbusMap() {
   const StatusSnapshot status = statusStore_.snapshot();
-  String body = "{\"scale\":\"kg_x100\",\"registers\":{";
-  body += "\"0x1001\":{\"name\":\"liveWeight\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kLiveWeight, status)) + "},";
-  body += "\"0x1002\":{\"name\":\"tareWeight\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kTareWeight, status)) + "},";
-  body += "\"0x1003\":{\"name\":\"netWeight\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kNetWeight, status)) + "},";
-  body += "\"0x1004\":{\"name\":\"fillingStatus\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kFillingStatus, status)) + "},";
-  body += "\"0x1005\":{\"name\":\"targetWeight\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kTargetWeight, status)) + "},";
-  body += "\"0x1006\":{\"name\":\"estopStatus\",\"value\":" +
-          String(ModbusRegisterMap::readHoldingRegister(ModbusRegisterMap::kEstopStatus, status)) + "}";
+  const struct { uint16_t addr; const char* name; } regs[] = {
+    { 0x1001, "liveWeight"       },
+    { 0x1002, "tareWeight"       },
+    { 0x1003, "netWeight"        },
+    { 0x1004, "fillingStatus"    },
+    { 0x1005, "targetWeight"     },
+    { 0x1006, "estopOk"          },
+    { 0x1007, "ratePerKg"        },
+    { 0x1008, "targetAmount"     },
+    { 0x1009, "currentAmount"    },
+    { 0x100A, "transactionCount" },
+    { 0x100B, "cylinderPresent"  },
+    { 0x100C, "nozzleEngaged"    },
+    { 0x100D, "weightStable"     },
+    { 0x100E, "uptimeSec"        },
+    { 0x100F, "command"          },
+  };
+  char addrBuf[8];
+  String body = "{\"baseAddr\":4097,\"scale\":\"kg_x100_rate_pkr_x100\",\"registers\":{";
+  for (uint8_t i = 0; i < 15; i++) {
+    snprintf(addrBuf, sizeof(addrBuf), "0x%04X", regs[i].addr);
+    body += (i > 0 ? "," : "");
+    body += "\"" + String(addrBuf) + "\":{\"name\":\"" + regs[i].name + "\",\"dec\":" +
+            String(regs[i].addr) + ",\"value\":" +
+            String(ModbusRegisterMap::readHoldingRegister(regs[i].addr, status, transactionLog_)) + "}";
+  }
   body += "}}";
   sendJson(200, body);
 }

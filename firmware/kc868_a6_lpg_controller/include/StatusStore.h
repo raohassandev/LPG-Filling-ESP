@@ -31,6 +31,7 @@ struct StatusSnapshot {
   bool nozzleEngaged = false;
   bool cylinderPresent = false;
   bool emergencyStopOk = true;
+  bool weightStable = false;
   String lastReasonCode;
   unsigned long uptimeMs = 0;
 };
@@ -48,6 +49,7 @@ class StatusStore {
   void setNozzleEngaged(bool engaged);
   void setCylinderPresent(bool present);
   void setEmergencyStopOk(bool ok);
+  void setWeightStable(bool stable);
   void setReasonCode(const String& code);
   StatusSnapshot snapshot() const;
 
