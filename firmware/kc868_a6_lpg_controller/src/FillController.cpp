@@ -142,7 +142,7 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
     return false;
   }
 
-  // Scale health checks — must be initialized, reading, and stable before fill
+  // Scale health checks — must be initialized, reading, stable, and calibrated before fill
   if (!weightService_.initialized()) {
     reason = "Scale not initialized — check HX711 wiring";
     return false;
@@ -153,6 +153,10 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
   }
   if (!weightService_.stable()) {
     reason = "Scale not stable — wait for weight to settle";
+    return false;
+  }
+  if (!weightService_.calibrationValid()) {
+    reason = "Scale not calibrated — calibrate before filling";
     return false;
   }
 

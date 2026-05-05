@@ -1472,11 +1472,31 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
     catch (err) { formShake(); showAlert("Error", err.message || "Command failed"); }
   }
 
-  const safety = [
-    { key: "nozzle",   label: "Nozzle",   ok: !!status.nozzleEngaged },
-    { key: "cylinder", label: "Cylinder", ok: !!status.cylinderPresent },
-    { key: "estop",    label: "E-Stop",   ok: !!status.emergencyStopOk },
-  ];
+  // If firmware exposes readyToFill/blockers, use them as authoritative source.
+  // Fall back to individual status flags for older firmware.
+  const BLOCKER_LABELS = {
+    active_fault:          "Active fault — reset required",
+    estop_active:          "E-Stop active",
+    cylinder_missing:      "No cylinder detected",
+    nozzle_not_engaged:    "Nozzle not engaged",
+    scale_not_initialized: "Scale not initialized",
+    scale_read_error:      "Scale read error",
+    scale_unstable:        "Scale unstable",
+    scale_not_calibrated:  "Scale not calibrated",
+    simulation_active:     "SIMULATION MODE ACTIVE",
+  };
+  const safety = status.blockers
+    ? status.blockers.map((b) => ({ key: b, label: BLOCKER_LABELS[b] || b, ok: false }))
+        .concat(status.readyToFill ? [{ key: "ready", label: "Ready", ok: true }] : [])
+        .filter((s) => !s.ok || s.key === "ready")
+    : [
+        { key: "nozzle",   label: "Nozzle",    ok: !!status.nozzleEngaged },
+        { key: "cylinder", label: "Cylinder",  ok: !!status.cylinderPresent },
+        { key: "estop",    label: "E-Stop",    ok: !!status.emergencyStopOk },
+        { key: "scale",    label: "Scale",     ok: !!status.weightInitialized && !status.weightReadError },
+        { key: "stable",   label: "Stable",    ok: !!status.weightStable },
+        { key: "cal",      label: "Calibrated",ok: !!status.calValid },
+      ];
 
   const txnSummary = useMemo(() => {
     const f = transactions.filter((item) => {
@@ -1632,12 +1652,21 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
             </View>
           </Field>
 
+          {status.simActive && (
+            <View style={{ backgroundColor: "#dc2626", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+              <Text style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}>
+                ⚠ SIMULATION MODE ACTIVE — DO NOT CONNECT REAL LPG OUTPUTS
+              </Text>
+            </View>
+          )}
+
           {!safety.every((s) => s.ok) && (
             <Text style={S.interlockWarn}>⚠  Check interlocks before starting</Text>
           )}
 
           <Pressable
-            style={[S.startBtn, !safety.every((s) => s.ok) && S.startBtnDim]}
+            style={[S.startBtn, (!safety.every((s) => s.ok) || status.simActive) && S.startBtnDim]}
+            disabled={!!status.simActive}
             onPress={() => run(() => startFill(activeUrl, targetWeight, rate, targetAmount, authToken))}
           >
             <Text style={S.startBtnTxt}>Start Fill</Text>
@@ -1997,11 +2026,31 @@ function FaultScreen({ status, activeUrl, authToken }) {
       <Animated.View style={[FT.hero, { transform: [{ translateX: shakeX }] }]}>
         <Text style={FT.icon}>⚠</Text>
         <Text style={[T.title, { color: C.white, marginTop: 10 }]}>{status.state || "FAULT"}</Text>
-        {!!status.reasonCode && (
-          <Text style={[T.body, { color: "rgba(255,255,255,0.75)", marginTop: 6, textAlign: "center" }]}>
-            {status.reasonCode}
-          </Text>
-        )}
+        {!!status.reasonCode && (() => {
+          const FAULT_GUIDANCE = {
+            emergency_stop:       { action: "Check and reset the emergency stop switch.", reset: "Clear E-stop, then reset." },
+            nozzle_disengaged:    { action: "Nozzle was removed during fill.", reset: "Reconnect nozzle, reset to idle." },
+            scale_read_error:     { action: "HX711 scale sensor failure.", reset: "Check HX711 wiring, power cycle, reset." },
+            overfill:             { action: "Weight exceeded target + 500 g limit.", reset: "Check scale calibration, reset." },
+            no_flow:              { action: "No weight increase detected for 10 s.", reset: "Check valve/pump, reset and retry." },
+            fill_timeout:         { action: "Fill exceeded 5-minute time limit.", reset: "Check system, reset and retry." },
+            transaction_log_failed:{ action: "Storage full — cannot log transaction.", reset: "Free SPIFFS storage, reset." },
+          };
+          const g = FAULT_GUIDANCE[status.reasonCode];
+          return (
+            <>
+              <Text style={[T.body, { color: "rgba(255,255,255,0.75)", marginTop: 6, textAlign: "center" }]}>
+                {status.reasonCode}
+              </Text>
+              {g && (
+                <>
+                  <Text style={[T.caption, { color: "rgba(255,255,255,0.85)", marginTop: 8, textAlign: "center" }]}>{g.action}</Text>
+                  <Text style={[T.caption, { color: "rgba(255,200,100,0.9)", marginTop: 4, textAlign: "center" }]}>{g.reset}</Text>
+                </>
+              )}
+            </>
+          );
+        })()}
       </Animated.View>
       <Btn label="Reset to Idle" onPress={handleReset} tone="danger" full />
     </View>

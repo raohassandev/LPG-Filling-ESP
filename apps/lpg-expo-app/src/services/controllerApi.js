@@ -61,15 +61,17 @@ export function postCommand(deviceUrl, path, params = {}, token = "") {
   return requestJson(deviceUrl, `${path}${query ? `?${query}` : ""}`, { method: "POST" }, token);
 }
 
-// ── Status stream — MQTT primary → WebSocket → REST polling ───────────────
+// ── Status stream — WebSocket → MQTT → REST polling ───────────────────────
 //
 // Connectivity priority:
-//   1. WebSocket (port 81)  — low latency, local network only
+//   1. WebSocket (port 81)  — low latency, local. Delivers minimal public payload
+//      (state, readyToFill, emergencyStopOk) without auth; merge into full status.
 //   2. MQTT over WebSocket  — works remotely via public broker (if mqttConfig given)
-//   3. REST /api/status poll — universal fallback, 1-second interval
+//   3. REST /api/status poll — full authenticated status, 1-second interval
 //
 // onMode values: "websocket" | "mqtt" | "polling" | "offline"
 // mqttConfig: object from fetchMqttSettings() — optional, pass null to skip MQTT
+// token: auth token for REST polling fallback
 
 export function connectStatusStream(deviceUrl, onStatus, onMode, mqttConfig = null, token = "") {
   let stopped    = false;

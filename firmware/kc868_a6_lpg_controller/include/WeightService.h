@@ -42,6 +42,10 @@ public:
   long lastRawValue()  const { return lastRawValue_; }
   long tareOffsetRaw() const { return tareOffsetRaw_; }
 
+  // Calibration validity — set true after any successful calibration action
+  bool calibrationValid() const { return calibrationValid_; }
+  void markCalibrationValid() { calibrationValid_ = true; }
+
   // Status
   bool initialized() const { return hx711Initialized_; }
   bool readFailed()  const { return readError_; }
@@ -63,12 +67,13 @@ private:
   CalPoint calLow_, calHigh_;
   bool     hasTwoPoints_ = false;
 
-  float liveWeightKg_     = 0.0f;
-  float simulatedWeightKg_= 0.0f;
-  bool  simActive_        = false;
-  long  lastRawValue_     = 0;
-  bool  hx711Initialized_ = false;
-  bool  readError_        = false;
+  float liveWeightKg_      = 0.0f;
+  float simulatedWeightKg_ = 0.0f;
+  bool  simActive_         = false;
+  long  lastRawValue_      = 0;
+  bool  hx711Initialized_  = false;
+  bool  readError_         = false;
+  bool  calibrationValid_  = false;
 
   // Stability detection
   static constexpr uint8_t kStabilityWindow = 10;

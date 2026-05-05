@@ -63,7 +63,20 @@ void WebPortal::broadcastStatus() {
   if (millis() - lastBroadcastMs_ < 200) return;
   lastBroadcastMs_ = millis();
   if (wsServer_.connectedClients() == 0) return;
-  String payload = statusJson();
+  // Broadcast minimal non-sensitive health payload to all WS clients (no auth on WS).
+  // Clients that need full status must use authenticated GET /api/status.
+  const StatusSnapshot s = statusStore_.snapshot();
+  String payload = "{\"state\":\"" + s.stateLabel + "\""
+                 + ",\"readyToFill\":" + jsonBool(weightService_.initialized() &&
+                                                  !weightService_.readFailed() &&
+                                                  weightService_.stable() &&
+                                                  weightService_.calibrationValid() &&
+                                                  s.emergencyStopOk &&
+                                                  s.cylinderPresent &&
+                                                  s.nozzleEngaged &&
+                                                  s.state != ProcessState::Fault)
+                 + ",\"emergencyStopOk\":" + jsonBool(s.emergencyStopOk)
+                 + "}";
   wsServer_.broadcastTXT(payload);
 }
 
@@ -322,6 +335,7 @@ void WebPortal::handleModbusMap() {
 }
 
 void WebPortal::handleLogs() {
+  if (!requireAuth(UserRole::Admin)) return;
   sendCorsHeaders();
   server_.send(200, "text/plain", eventLog_.tail());
 }
@@ -341,6 +355,7 @@ void WebPortal::handleTransactions() {
 }
 
 void WebPortal::handleTransactionsCsv() {
+  if (!requireAuth(UserRole::Admin)) return;
   sendCorsHeaders();
   server_.send(200, "text/csv", transactionLog_.exportCsv());
 }
@@ -444,12 +459,17 @@ void WebPortal::handleCalibrate() {
   const String knownKgArg = server_.arg("knownKg");
   const String pointArg   = server_.arg("point");
 
+  const String calUser = authService_.currentUsername();
+
   if (!factorArg.isEmpty()) {
-    // Direct single-point factor — clears two-point mode
     const float factor = factorArg.toFloat();
     if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"factor cannot be zero\"}"); return; }
+    const float oldFactor = weightService_.calibrationFactor();
     weightService_.clearCalPoints();
     weightService_.setCalibrationFactor(factor);
+    eventLog_.append("CAL", "cal_factor_set",
+      "user=" + calUser + " mode=single oldFactor=" + String(oldFactor, 2) +
+      " newFactor=" + String(factor, 2));
     sendJson(200, "{\"ok\":true,\"mode\":\"single\",\"calFactor\":" + String(factor, 2) + "}");
 
   } else if (!knownKgArg.isEmpty()) {
@@ -457,26 +477,34 @@ void WebPortal::handleCalibrate() {
     if (knownKg <= 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"knownKg must be positive\"}"); return; }
 
     if (!pointArg.isEmpty()) {
-      // Two-point calibration: point=1 (low) or point=2 (high)
       const int pt = pointArg.toInt();
       if (pt != 1 && pt != 2) { sendJson(400, "{\"ok\":false,\"message\":\"point must be 1 or 2\"}"); return; }
       weightService_.setCalPoint(static_cast<uint8_t>(pt), knownKg);
       const bool active = weightService_.hasTwoPoints();
+      const long rawAbs = pt == 1 ? weightService_.calLowPoint().rawAbs : weightService_.calHighPoint().rawAbs;
+      eventLog_.append("CAL", "cal_point_set",
+        "user=" + calUser + " mode=two-point point=" + String(pt) +
+        " knownKg=" + String(knownKg, 3) + " rawAbs=" + String(rawAbs) +
+        " twoPointActive=" + String(active ? "true" : "false"));
       String body = "{\"ok\":true,\"mode\":\"" + String(active ? "two-point" : "two-point-partial") + "\"";
       body += ",\"point\":"    + String(pt);
-      body += ",\"rawAbs\":"   + String(pt == 1 ? weightService_.calLowPoint().rawAbs : weightService_.calHighPoint().rawAbs);
+      body += ",\"rawAbs\":"   + String(rawAbs);
       body += ",\"kg\":"       + String(knownKg, 3);
       body += ",\"twoPointActive\":" + String(active ? "true" : "false") + "}";
       sendJson(200, body);
 
     } else {
-      // Legacy single-point: factor = (raw - tare) / knownKg
       const long raw  = weightService_.lastRawValue();
       const long tare = weightService_.tareOffsetRaw();
       const float factor = static_cast<float>(raw - tare) / knownKg;
       if (factor == 0.0f) { sendJson(400, "{\"ok\":false,\"message\":\"raw equals tare — place known weight first\"}"); return; }
+      const float oldFactor = weightService_.calibrationFactor();
       weightService_.clearCalPoints();
       weightService_.setCalibrationFactor(factor);
+      eventLog_.append("CAL", "cal_single_point",
+        "user=" + calUser + " mode=single knownKg=" + String(knownKg, 3) +
+        " raw=" + String(raw) + " tare=" + String(tare) +
+        " oldFactor=" + String(oldFactor, 2) + " newFactor=" + String(factor, 2));
       sendJson(200, "{\"ok\":true,\"mode\":\"single\",\"calFactor\":" + String(factor, 2)
                + ",\"raw\":" + String(raw) + ",\"tare\":" + String(tare) + "}");
     }
@@ -574,7 +602,12 @@ void WebPortal::handleGetNetwork() {
 }
 
 void WebPortal::handleLogout() {
-  const String token = server_.arg("token");
+  String token;
+  if (server_.hasHeader("Authorization")) {
+    String auth = server_.header("Authorization");
+    if (auth.startsWith("Bearer ")) { token = auth.substring(7); token.trim(); }
+  }
+  if (token.isEmpty()) token = server_.arg("token");
   if (!token.isEmpty() && authService_.sessionValid() &&
       authService_.getCurrentSession().sessionId == token) {
     authService_.logout();
@@ -764,8 +797,34 @@ String WebPortal::statusJson() const {
   body += "\"cylinderPresent\":" + jsonBool(status.cylinderPresent) + ",";
   body += "\"emergencyStopOk\":" + jsonBool(status.emergencyStopOk) + ",";
   body += "\"reasonCode\":\"" + status.lastReasonCode + "\",";
+  body += "\"calValid\":" + jsonBool(weightService_.calibrationValid()) + ",";
+  body += "\"simActive\":" + jsonBool(weightService_.simActive()) + ",";
   body += "\"uptimeMs\":" + String(status.uptimeMs) + ",";
   body += "\"transactionCount\":" + String(transactionLog_.totalCount()) + ",";
+
+  // Composite readiness for UI — mirrors FillController::startFill() checks
+  {
+    bool ready = true;
+    String blockers = "[";
+    bool first = true;
+    auto addBlocker = [&](const char* b) {
+      if (!first) blockers += ",";
+      blockers += "\""; blockers += b; blockers += "\"";
+      first = false; ready = false;
+    };
+    if (status.state == ProcessState::Fault)        addBlocker("active_fault");
+    if (!status.emergencyStopOk)                    addBlocker("estop_active");
+    if (!status.cylinderPresent)                    addBlocker("cylinder_missing");
+    if (!status.nozzleEngaged)                      addBlocker("nozzle_not_engaged");
+    if (!weightService_.initialized())              addBlocker("scale_not_initialized");
+    if (weightService_.readFailed())                addBlocker("scale_read_error");
+    if (!status.weightStable)                       addBlocker("scale_unstable");
+    if (!weightService_.calibrationValid())         addBlocker("scale_not_calibrated");
+    if (weightService_.simActive())                 addBlocker("simulation_active");
+    blockers += "]";
+    body += "\"readyToFill\":" + jsonBool(ready) + ",";
+    body += "\"blockers\":" + blockers + ",";
+  }
   body += "\"relays\":[";
   for (uint8_t i = 0; i < 6; ++i) {
     if (i > 0) body += ",";
