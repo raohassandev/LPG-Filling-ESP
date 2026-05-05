@@ -42,8 +42,8 @@ void WeightService::begin()
     else
     {
         hx711Initialized_ = false;
-        liveWeightKg_ = simulatedWeightKg_;
-        Serial.println("[WEIGHT] HX711 initialization failed - using simulated weight path");
+        readError_ = true;
+        Serial.println("[WEIGHT] HX711 initialization failed — scale hardware fault");
     }
 }
 
@@ -57,7 +57,7 @@ void WeightService::poll()
 
     if (!hx711Initialized_)
     {
-        liveWeightKg_ = simulatedWeightKg_;
+        readError_ = true;
         return;
     }
 
@@ -149,16 +149,7 @@ bool WeightService::readRawHx711(long& value, uint16_t timeoutMs)
 
 float WeightService::liveWeightKg() const
 {
-    if (!hx711Initialized_)
-    {
-        return simulatedWeightKg_;
-    }
-
-    if (readError_)
-    {
-        return liveWeightKg_;
-    }
-
+    if (simActive_) return simulatedWeightKg_;
     return liveWeightKg_;
 }
 

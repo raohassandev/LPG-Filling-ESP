@@ -1,17 +1,33 @@
 #include "ModbusTcpService.h"
 #include "ModbusRegisterMap.h"
 
+// ────────────────────────────────────────────────────────────────────────────
+//  Modbus TCP service — FC01/02/03/04/05/06/16
+//
+//  Frame layout:
+//    MBAP header (7 bytes):  TID(2) PID(2) Length(2) UnitID(1)
+//    PDU           (≥1 byte): FunctionCode(1) [data…]
+//  Total minimum frame = 8 bytes.
+//
+//  Exception codes:
+//    0x01  Illegal Function
+//    0x02  Illegal Data Address
+//    0x03  Illegal Data Value
+// ────────────────────────────────────────────────────────────────────────────
+
 namespace {
 
-// Function codes
-constexpr uint8_t kFcReadHolding    = 0x03;
-constexpr uint8_t kFcWriteSingle    = 0x06;
-constexpr uint8_t kFcWriteMultiple  = 0x10;
+constexpr uint8_t kFC_ReadCoils       = 0x01;
+constexpr uint8_t kFC_ReadDI          = 0x02;
+constexpr uint8_t kFC_ReadHR          = 0x03;
+constexpr uint8_t kFC_ReadIR          = 0x04;  // mirrors FC03
+constexpr uint8_t kFC_WriteCoil       = 0x05;
+constexpr uint8_t kFC_WriteHR         = 0x06;
+constexpr uint8_t kFC_WriteMultiHR    = 0x10;
 
-// Exception codes
-constexpr uint8_t kExcIllegalFunc   = 0x01;
-constexpr uint8_t kExcIllegalAddr   = 0x02;
-constexpr uint8_t kExcIllegalValue  = 0x03;
+constexpr uint8_t kEx_IllegalFunc  = 0x01;
+constexpr uint8_t kEx_IllegalAddr  = 0x02;
+constexpr uint8_t kEx_IllegalValue = 0x03;
 
 uint16_t readU16(const uint8_t* p) {
     return (static_cast<uint16_t>(p[0]) << 8) | p[1];
@@ -22,136 +38,294 @@ void writeU16(uint8_t* p, uint16_t v) {
     p[1] = static_cast<uint8_t>(v & 0xFF);
 }
 
-bool inRange(uint16_t addr) {
-    return addr >= ModbusRegisterMap::kRegisterBase &&
-           addr <  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount;
+// Fill bytes 0–6 of a response buffer with the MBAP header.
+// afterLen = number of bytes that follow this header (UnitID counts as 1 of those).
+void setMbap(uint8_t* buf, const uint8_t* req, uint16_t afterLen) {
+    buf[0] = req[0]; buf[1] = req[1];  // Transaction ID (echo)
+    buf[2] = 0x00;   buf[3] = 0x00;   // Protocol ID = 0
+    buf[4] = static_cast<uint8_t>(afterLen >> 8);
+    buf[5] = static_cast<uint8_t>(afterLen & 0xFF);
+    buf[6] = req[6];                   // Unit ID (echo)
 }
 
 }  // namespace
 
+// ── Constructor ───────────────────────────────────────────────────────────
 ModbusTcpService::ModbusTcpService(StatusStore& statusStore, SettingsStore& settingsStore,
-                                    FillController& fillController, TransactionLog& transactionLog)
+                                    FillController& fillController, TransactionLog& transactionLog,
+                                    RtcService& rtcService)
     : statusStore_(statusStore),
       settingsStore_(settingsStore),
       fillController_(fillController),
-      transactionLog_(transactionLog) {}
+      transactionLog_(transactionLog),
+      rtcService_(rtcService) {}
 
+// ── begin ─────────────────────────────────────────────────────────────────
 void ModbusTcpService::begin() {
     server_.begin();
     server_.setNoDelay(true);
     Serial.println(F("[MODBUS] TCP server started on port 502"));
-    Serial.printf("[MODBUS] Registers 0x%04X–0x%04X (%u regs, dec %u–%u)\n",
-                  ModbusRegisterMap::kRegisterBase,
-                  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount - 1,
-                  ModbusRegisterMap::kRegisterCount,
-                  ModbusRegisterMap::kRegisterBase,
-                  ModbusRegisterMap::kRegisterBase + ModbusRegisterMap::kRegisterCount - 1);
+    Serial.printf("[MODBUS] HR 0x%04X–0x%04X (%u)  Coils 0x%04X–0x%04X (%u)  DI 0x%04X–0x%04X (%u)\n",
+        ModbusRegisterMap::kHR_Base,
+        ModbusRegisterMap::kHR_Base + ModbusRegisterMap::kHR_Count - 1,
+        ModbusRegisterMap::kHR_Count,
+        ModbusRegisterMap::kCoil_Base,
+        ModbusRegisterMap::kCoil_Base + ModbusRegisterMap::kCoil_Count - 1,
+        ModbusRegisterMap::kCoil_Count,
+        ModbusRegisterMap::kDI_Base,
+        ModbusRegisterMap::kDI_Base + ModbusRegisterMap::kDI_Count - 1,
+        ModbusRegisterMap::kDI_Count);
 }
 
+// ── handleClient (called every loop) ─────────────────────────────────────
 void ModbusTcpService::handleClient() {
-    WiFiClient client = server_.available();
-    if (!client) return;
+    // Accept new connection only when idle
+    if (!activeClient_ || !activeClient_.connected()) {
+        WiFiClient incoming = server_.available();
+        if (incoming) {
+            activeClient_ = incoming;
+            activeClient_.setNoDelay(true);
+            rxLen_ = 0;
+        }
+    }
 
-    const unsigned long t0 = millis();
-    while (client.connected() && client.available() < 8 && millis() - t0 < 50)
-        delay(1);
+    if (!activeClient_ || !activeClient_.connected()) return;
 
-    uint8_t req[260] = {0};
-    const int len = client.read(req, sizeof(req));
-    if (len >= 8)
-        handleRequest(client, req, static_cast<uint16_t>(len));
+    // Drain available bytes into receive buffer
+    while (activeClient_.available() > 0 && rxLen_ < static_cast<uint16_t>(sizeof(rxBuf_))) {
+        rxBuf_[rxLen_++] = static_cast<uint8_t>(activeClient_.read());
+    }
 
-    client.stop();
+    // Need at least 8 bytes: 7-byte MBAP + FC
+    if (rxLen_ < 8) return;
+
+    // Validate Protocol ID (must be 0x0000 = Modbus)
+    if (rxBuf_[2] != 0x00 || rxBuf_[3] != 0x00) {
+        activeClient_.stop();
+        rxLen_ = 0;
+        return;
+    }
+
+    const uint16_t declaredLen = readU16(&rxBuf_[4]);       // bytes after MBAP prefix
+    const uint16_t totalFrame  = static_cast<uint16_t>(6 + declaredLen);
+
+    if (totalFrame > static_cast<uint16_t>(sizeof(rxBuf_))) {
+        activeClient_.stop();
+        rxLen_ = 0;
+        return;
+    }
+
+    if (rxLen_ < totalFrame) return;  // incomplete frame — wait
+
+    // Dispatch complete frame
+    const uint8_t  fc     = rxBuf_[7];
+    const uint8_t* pdu    = &rxBuf_[7];
+    const uint16_t pduLen = static_cast<uint16_t>(declaredLen - 1);  // strip UnitID byte
+    dispatchPdu(activeClient_, rxBuf_, fc, pdu, pduLen);
+
+    // Consume processed frame, keep any trailing bytes
+    const uint16_t remaining = static_cast<uint16_t>(rxLen_ - totalFrame);
+    if (remaining > 0) memmove(rxBuf_, rxBuf_ + totalFrame, remaining);
+    rxLen_ = remaining;
 }
 
-void ModbusTcpService::handleRequest(WiFiClient& client, const uint8_t* req, uint16_t len) {
-    // MBAP header: TransactionID(2) ProtocolID(2) Length(2) UnitID(1) FunctionCode(1)
-    const uint8_t  fc      = req[7];
-    const uint16_t startAddr = readU16(&req[8]);
-    const uint16_t word2     = readU16(&req[10]);  // quantity (FC03) / value (FC06) / quantity (FC16)
+// ── dispatchPdu ───────────────────────────────────────────────────────────
+void ModbusTcpService::dispatchPdu(WiFiClient& client, const uint8_t* mbap, uint8_t fc,
+                                    const uint8_t* pdu, uint16_t pduLen) {
+    // FC01/02/03/04/05/06 all need at least 4 bytes of PDU data (addr+qty/value)
+    const uint16_t startAddr = (pduLen >= 4) ? readU16(&pdu[1]) : 0;
+    const uint16_t word2     = (pduLen >= 4) ? readU16(&pdu[3]) : 0;
 
-    // ── FC03: Read Holding Registers ─────────────────────────────────────────
-    if (fc == kFcReadHolding) {
-        const uint16_t qty = word2;
-        if (qty == 0 || qty > ModbusRegisterMap::kRegisterCount ||
-            !inRange(startAddr) || !inRange(startAddr + qty - 1)) {
-            sendException(client, req, fc, kExcIllegalAddr);
-            return;
-        }
-
-        const StatusSnapshot status = statusStore_.snapshot();
-        uint8_t resp[9 + 2 * 125] = {0};
-        memcpy(resp, req, 4);                                     // echo TID + PID
-        writeU16(&resp[4], static_cast<uint16_t>(3 + qty * 2));  // PDU length
-        resp[6] = req[6];                                         // unit ID
-        resp[7] = fc;
-        resp[8] = static_cast<uint8_t>(qty * 2);                 // byte count
-
-        for (uint16_t i = 0; i < qty; ++i) {
-            uint16_t val = ModbusRegisterMap::readHoldingRegister(startAddr + i, status, transactionLog_);
-            writeU16(&resp[9 + i * 2], val);
-        }
-
-        client.write(resp, static_cast<size_t>(9 + qty * 2));
-        return;
+    switch (fc) {
+        case kFC_ReadCoils:
+            if (pduLen < 4) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC01(client, mbap, startAddr, word2);
+            break;
+        case kFC_ReadDI:
+            if (pduLen < 4) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC02(client, mbap, startAddr, word2);
+            break;
+        case kFC_ReadHR:
+        case kFC_ReadIR:
+            if (pduLen < 4) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC03(client, mbap, fc, startAddr, word2);
+            break;
+        case kFC_WriteCoil:
+            if (pduLen < 4) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC05(client, mbap, startAddr, word2);
+            break;
+        case kFC_WriteHR:
+            if (pduLen < 4) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC06(client, mbap, startAddr, word2);
+            break;
+        case kFC_WriteMultiHR:
+            // FC16 PDU: FC(1)+addr(2)+qty(2)+byteCount(1)+data(qty*2) — need ≥6 bytes
+            if (pduLen < 6) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC16(client, mbap, startAddr, word2, &pdu[5]);
+            break;
+        default:
+            sendException(client, mbap, fc, kEx_IllegalFunc);
+            break;
     }
-
-    // ── FC06: Write Single Register ──────────────────────────────────────────
-    if (fc == kFcWriteSingle) {
-        if (!inRange(startAddr)) {
-            sendException(client, req, fc, kExcIllegalAddr);
-            return;
-        }
-        if (!ModbusRegisterMap::writeHoldingRegister(startAddr, word2,
-                                                      statusStore_, settingsStore_, fillController_)) {
-            sendException(client, req, fc, kExcIllegalValue);
-            return;
-        }
-        client.write(req, 12);  // echo request
-        return;
-    }
-
-    // ── FC16: Write Multiple Registers ───────────────────────────────────────
-    if (fc == kFcWriteMultiple) {
-        const uint16_t qty  = word2;
-        // byte count at req[12], data starts at req[13]
-        if (len < static_cast<uint16_t>(13 + qty * 2) ||
-            qty == 0 || qty > ModbusRegisterMap::kRegisterCount ||
-            !inRange(startAddr) || !inRange(startAddr + qty - 1)) {
-            sendException(client, req, fc, kExcIllegalAddr);
-            return;
-        }
-
-        for (uint16_t i = 0; i < qty; ++i) {
-            const uint16_t addr = startAddr + i;
-            const uint16_t val  = readU16(&req[13 + i * 2]);
-            // silently skip read-only registers so a bulk write doesn't abort
-            ModbusRegisterMap::writeHoldingRegister(addr, val,
-                                                     statusStore_, settingsStore_, fillController_);
-        }
-
-        // FC16 response: echo MBAP + fc + startAddr(2) + qty(2)
-        uint8_t resp[12] = {0};
-        memcpy(resp, req, 4);
-        writeU16(&resp[4], 6);
-        resp[6] = req[6];
-        resp[7] = fc;
-        writeU16(&resp[8],  startAddr);
-        writeU16(&resp[10], qty);
-        client.write(resp, 12);
-        return;
-    }
-
-    sendException(client, req, fc, kExcIllegalFunc);
 }
 
-void ModbusTcpService::sendException(WiFiClient& client, const uint8_t* req,
+// ── FC01 — Read Coils ─────────────────────────────────────────────────────
+void ModbusTcpService::handleFC01(WiFiClient& client, const uint8_t* mbap,
+                                   uint16_t startAddr, uint16_t qty) {
+    using namespace ModbusRegisterMap;
+    if (qty == 0 || qty > kCoil_Count ||
+        startAddr < kCoil_Base || startAddr + qty - 1 >= kCoil_Base + kCoil_Count) {
+        sendException(client, mbap, kFC_ReadCoils, kEx_IllegalAddr);
+        return;
+    }
+
+    const StatusSnapshot status = statusStore_.snapshot();
+    const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);
+
+    uint8_t resp[9 + 4] = {0};  // max 11 coils → 2 bytes
+    setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + byteCount));  // UnitID+FC+byteCount+data
+    resp[7] = kFC_ReadCoils;
+    resp[8] = byteCount;
+    for (uint16_t i = 0; i < qty; ++i) {
+        if (readCoil(static_cast<uint16_t>(startAddr + i - kCoil_Base), status)) {
+            resp[9 + i / 8] |= static_cast<uint8_t>(1 << (i % 8));
+        }
+    }
+    client.write(resp, static_cast<size_t>(9 + byteCount));
+}
+
+// ── FC02 — Read Discrete Inputs ───────────────────────────────────────────
+void ModbusTcpService::handleFC02(WiFiClient& client, const uint8_t* mbap,
+                                   uint16_t startAddr, uint16_t qty) {
+    using namespace ModbusRegisterMap;
+    if (qty == 0 || qty > kDI_Count ||
+        startAddr < kDI_Base || startAddr + qty - 1 >= kDI_Base + kDI_Count) {
+        sendException(client, mbap, kFC_ReadDI, kEx_IllegalAddr);
+        return;
+    }
+
+    const StatusSnapshot status = statusStore_.snapshot();
+    const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);  // 6 DIs → 1 byte
+
+    uint8_t resp[9 + 1] = {0};
+    setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + byteCount));
+    resp[7] = kFC_ReadDI;
+    resp[8] = byteCount;
+    for (uint16_t i = 0; i < qty; ++i) {
+        if (readDI(static_cast<uint16_t>(startAddr + i - kDI_Base), status)) {
+            resp[9 + i / 8] |= static_cast<uint8_t>(1 << (i % 8));
+        }
+    }
+    client.write(resp, static_cast<size_t>(9 + byteCount));
+}
+
+// ── FC03/FC04 — Read Holding / Input Registers ────────────────────────────
+void ModbusTcpService::handleFC03(WiFiClient& client, const uint8_t* mbap, uint8_t fc,
+                                   uint16_t startAddr, uint16_t qty) {
+    using namespace ModbusRegisterMap;
+    if (qty == 0 || qty > 125 ||
+        startAddr < kHR_Base || startAddr + qty - 1 >= kHR_Base + kHR_Count) {
+        sendException(client, mbap, fc, kEx_IllegalAddr);
+        return;
+    }
+
+    const StatusSnapshot status = statusStore_.snapshot();
+    const RtcTime rtcTime = rtcService_.getTime();
+    // Response: 7(MBAP) + 1(FC) + 1(byteCount) + qty*2
+    uint8_t resp[9 + 125 * 2] = {0};
+    setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + qty * 2));
+    resp[7] = fc;
+    resp[8] = static_cast<uint8_t>(qty * 2);
+    for (uint16_t i = 0; i < qty; ++i) {
+        const uint16_t val = readHR(static_cast<uint16_t>(startAddr + i - kHR_Base),
+                                     status, transactionLog_, settingsStore_, rtcTime, mqttConnected_);
+        writeU16(&resp[9 + i * 2], val);
+    }
+    client.write(resp, static_cast<size_t>(9 + qty * 2));
+}
+
+// ── FC05 — Write Single Coil ──────────────────────────────────────────────
+void ModbusTcpService::handleFC05(WiFiClient& client, const uint8_t* mbap,
+                                   uint16_t coilAddr, uint16_t coilValue) {
+    using namespace ModbusRegisterMap;
+    if (coilValue != 0x0000 && coilValue != 0xFF00) {
+        sendException(client, mbap, kFC_WriteCoil, kEx_IllegalValue);
+        return;
+    }
+    if (coilAddr < kCoil_Base || coilAddr >= kCoil_Base + kCoil_Count) {
+        sendException(client, mbap, kFC_WriteCoil, kEx_IllegalAddr);
+        return;
+    }
+    if (!writeCoil(static_cast<uint16_t>(coilAddr - kCoil_Base),
+                   coilValue == 0xFF00, statusStore_)) {
+        sendException(client, mbap, kFC_WriteCoil, kEx_IllegalAddr);
+        return;
+    }
+
+    // Echo: MBAP(7) + FC(1) + coilAddr(2) + coilValue(2) = 12 bytes
+    uint8_t resp[12] = {0};
+    setMbap(resp, mbap, 6);  // UnitID(1)+FC(1)+addr(2)+val(2)=6
+    resp[7] = kFC_WriteCoil;
+    writeU16(&resp[8],  coilAddr);
+    writeU16(&resp[10], coilValue);
+    client.write(resp, 12);
+}
+
+// ── FC06 — Write Single Register ─────────────────────────────────────────
+void ModbusTcpService::handleFC06(WiFiClient& client, const uint8_t* mbap,
+                                   uint16_t regAddr, uint16_t regValue) {
+    using namespace ModbusRegisterMap;
+    if (regAddr < kHR_Base || regAddr >= kHR_Base + kHR_Count) {
+        sendException(client, mbap, kFC_WriteHR, kEx_IllegalAddr);
+        return;
+    }
+    if (!writeHR(static_cast<uint16_t>(regAddr - kHR_Base), regValue,
+                 statusStore_, settingsStore_, fillController_, rtcService_)) {
+        sendException(client, mbap, kFC_WriteHR, kEx_IllegalValue);
+        return;
+    }
+
+    // Echo: same 12-byte pattern
+    uint8_t resp[12] = {0};
+    setMbap(resp, mbap, 6);
+    resp[7] = kFC_WriteHR;
+    writeU16(&resp[8],  regAddr);
+    writeU16(&resp[10], regValue);
+    client.write(resp, 12);
+}
+
+// ── FC16 — Write Multiple Registers ──────────────────────────────────────
+void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
+                                   uint16_t startAddr, uint16_t qty, const uint8_t* data) {
+    using namespace ModbusRegisterMap;
+    if (qty == 0 || qty > 123 ||
+        startAddr < kHR_Base || startAddr + qty - 1 >= kHR_Base + kHR_Count) {
+        sendException(client, mbap, kFC_WriteMultiHR, kEx_IllegalAddr);
+        return;
+    }
+
+    for (uint16_t i = 0; i < qty; ++i) {
+        const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
+        const uint16_t val  = readU16(&data[i * 2]);
+        // Silently skip read-only — a paired FLOAT32 write must not abort mid-pair.
+        writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_);
+    }
+
+    // Response: MBAP(7) + FC(1) + startAddr(2) + qty(2) = 12 bytes
+    uint8_t resp[12] = {0};
+    setMbap(resp, mbap, 6);
+    resp[7] = kFC_WriteMultiHR;
+    writeU16(&resp[8],  startAddr);
+    writeU16(&resp[10], qty);
+    client.write(resp, 12);
+}
+
+// ── sendException ─────────────────────────────────────────────────────────
+void ModbusTcpService::sendException(WiFiClient& client, const uint8_t* mbap,
                                       uint8_t fc, uint8_t exCode) {
     uint8_t resp[9] = {0};
-    memcpy(resp, req, 4);
-    writeU16(&resp[4], 3);
-    resp[6] = req[6];
-    resp[7] = fc | 0x80;
+    setMbap(resp, mbap, 3);  // UnitID(1) + error-FC(1) + exCode(1) = 3
+    resp[7] = static_cast<uint8_t>(fc | 0x80);
     resp[8] = exCode;
     client.write(resp, 9);
 }

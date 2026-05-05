@@ -1,106 +1,355 @@
 #include "ModbusRegisterMap.h"
 
+// Define LPG_MODBUS_WRITES_ENABLED in your build flags to allow Modbus HR writes
+// to control the fill process (start/stop/reset/tare via kHR_Command).
+// Disabled by default to prevent unintentional remote actuation in production.
+#ifndef LPG_MODBUS_WRITES_ENABLED
+#define LPG_MODBUS_WRITES_ENABLED 0
+#endif
+
 namespace {
 
-uint16_t scaledKg(float value) {
-    if (value <= 0.0f) return 0;
-    if (value > 655.35f) return 65535;
-    return static_cast<uint16_t>((value * 100.0f) + 0.5f);
+void floatToRegs(float f, uint16_t& hi, uint16_t& lo) {
+    uint32_t bits;
+    memcpy(&bits, &f, sizeof(bits));
+    hi = static_cast<uint16_t>(bits >> 16);
+    lo = static_cast<uint16_t>(bits & 0xFFFF);
 }
 
-uint16_t scaledPkr100(float value) {
-    // Rate per kg stored as PKR × 100 (e.g. 250.00 → 25000)
-    if (value <= 0.0f) return 0;
-    if (value > 655.35f) return 65535;
-    return static_cast<uint16_t>((value * 100.0f) + 0.5f);
+float regsToFloat(uint16_t hi, uint16_t lo) {
+    const uint32_t bits = (static_cast<uint32_t>(hi) << 16) | lo;
+    float f;
+    memcpy(&f, &bits, sizeof(f));
+    return f;
 }
 
-uint16_t pkrInt(float value) {
-    // Amount stored as integer PKR (e.g. 2950.25 → 2950)
-    if (value <= 0.0f) return 0;
-    if (value > 65535.0f) return 65535;
-    return static_cast<uint16_t>(value);
+uint16_t fillStateCode(ProcessState s) {
+    using namespace ModbusRegisterMap;
+    switch (s) {
+        case ProcessState::Idle:        return kFillState_Idle;
+        case ProcessState::Ready:       return kFillState_Ready;
+        case ProcessState::Validating:  return kFillState_Validating;
+        case ProcessState::FillingFast: return kFillState_Fast;
+        case ProcessState::FillingSlow: return kFillState_Slow;
+        case ProcessState::Settling:    return kFillState_Settling;
+        case ProcessState::Complete:    return kFillState_Complete;
+        case ProcessState::Aborted:     return kFillState_Aborted;
+        case ProcessState::Fault:       return kFillState_Fault;
+        case ProcessState::Maintenance: return kFillState_Maintenance;
+        default:                        return 0;
+    }
+}
+
+bool isFillActive(ProcessState s) {
+    return s == ProcessState::FillingFast ||
+           s == ProcessState::FillingSlow ||
+           s == ProcessState::Settling    ||
+           s == ProcessState::Validating;
+}
+
+// Day-of-week from Y/M/D (Tomohiko Sakamoto's algorithm), returns 0=Sun…6=Sat
+uint8_t dayOfWeek(uint16_t y, uint8_t m, uint8_t d) {
+    static const int t[] = {0,3,2,5,0,3,5,1,4,6,2,4};
+    if (m < 3) y--;
+    return (y + y/4 - y/100 + y/400 + t[m-1] + d) % 7;
 }
 
 }  // namespace
 
-uint16_t ModbusRegisterMap::readHoldingRegister(uint16_t address,
-                                                 const StatusSnapshot& status,
-                                                 const TransactionLog& txnLog) {
-    switch (address) {
-        case kLiveWeight:       return scaledKg(status.liveWeightKg);
-        case kTareWeight:       return scaledKg(status.tareWeightKg);
-        case kNetWeight:        return scaledKg(status.netWeightKg);
-        case kFillingStatus:    return static_cast<uint16_t>(status.state);
-        case kTargetWeight:     return scaledKg(status.targetWeightKg);
-        case kEstopStatus:      return status.emergencyStopOk ? 1 : 0;
-        case kRatePerKg:        return scaledPkr100(status.ratePerKg);
-        case kTargetAmount:     return pkrInt(status.targetAmount);
-        case kCurrentAmount:    return pkrInt(status.netWeightKg * status.ratePerKg);
-        case kTransactionCount: return static_cast<uint16_t>(txnLog.totalCount() & 0xFFFF);
-        case kCylinderPresent:  return status.cylinderPresent ? 1 : 0;
-        case kNozzleEngaged:    return status.nozzleEngaged ? 1 : 0;
-        case kWeightStable:     return status.weightStable ? 1 : 0;
-        case kUptimeSec:        return static_cast<uint16_t>((millis() / 1000) & 0xFFFF);
-        case kCommand:          return 0;  // write-only, always reads 0
-        default:                return 0;
+// ── Holding Register read ─────────────────────────────────────────────────────
+uint16_t ModbusRegisterMap::readHR(uint16_t addr, const StatusSnapshot& status,
+                                    const TransactionLog& txnLog,
+                                    const SettingsStore& settings,
+                                    const RtcTime& rtc,
+                                    bool mqttConnected) {
+    uint16_t hi, lo;
+
+    switch (addr) {
+        // ── Section 1: Process data ──────────────────────────────────────────
+        case kHR_LiveWeightHi:    floatToRegs(status.liveWeightKg,   hi, lo); return hi;
+        case kHR_LiveWeightLo:    floatToRegs(status.liveWeightKg,   hi, lo); return lo;
+        case kHR_TareWeightHi:    floatToRegs(status.tareWeightKg,   hi, lo); return hi;
+        case kHR_TareWeightLo:    floatToRegs(status.tareWeightKg,   hi, lo); return lo;
+        case kHR_NetWeightHi:     floatToRegs(status.netWeightKg,    hi, lo); return hi;
+        case kHR_NetWeightLo:     floatToRegs(status.netWeightKg,    hi, lo); return lo;
+        case kHR_TargetWeightHi:  floatToRegs(status.targetWeightKg, hi, lo); return hi;
+        case kHR_TargetWeightLo:  floatToRegs(status.targetWeightKg, hi, lo); return lo;
+        case kHR_RatePerKgHi:     floatToRegs(status.ratePerKg,      hi, lo); return hi;
+        case kHR_RatePerKgLo:     floatToRegs(status.ratePerKg,      hi, lo); return lo;
+        case kHR_TargetAmountHi:  floatToRegs(status.targetAmount,   hi, lo); return hi;
+        case kHR_TargetAmountLo:  floatToRegs(status.targetAmount,   hi, lo); return lo;
+        case kHR_CurrentAmountHi: { const float c = status.netWeightKg * status.ratePerKg; floatToRegs(c, hi, lo); return hi; }
+        case kHR_CurrentAmountLo: { const float c = status.netWeightKg * status.ratePerKg; floatToRegs(c, hi, lo); return lo; }
+        case kHR_FillState:       return fillStateCode(status.state);
+        case kHR_EstopOk:         return status.emergencyStopOk  ? 1 : 0;
+        case kHR_CylinderPresent: return status.cylinderPresent  ? 1 : 0;
+        case kHR_NozzleEngaged:   return status.nozzleEngaged    ? 1 : 0;
+        case kHR_WeightStable:    return status.weightStable     ? 1 : 0;
+        case kHR_TxnCountHi: return static_cast<uint16_t>((txnLog.totalCount() >> 16) & 0xFFFF);
+        case kHR_TxnCountLo: return static_cast<uint16_t>( txnLog.totalCount()        & 0xFFFF);
+        case kHR_UptimeHi:   return static_cast<uint16_t>(((millis() / 1000UL) >> 16) & 0xFFFF);
+        case kHR_UptimeLo:   return static_cast<uint16_t>( (millis() / 1000UL)        & 0xFFFF);
+        case kHR_Command:    return 0;
+        case kHR_DeviceId:   return 0xA601;
+
+        // ── Section 2: Communications ────────────────────────────────────────
+        case kHR_RtuSlaveAddr: return settings.rtuSnapshot().slaveAddress;
+        case kHR_RtuBaudHi:    return static_cast<uint16_t>((settings.rtuSnapshot().baudRate >> 16) & 0xFFFF);
+        case kHR_RtuBaudLo:    return static_cast<uint16_t>( settings.rtuSnapshot().baudRate        & 0xFFFF);
+        case kHR_RtuParity:    return settings.rtuSnapshot().parity;
+        case kHR_RtuStopBits:  return settings.rtuSnapshot().stopBits;
+        case kHR_TcpPort:      return 502;
+        case kHR_MqttConnected: return mqttConnected ? 1 : 0;
+
+        // ── Section 3: RTC / Clock ───────────────────────────────────────────
+        case kHR_RtcYear:   return rtc.year;
+        case kHR_RtcMonth:  return rtc.month;
+        case kHR_RtcDay:    return rtc.date;
+        case kHR_RtcHour:   return rtc.hour;
+        case kHR_RtcMinute: return rtc.minute;
+        case kHR_RtcSecond: return rtc.second;
+        case kHR_RtcUnixHi: {
+            // Convert RTC fields to Unix timestamp and return Hi word
+            if (rtc.year < 2020) return 0;
+            struct tm t = {};
+            t.tm_year = rtc.year - 1900; t.tm_mon = rtc.month - 1; t.tm_mday = rtc.date;
+            t.tm_hour = rtc.hour; t.tm_min = rtc.minute; t.tm_sec = rtc.second;
+            const uint32_t unix = (uint32_t)mktime(&t);
+            return static_cast<uint16_t>((unix >> 16) & 0xFFFF);
+        }
+        case kHR_RtcUnixLo: {
+            if (rtc.year < 2020) return 0;
+            struct tm t = {};
+            t.tm_year = rtc.year - 1900; t.tm_mon = rtc.month - 1; t.tm_mday = rtc.date;
+            t.tm_hour = rtc.hour; t.tm_min = rtc.minute; t.tm_sec = rtc.second;
+            const uint32_t unix = (uint32_t)mktime(&t);
+            return static_cast<uint16_t>(unix & 0xFFFF);
+        }
+
+        // ── Section 4: All-time statistics ───────────────────────────────────
+        case kHR_StatAllCompHi: return static_cast<uint16_t>((txnLog.completedCount() >> 16) & 0xFFFF);
+        case kHR_StatAllCompLo: return static_cast<uint16_t>( txnLog.completedCount()        & 0xFFFF);
+        case kHR_StatAllFailHi: {
+            const uint32_t f = txnLog.abortedCount() + txnLog.faultCount();
+            return static_cast<uint16_t>((f >> 16) & 0xFFFF);
+        }
+        case kHR_StatAllFailLo: {
+            const uint32_t f = txnLog.abortedCount() + txnLog.faultCount();
+            return static_cast<uint16_t>(f & 0xFFFF);
+        }
+        case kHR_StatAllKgHi:  floatToRegs(txnLog.allKgTotal(),     hi, lo); return hi;
+        case kHR_StatAllKgLo:  floatToRegs(txnLog.allKgTotal(),     hi, lo); return lo;
+        case kHR_StatAllAmtHi: floatToRegs(txnLog.allAmountTotal(), hi, lo); return hi;
+        case kHR_StatAllAmtLo: floatToRegs(txnLog.allAmountTotal(), hi, lo); return lo;
+
+        // ── Section 5: Period statistics (computeStats is cached) ────────────
+        case kHR_StatTodayComp:  return static_cast<uint16_t>(txnLog.computeStats().todayCompleted);
+        case kHR_StatTodayFail:  return static_cast<uint16_t>(txnLog.computeStats().todayFailed);
+        case kHR_StatTodayKgHi:  floatToRegs(txnLog.computeStats().todayKg,     hi, lo); return hi;
+        case kHR_StatTodayKgLo:  floatToRegs(txnLog.computeStats().todayKg,     hi, lo); return lo;
+        case kHR_StatTodayAmtHi: floatToRegs(txnLog.computeStats().todayAmount, hi, lo); return hi;
+        case kHR_StatTodayAmtLo: floatToRegs(txnLog.computeStats().todayAmount, hi, lo); return lo;
+
+        case kHR_StatWeekComp:   return static_cast<uint16_t>(txnLog.computeStats().weekCompleted);
+        case kHR_StatWeekFail:   return static_cast<uint16_t>(txnLog.computeStats().weekFailed);
+        case kHR_StatWeekKgHi:   floatToRegs(txnLog.computeStats().weekKg,     hi, lo); return hi;
+        case kHR_StatWeekKgLo:   floatToRegs(txnLog.computeStats().weekKg,     hi, lo); return lo;
+        case kHR_StatWeekAmtHi:  floatToRegs(txnLog.computeStats().weekAmount, hi, lo); return hi;
+        case kHR_StatWeekAmtLo:  floatToRegs(txnLog.computeStats().weekAmount, hi, lo); return lo;
+
+        case kHR_StatMonthComp:  return static_cast<uint16_t>(txnLog.computeStats().monthCompleted);
+        case kHR_StatMonthFail:  return static_cast<uint16_t>(txnLog.computeStats().monthFailed);
+        case kHR_StatMonthKgHi:  floatToRegs(txnLog.computeStats().monthKg,     hi, lo); return hi;
+        case kHR_StatMonthKgLo:  floatToRegs(txnLog.computeStats().monthKg,     hi, lo); return lo;
+        case kHR_StatMonthAmtHi: floatToRegs(txnLog.computeStats().monthAmount, hi, lo); return hi;
+        case kHR_StatMonthAmtLo: floatToRegs(txnLog.computeStats().monthAmount, hi, lo); return lo;
+
+        case kHR_StatYearComp:   return static_cast<uint16_t>(txnLog.computeStats().yearCompleted);
+        case kHR_StatYearFail:   return static_cast<uint16_t>(txnLog.computeStats().yearFailed);
+        case kHR_StatYearKgHi:   floatToRegs(txnLog.computeStats().yearKg,     hi, lo); return hi;
+        case kHR_StatYearKgLo:   floatToRegs(txnLog.computeStats().yearKg,     hi, lo); return lo;
+        case kHR_StatYearAmtHi:  floatToRegs(txnLog.computeStats().yearAmount, hi, lo); return hi;
+        case kHR_StatYearAmtLo:  floatToRegs(txnLog.computeStats().yearAmount, hi, lo); return lo;
+
+        default: return 0;
     }
 }
 
-bool ModbusRegisterMap::writeHoldingRegister(uint16_t address, uint16_t value,
-                                              StatusStore& statusStore,
-                                              SettingsStore& settingsStore,
-                                              FillController& fillController) {
+// ── Holding Register write ────────────────────────────────────────────────────
+bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
+                                 StatusStore& statusStore, SettingsStore& settingsStore,
+                                 FillController& fillController, RtcService& rtcService) {
+#if LPG_MODBUS_WRITES_ENABLED == 0
+    // Writes disabled in production. Define LPG_MODBUS_WRITES_ENABLED=1 to enable.
+    (void)addr; (void)value; (void)statusStore; (void)settingsStore;
+    (void)fillController; (void)rtcService;
+    return false;
+#else
+    static uint16_t sHi_TareWeight   = 0;
+    static uint16_t sHi_TargetWeight = 0;
+    static uint16_t sHi_RatePerKg    = 0;
+    static uint16_t sHi_TargetAmount = 0;
+    static uint32_t sRtuBaudHi       = 0;
+    static uint16_t sRtcYear = 0, sRtcMonth = 0, sRtcDay = 0, sRtcHour = 0, sRtcMinute = 0;
+    static uint16_t sRtcUnixHi = 0;
+
     const StatusSnapshot snap = statusStore.snapshot();
 
-    switch (address) {
+    switch (addr) {
 
-        case kTareWeight:
-            statusStore.setTareWeight(static_cast<float>(value) / 100.0f);
+        // ── Tare Weight ──────────────────────────────────────────────────────
+        case kHR_TareWeightHi: sHi_TareWeight = value; return true;
+        case kHR_TareWeightLo: {
+            const float kg = regsToFloat(sHi_TareWeight, value);
+            if (kg < 0.0f || kg > 500.0f) return false;
+            statusStore.setTareWeight(kg);
             return true;
+        }
 
-        case kTargetWeight: {
-            const float kg = static_cast<float>(value) / 100.0f;
+        // ── Target Weight ────────────────────────────────────────────────────
+        case kHR_TargetWeightHi: sHi_TargetWeight = value; return true;
+        case kHR_TargetWeightLo: {
+            const float kg = regsToFloat(sHi_TargetWeight, value);
+            if (kg < 0.0f || kg > 500.0f) return false;
             statusStore.setTargets(kg, snap.targetAmount, snap.ratePerKg);
             return true;
         }
 
-        case kRatePerKg: {
-            const float rate = static_cast<float>(value) / 100.0f;
-            if (rate <= 0.0f) return false;
+        // ── Rate Per kg ──────────────────────────────────────────────────────
+        case kHR_RatePerKgHi: sHi_RatePerKg = value; return true;
+        case kHR_RatePerKgLo: {
+            const float rate = regsToFloat(sHi_RatePerKg, value);
+            if (rate <= 0.0f || rate > 100000.0f) return false;
             settingsStore.setRatePerKg(rate);
             statusStore.setTargets(snap.targetWeightKg, snap.targetAmount, rate);
             return true;
         }
 
-        case kTargetAmount: {
-            const float amount = static_cast<float>(value);
+        // ── Target Amount ────────────────────────────────────────────────────
+        case kHR_TargetAmountHi: sHi_TargetAmount = value; return true;
+        case kHR_TargetAmountLo: {
+            const float amount = regsToFloat(sHi_TargetAmount, value);
+            if (amount < 0.0f) return false;
             statusStore.setTargets(snap.targetWeightKg, amount, snap.ratePerKg);
             return true;
         }
 
-        case kCommand: {
+        // ── Command ──────────────────────────────────────────────────────────
+        case kHR_Command: {
             String reason;
             switch (value) {
-                case 1:  // Start fill — uses Target Weight, Rate, Target Amount already set
-                    fillController.startFill(snap.targetWeightKg, snap.ratePerKg,
-                                             snap.targetAmount, reason, "modbus");
-                    return true;
-                case 2:  // Stop fill
-                    fillController.stopFill("modbus_stop");
-                    return true;
-                case 3:  // Reset to idle
-                    fillController.resetToIdle(reason);
-                    return true;
-                case 4:  // Zero net weight (tare from live)
-                    statusStore.setTareWeight(snap.liveWeightKg);
-                    return true;
-                default:
-                    return false;
+                case 1: fillController.startFill(snap.targetWeightKg, snap.ratePerKg, snap.targetAmount, reason, "modbus"); return true;
+                case 2: fillController.stopFill("modbus_stop"); return true;
+                case 3: fillController.resetToIdle(reason); return true;
+                case 4: statusStore.setTareWeight(snap.liveWeightKg); return true;
+                default: return false;
             }
         }
 
-        default:
-            return false;  // read-only or unknown
+        // ── RTU Comms parameters (persist, RTU service picks up on next begin/restart) ──
+        case kHR_RtuSlaveAddr: {
+            if (value < 1 || value > 247) return false;
+            ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+            rtu.slaveAddress = static_cast<uint8_t>(value);
+            return settingsStore.setModbusRtu(rtu);
+        }
+        case kHR_RtuBaudHi: { sRtuBaudHi = value; return true; }
+        case kHR_RtuBaudLo: {
+            const uint32_t baud = ((uint32_t)sRtuBaudHi << 16) | value;
+            const uint32_t valid[] = {1200,2400,4800,9600,19200,38400,57600,115200};
+            bool ok = false;
+            for (auto v : valid) { if (baud == v) { ok = true; break; } }
+            if (!ok) return false;
+            ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+            rtu.baudRate = baud;
+            return settingsStore.setModbusRtu(rtu);
+        }
+        case kHR_RtuParity: {
+            if (value > 2) return false;
+            ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+            rtu.parity = static_cast<uint8_t>(value);
+            return settingsStore.setModbusRtu(rtu);
+        }
+        case kHR_RtuStopBits: {
+            if (value != 1 && value != 2) return false;
+            ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+            rtu.stopBits = static_cast<uint8_t>(value);
+            return settingsStore.setModbusRtu(rtu);
+        }
+
+        // ── RTC Clock ────────────────────────────────────────────────────────
+        case kHR_RtcYear:   { sRtcYear   = value; return true; }
+        case kHR_RtcMonth:  { sRtcMonth  = value; return true; }
+        case kHR_RtcDay:    { sRtcDay    = value; return true; }
+        case kHR_RtcHour:   { sRtcHour   = value; return true; }
+        case kHR_RtcMinute: { sRtcMinute = value; return true; }
+        case kHR_RtcSecond: {
+            // Writing Second commits accumulated year/month/day/hour/minute
+            if (sRtcYear < 2020 || sRtcMonth < 1 || sRtcMonth > 12 ||
+                sRtcDay  < 1    || sRtcDay   > 31 || sRtcHour > 23  ||
+                sRtcMinute > 59 || value > 59)      return false;
+            RtcTime t;
+            t.year   = sRtcYear;
+            t.month  = static_cast<uint8_t>(sRtcMonth);
+            t.date   = static_cast<uint8_t>(sRtcDay);
+            t.hour   = static_cast<uint8_t>(sRtcHour);
+            t.minute = static_cast<uint8_t>(sRtcMinute);
+            t.second = static_cast<uint8_t>(value);
+            t.day    = static_cast<uint8_t>(dayOfWeek(t.year, t.month, t.date) + 1);
+            rtcService.setTime(t);
+            return true;
+        }
+        case kHR_RtcUnixHi: { sRtcUnixHi = value; return true; }
+        case kHR_RtcUnixLo: {
+            const uint32_t unix = ((uint32_t)sRtcUnixHi << 16) | value;
+            if (unix < 1577836800UL) return false; // reject pre-2020
+            const time_t t_val = (time_t)unix;
+            struct tm* tm_info = gmtime(&t_val);
+            if (!tm_info) return false;
+            RtcTime t;
+            t.year   = static_cast<uint16_t>(1900 + tm_info->tm_year);
+            t.month  = static_cast<uint8_t>(1 + tm_info->tm_mon);
+            t.date   = static_cast<uint8_t>(tm_info->tm_mday);
+            t.hour   = static_cast<uint8_t>(tm_info->tm_hour);
+            t.minute = static_cast<uint8_t>(tm_info->tm_min);
+            t.second = static_cast<uint8_t>(tm_info->tm_sec);
+            t.day    = static_cast<uint8_t>(tm_info->tm_wday + 1);
+            rtcService.setTime(t);
+            return true;
+        }
+
+        default: return false;
     }
+#endif // LPG_MODBUS_WRITES_ENABLED
+}
+
+// ── Coil read ─────────────────────────────────────────────────────────────────
+uint8_t ModbusRegisterMap::readCoil(uint16_t addr, const StatusSnapshot& status) {
+    switch (addr) {
+        case kCoil_EstopOk:       return status.emergencyStopOk ? 1 : 0;
+        case kCoil_CylinderPres:  return status.cylinderPresent ? 1 : 0;
+        case kCoil_NozzleEngaged: return status.nozzleEngaged   ? 1 : 0;
+        case kCoil_WeightStable:  return status.weightStable    ? 1 : 0;
+        case kCoil_FillActive:    return isFillActive(status.state) ? 1 : 0;
+        case kCoil_Relay1:        return status.relays[0] ? 1 : 0;
+        case kCoil_Relay2:        return status.relays[1] ? 1 : 0;
+        case kCoil_Relay3:        return status.relays[2] ? 1 : 0;
+        case kCoil_Relay4:        return status.relays[3] ? 1 : 0;
+        case kCoil_Relay5:        return status.relays[4] ? 1 : 0;
+        case kCoil_Relay6:        return status.relays[5] ? 1 : 0;
+        default:                  return 0;
+    }
+}
+
+bool ModbusRegisterMap::writeCoil(uint16_t addr, bool value, StatusStore& statusStore) {
+    if (addr >= kCoil_Relay1 && addr <= kCoil_Relay6) {
+        statusStore.setRelay(static_cast<uint8_t>(addr - kCoil_Relay1), value);
+        return true;
+    }
+    return false;
+}
+
+uint8_t ModbusRegisterMap::readDI(uint16_t addr, const StatusSnapshot& status) {
+    if (addr < kDI_Count) return status.inputs[addr] ? 1 : 0;
+    return 0;
 }

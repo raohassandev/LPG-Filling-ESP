@@ -51,6 +51,8 @@ void TransactionLog::begin()
             {
             case TransactionStatus::Complete:
                 completedCount_++;
+                allKgTotal_     += record.netWeightKg;
+                allAmountTotal_ += record.finalAmount;
                 break;
             case TransactionStatus::Aborted:
                 abortedCount_++;
@@ -112,6 +114,9 @@ bool TransactionLog::completeTransaction(uint32_t id, float finalWeightKg, float
     if (saveTransaction(record))
     {
         completedCount_++;
+        allKgTotal_     += record.netWeightKg;
+        allAmountTotal_ += record.finalAmount;
+        statsCacheMs_    = 0;  // invalidate period cache
         return true;
     }
 
@@ -133,6 +138,7 @@ bool TransactionLog::abortTransaction(uint32_t id, const String &reason)
     if (saveTransaction(record))
     {
         abortedCount_++;
+        statsCacheMs_ = 0;
         return true;
     }
 
@@ -154,6 +160,7 @@ bool TransactionLog::faultTransaction(uint32_t id, const String &faultCode)
     if (saveTransaction(record))
     {
         faultCount_++;
+        statsCacheMs_ = 0;
         return true;
     }
 
@@ -457,4 +464,82 @@ uint32_t TransactionLog::getCurrentUnixTime()
         return mktime(&t);
     }
     return millis() / 1000; // Fallback to uptime
+}
+
+// ── Period-based stats ────────────────────────────────────────────────────────
+TxnStatsSnapshot TransactionLog::computeStats() const {
+    if (statsCacheMs_ > 0 && millis() - statsCacheMs_ < kStatsCacheMs) {
+        return statsCache_;
+    }
+
+    TxnStatsSnapshot s;
+    // All-time counters are maintained incrementally
+    s.allCompleted = completedCount_;
+    s.allFailed    = abortedCount_ + faultCount_;
+    s.allKg        = allKgTotal_;
+    s.allAmount    = allAmountTotal_;
+
+    // Period boundaries require current RTC time
+    RtcTime now = const_cast<RtcService&>(rtcService_).getTime();
+    if (now.year < 2020) {
+        statsCache_ = s;
+        statsCacheMs_ = millis();
+        return s;
+    }
+
+    struct tm t = {};
+    t.tm_year  = now.year - 1900;
+    t.tm_mon   = now.month - 1;
+    t.tm_mday  = now.date;
+    t.tm_isdst = 0;
+    const time_t todayStart = mktime(&t);
+
+    // Week start — Monday (ISO week)
+    const int dow        = t.tm_wday; // 0=Sun
+    const int daysBack   = (dow == 0) ? 6 : (dow - 1);
+    const time_t weekStart = todayStart - (time_t)(daysBack * 86400);
+
+    struct tm tm_m = t; tm_m.tm_mday = 1;
+    const time_t monthStart = mktime(&tm_m);
+
+    struct tm tm_y = t; tm_y.tm_mon = 0; tm_y.tm_mday = 1;
+    const time_t yearStart = mktime(&tm_y);
+
+    // Scan backwards from latest; stop when past yearStart (early-exit optimisation)
+    const int32_t last = (int32_t)(nextTransactionId_) - 1;
+    for (int32_t id = last; id >= 1; id--) {
+        TransactionRecord rec;
+        if (!loadTransaction((uint32_t)id, rec)) continue;
+
+        const bool comp = (rec.status == TransactionStatus::Complete);
+        const bool fail = (rec.status == TransactionStatus::Aborted ||
+                           rec.status == TransactionStatus::Fault);
+        if (!comp && !fail) continue;
+
+        const time_t ts = (time_t)(rec.endTimeUnix > 0 ? rec.endTimeUnix : rec.startTimeUnix);
+        if (ts < yearStart) break; // Transactions are ordered by ID ≈ time
+
+        const float kg  = comp ? rec.netWeightKg : 0.0f;
+        const float amt = comp ? rec.finalAmount  : 0.0f;
+
+        if (comp) { s.yearCompleted++;  s.yearKg  += kg; s.yearAmount  += amt; }
+        else        s.yearFailed++;
+
+        if (ts >= monthStart) {
+            if (comp) { s.monthCompleted++; s.monthKg += kg; s.monthAmount += amt; }
+            else        s.monthFailed++;
+        }
+        if (ts >= weekStart) {
+            if (comp) { s.weekCompleted++;  s.weekKg  += kg; s.weekAmount  += amt; }
+            else        s.weekFailed++;
+        }
+        if (ts >= todayStart) {
+            if (comp) { s.todayCompleted++; s.todayKg += kg; s.todayAmount += amt; }
+            else        s.todayFailed++;
+        }
+    }
+
+    statsCache_   = s;
+    statsCacheMs_ = millis();
+    return s;
 }

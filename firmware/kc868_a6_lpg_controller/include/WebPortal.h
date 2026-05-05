@@ -8,6 +8,8 @@
 #include "EventLog.h"
 #include "FillController.h"
 #include "RelayBank.h"
+#include "RtcService.h"
+#include "SdService.h"
 #include "SettingsStore.h"
 #include "StatusStore.h"
 #include "TransactionLog.h"
@@ -17,7 +19,8 @@ class WebPortal {
  public:
   WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
             SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
-            RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager);
+            RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
+            RtcService& rtcService, SdService& sdService);
 
   void begin();
   void handleClient();
@@ -42,10 +45,12 @@ class WebPortal {
   void handleStop();
   void handleReset();
   void handleHwTare();
+#ifdef LPG_DEV_BUILD
   void handleSetSimWeight();
   void handleClearSim();
   void handleSetSimInputs();
   void handleClearSimInputs();
+#endif
   void handleCalibrate();
   void handleLogin();
   void handleLogout();
@@ -56,6 +61,16 @@ class WebPortal {
   void handleCreateUser();
   void handleUpdateUser();
   void handleDeleteUser();
+  void handleGetSystem();
+  void handleGetMqtt();
+  void handleSetMqtt();
+  void handleGetStats();
+  void handleGetTime();
+  void handleSetTime();
+  void handleGetModbusRtu();
+  void handleSetModbusRtu();
+  void handleGetSdMonths();
+  void handleGetSdTransactions();
   String statusJson() const;
   void broadcastStatus();
   bool requireAuth(UserRole minRole);
@@ -71,6 +86,8 @@ class WebPortal {
   RelayBank& relayBank_;
   AuthService& authService_;
   LpgNetworkManager& networkManager_;
+  RtcService& rtcService_;
+  SdService& sdService_;
   WebServer server_{80};
   WebSocketsServer wsServer_{81};
   unsigned long lastBroadcastMs_{0};

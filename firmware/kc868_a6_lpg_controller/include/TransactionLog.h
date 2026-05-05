@@ -2,9 +2,38 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
+#include <time.h>
 #include <vector>
 #include "BoardConfig.h"
 #include "RtcService.h"
+
+// Aggregated statistics snapshot — all-time + per-period
+struct TxnStatsSnapshot {
+  uint32_t allCompleted = 0;
+  uint32_t allFailed    = 0;
+  float    allKg        = 0.0f;
+  float    allAmount    = 0.0f;
+
+  uint32_t todayCompleted = 0;
+  uint32_t todayFailed    = 0;
+  float    todayKg        = 0.0f;
+  float    todayAmount    = 0.0f;
+
+  uint32_t weekCompleted  = 0;
+  uint32_t weekFailed     = 0;
+  float    weekKg         = 0.0f;
+  float    weekAmount     = 0.0f;
+
+  uint32_t monthCompleted = 0;
+  uint32_t monthFailed    = 0;
+  float    monthKg        = 0.0f;
+  float    monthAmount    = 0.0f;
+
+  uint32_t yearCompleted  = 0;
+  uint32_t yearFailed     = 0;
+  float    yearKg         = 0.0f;
+  float    yearAmount     = 0.0f;
+};
 
 // Transaction status
 enum class TransactionStatus : uint8_t
@@ -63,10 +92,16 @@ public:
     std::vector<TransactionRecord> getRecentTransactions(uint8_t count) const;
 
     // Statistics
-    uint32_t totalCount() const { return nextTransactionId_ - 1; }
+    uint32_t totalCount()    const { return nextTransactionId_ - 1; }
     uint32_t completedCount() const { return completedCount_; }
-    uint32_t abortedCount() const { return abortedCount_; }
-    uint32_t faultCount() const { return faultCount_; }
+    uint32_t abortedCount()   const { return abortedCount_; }
+    uint32_t faultCount()     const { return faultCount_; }
+    float    allKgTotal()     const { return allKgTotal_; }
+    float    allAmountTotal() const { return allAmountTotal_; }
+
+    // Period-aware aggregation (cached 30 s TTL; call from loop, not ISR)
+    TxnStatsSnapshot computeStats() const;
+    void invalidateStatsCache() { statsCacheMs_ = 0; }
 
     // Export
     String exportJson() const;
@@ -75,9 +110,15 @@ public:
 
 private:
     uint32_t nextTransactionId_ = 1;
-    uint32_t completedCount_ = 0;
-    uint32_t abortedCount_ = 0;
-    uint32_t faultCount_ = 0;
+    uint32_t completedCount_    = 0;
+    uint32_t abortedCount_      = 0;
+    uint32_t faultCount_        = 0;
+    float    allKgTotal_        = 0.0f;
+    float    allAmountTotal_    = 0.0f;
+
+    mutable TxnStatsSnapshot statsCache_;
+    mutable unsigned long    statsCacheMs_ = 0;
+    static constexpr unsigned long kStatsCacheMs = 30000UL;
 
     RtcService &rtcService_;
 

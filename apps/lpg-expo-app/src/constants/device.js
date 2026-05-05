@@ -1,13 +1,8 @@
 export const DEFAULT_DEVICE_URL = "http://lpg-controller.local";
 
-// Dev/testing credentials — remove this block when deploying to production
-export const DEV_AUTO_LOGIN_ROLE = "operator";
-export const DEV_CREDENTIALS = {
-  operator:     "1234",
-  manufacturer: "5678",
-  maintenance:  "5678",  // legacy alias
-  admin:        "0000",
-};
+// Populated only in dev builds; empty in production so no credentials are baked into the app
+export const DEV_AUTO_LOGIN_ROLE = "";
+export const DEV_CREDENTIALS = {};
 
 export const RELAYS = [
   { name: "Relay 1", terminal: "Output 1", purpose: "Fast fill valve" },

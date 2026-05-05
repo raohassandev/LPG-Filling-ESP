@@ -20,6 +20,9 @@
 #include "NetworkManager.h"
 #include "OledDisplay.h"
 #include "ModbusTcpService.h"
+#include "ModbusRtuService.h"
+#include "MqttService.h"
+#include "SdService.h"
 
 namespace {
 BoardConfig boardConfig;
@@ -36,8 +39,11 @@ OledDisplay oledDisplay(boardConfig);
 LpgNetworkManager networkManager;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
-WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager);
-ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog);
+WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService);
+ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService);
+ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService);
+MqttService mqttService(networkManager, settingsStore, statusStore);
+SdService   sdService;
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -265,9 +271,12 @@ void setup() {
   } else {
     Serial.println(F("[MDNS] Started: lpg-controller.local"));
   }
+  sdService.begin();
   webPortal.begin();
   MDNS.addService("http", "tcp", 80);
   modbusTcpService.begin();
+  modbusRtuService.begin();
+  mqttService.begin();
   updateOledStatus(true);
   printSerialHelp();
   printStatusSnapshot();
@@ -280,10 +289,38 @@ void loop() {
   inputExpander.poll();
   weightService.poll();
   statusStore.setWeightStable(weightService.stable());
+
+  const ProcessState prevState = statusStore.snapshot().state;
   fillController.tick();
+  const ProcessState newState  = statusStore.snapshot().state;
+
+  // On fill completion: publish MQTT + mirror to SD depending on storageMode
+  if (prevState != ProcessState::Complete && newState == ProcessState::Complete) {
+    const TransactionRecord rec = transactionLog.getLatestTransaction();
+    if (rec.id > 0) {
+      mqttService.publishTransaction(rec);
+      const uint8_t mode = settingsStore.snapshot().storageMode;
+      if ((mode == 1 || mode == 2) && sdService.isReady()) {
+        sdService.appendTransaction(rec);
+      }
+    }
+  }
+  // Publish alert on fresh fault or e-stop
+  if (prevState != ProcessState::Fault && newState == ProcessState::Fault) {
+    const StatusSnapshot s = statusStore.snapshot();
+    mqttService.publishAlert("fault", s.lastReasonCode);
+  }
+
+  // Keep Modbus services aware of MQTT connection state (for kHR_MqttConnected register)
+  const bool mqttOk = mqttService.isConnected();
+  modbusTcpService.setMqttConnected(mqttOk);
+  modbusRtuService.setMqttConnected(mqttOk);
+
   networkManager.poll();
   webPortal.handleClient();
   modbusTcpService.handleClient();
+  modbusRtuService.handleClient();
+  mqttService.loop();
   pollSerialCommands();
   updateOledStatus();
   delay(20);

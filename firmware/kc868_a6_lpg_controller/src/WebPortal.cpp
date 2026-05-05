@@ -7,11 +7,23 @@
 
 namespace {
 String jsonBool(bool value) { return value ? "true" : "false"; }
+String jsonStr(const String& s) {
+  // Minimal JSON string escape — replaces " and \
+  String out = "\"";
+  for (char c : s) {
+    if (c == '"')       out += "\\\"";
+    else if (c == '\\') out += "\\\\";
+    else                out += c;
+  }
+  out += "\"";
+  return out;
+}
 }
 
 WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
                      SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
-                     RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager)
+                     RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
+                     RtcService& rtcService, SdService& sdService)
     : statusStore_(statusStore),
       fillController_(fillController),
       weightService_(weightService),
@@ -20,9 +32,15 @@ WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, W
       transactionLog_(transactionLog),
       relayBank_(relayBank),
       authService_(authService),
-      networkManager_(networkManager) {}
+      networkManager_(networkManager),
+      rtcService_(rtcService),
+      sdService_(sdService) {}
 
 void WebPortal::begin() {
+  // Collect Authorization header so requireAuth() can read Bearer tokens
+  const char* collectHeaders[] = { "Authorization" };
+  server_.collectHeaders(collectHeaders, 1);
+
   registerRoutes();
   server_.begin();
   Serial.println(F("[WEB] HTTP server started on port 80"));
@@ -87,10 +105,12 @@ void WebPortal::registerRoutes() {
   server_.on("/api/start", HTTP_POST, [this]() { handleStart(); });
   server_.on("/api/stop", HTTP_POST, [this]() { handleStop(); });
   server_.on("/api/reset", HTTP_POST, [this]() { handleReset(); });
+#ifdef LPG_DEV_BUILD
   server_.on("/api/sim-weight",  HTTP_POST, [this]() { handleSetSimWeight(); });
   server_.on("/api/sim-clear",   HTTP_POST, [this]() { handleClearSim(); });
   server_.on("/api/sim-inputs",       HTTP_POST, [this]() { handleSetSimInputs(); });
   server_.on("/api/sim-inputs-clear", HTTP_POST, [this]() { handleClearSimInputs(); });
+#endif
   server_.on("/api/calibrate",   HTTP_POST, [this]() { handleCalibrate(); });
   server_.on("/api/login",   HTTP_POST, [this]() { handleLogin(); });
   server_.on("/api/logout",  HTTP_POST, [this]() { handleLogout(); });
@@ -101,6 +121,16 @@ void WebPortal::registerRoutes() {
   server_.on("/api/users",         HTTP_POST,   [this]() { handleCreateUser(); });
   server_.on("/api/users/update",  HTTP_POST,   [this]() { handleUpdateUser(); });
   server_.on("/api/users/delete",  HTTP_POST,   [this]() { handleDeleteUser(); });
+  server_.on("/api/system",        HTTP_GET,    [this]() { handleGetSystem(); });
+  server_.on("/api/mqtt",          HTTP_GET,    [this]() { handleGetMqtt(); });
+  server_.on("/api/mqtt",          HTTP_POST,   [this]() { handleSetMqtt(); });
+  server_.on("/api/stats",         HTTP_GET,    [this]() { handleGetStats(); });
+  server_.on("/api/time",          HTTP_GET,    [this]() { handleGetTime(); });
+  server_.on("/api/time",          HTTP_POST,   [this]() { handleSetTime(); });
+  server_.on("/api/modbus-rtu",    HTTP_GET,    [this]() { handleGetModbusRtu(); });
+  server_.on("/api/modbus-rtu",    HTTP_POST,   [this]() { handleSetModbusRtu(); });
+  server_.on("/api/sd/months",        HTTP_GET, [this]() { handleGetSdMonths(); });
+  server_.on("/api/sd/transactions",  HTTP_GET, [this]() { handleGetSdTransactions(); });
 }
 
 void WebPortal::handleRoot() {
@@ -125,9 +155,13 @@ void WebPortal::handleVersion() {
   sendJson(200, body);
 }
 
-void WebPortal::handleStatus() { sendJson(200, statusJson()); }
+void WebPortal::handleStatus() {
+  if (!requireAuth(UserRole::Operator)) return;
+  sendJson(200, statusJson());
+}
 
 void WebPortal::handleWeight() {
+  if (!requireAuth(UserRole::Operator)) return;
   const StatusSnapshot snap = statusStore_.snapshot();
   const bool twoPoint = weightService_.hasTwoPoints();
   String body = "{";
@@ -154,11 +188,16 @@ void WebPortal::handleWeight() {
 }
 
 void WebPortal::handleSettings() {
+  if (!requireAuth(UserRole::Operator)) return;
   const SettingsSnapshot settings = settingsStore_.snapshot();
   String body = "{";
   body += "\"apSsid\":\"" + settings.apSsid + "\",";
   body += "\"slowFillThreshold\":" + String(settings.slowFillThreshold, 2) + ",";
-  body += "\"ratePerKg\":" + String(settings.ratePerKg, 2);
+  body += "\"ratePerKg\":" + String(settings.ratePerKg, 2) + ",";
+  body += "\"storageMode\":" + String(settings.storageMode) + ",";
+  body += "\"sdReady\":" + jsonBool(sdService_.isReady()) + ",";
+  body += "\"sdTotalKb\":" + String(sdService_.totalKb()) + ",";
+  body += "\"sdFreeKb\":" + String(sdService_.freeKb());
   body += "}";
   sendJson(200, body);
 }
@@ -170,14 +209,39 @@ void WebPortal::handleUpdateSettings() {
     sendJson(403, "{\"ok\":false,\"message\":\"rate setting not permitted for this account\"}");
     return;
   }
-  const float ratePerKg = server_.arg("ratePerKg").toFloat();
-  const bool ok = settingsStore_.setRatePerKg(ratePerKg);
-  if (ok) {
-    const StatusSnapshot status = statusStore_.snapshot();
-    statusStore_.setTargets(status.targetWeightKg, status.targetAmount, ratePerKg);
-    eventLog_.append("INFO", "rate_update", "Rate per kg updated from admin UI");
+
+  bool ok = true;
+  String msg;
+
+  if (server_.hasArg("ratePerKg")) {
+    const float ratePerKg = server_.arg("ratePerKg").toFloat();
+    ok = settingsStore_.setRatePerKg(ratePerKg);
+    if (ok) {
+      const StatusSnapshot status = statusStore_.snapshot();
+      statusStore_.setTargets(status.targetWeightKg, status.targetAmount, ratePerKg);
+      eventLog_.append("INFO", "rate_update", "Rate per kg updated from admin UI");
+    } else {
+      msg = "invalid rate";
+    }
   }
-  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"invalid rate\"}");
+
+  if (ok && server_.hasArg("slowFillThreshold")) {
+    const float threshold = server_.arg("slowFillThreshold").toFloat();
+    ok = settingsStore_.setSlowFillThreshold(threshold);
+    if (ok) {
+      eventLog_.append("INFO", "slow_fill_threshold", "Slow fill threshold set to " + String(threshold, 2));
+    } else {
+      msg = "slowFillThreshold must be 0.80–0.99";
+    }
+  }
+
+  if (ok && server_.hasArg("storageMode")) {
+    const uint8_t mode = (uint8_t)server_.arg("storageMode").toInt();
+    ok = settingsStore_.setStorageMode(mode);
+    if (!ok) msg = "storageMode must be 0 (SPIFFS), 1 (SD), or 2 (Both)";
+  }
+
+  sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"" + msg + "\"}");
 }
 
 void WebPortal::handleSetTare() {
@@ -224,32 +288,34 @@ void WebPortal::handleZeroNetWeight() {
 }
 
 void WebPortal::handleModbusMap() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  using namespace ModbusRegisterMap;
   const StatusSnapshot status = statusStore_.snapshot();
-  const struct { uint16_t addr; const char* name; } regs[] = {
-    { 0x1001, "liveWeight"       },
-    { 0x1002, "tareWeight"       },
-    { 0x1003, "netWeight"        },
-    { 0x1004, "fillingStatus"    },
-    { 0x1005, "targetWeight"     },
-    { 0x1006, "estopOk"          },
-    { 0x1007, "ratePerKg"        },
-    { 0x1008, "targetAmount"     },
-    { 0x1009, "currentAmount"    },
-    { 0x100A, "transactionCount" },
-    { 0x100B, "cylinderPresent"  },
-    { 0x100C, "nozzleEngaged"    },
-    { 0x100D, "weightStable"     },
-    { 0x100E, "uptimeSec"        },
-    { 0x100F, "command"          },
-  };
-  char addrBuf[8];
-  String body = "{\"baseAddr\":4097,\"scale\":\"kg_x100_rate_pkr_x100\",\"registers\":{";
-  for (uint8_t i = 0; i < 15; i++) {
-    snprintf(addrBuf, sizeof(addrBuf), "0x%04X", regs[i].addr);
+  // Expose raw 16-bit register values for all 25 holding registers (PDU 0x0000–0x0018).
+  // Addresses shown as Modbus Poll display numbers (40001 + PDU addr).
+  char buf[32];
+  String body = "{\"port\":502,\"protocol\":\"ModbusTCP\","
+                "\"hrBase\":40001,\"hrCount\":" + String(kHR_Count) + ","
+                "\"coilBase\":1,\"coilCount\":" + String(kCoil_Count) + ","
+                "\"diBase\":10001,\"diCount\":" + String(kDI_Count) + ","
+                "\"registers\":{";
+  for (uint16_t i = 0; i < kHR_Count; i++) {
+    const uint16_t val = readHR(i, status, transactionLog_);
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, val);
     body += (i > 0 ? "," : "");
-    body += "\"" + String(addrBuf) + "\":{\"name\":\"" + regs[i].name + "\",\"dec\":" +
-            String(regs[i].addr) + ",\"value\":" +
-            String(ModbusRegisterMap::readHoldingRegister(regs[i].addr, status, transactionLog_)) + "}";
+    body += buf;
+  }
+  body += "},\"coils\":{";
+  for (uint16_t i = 0; i < kCoil_Count; i++) {
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, readCoil(i, status));
+    body += (i > 0 ? "," : "");
+    body += buf;
+  }
+  body += "},\"discreteInputs\":{";
+  for (uint16_t i = 0; i < kDI_Count; i++) {
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, readDI(i, status));
+    body += (i > 0 ? "," : "");
+    body += buf;
   }
   body += "}}";
   sendJson(200, body);
@@ -344,6 +410,7 @@ void WebPortal::handleReset() {
   sendJson(ok ? 200 : 400, body);
 }
 
+#ifdef LPG_DEV_BUILD
 void WebPortal::handleSetSimWeight() {
   if (!requireAuth(UserRole::Maintenance)) return;
   weightService_.setSimulatedWeightKg(server_.arg("weightKg").toFloat());
@@ -369,6 +436,7 @@ void WebPortal::handleClearSimInputs() {
   fillController_.clearSimInputs();
   sendJson(200, "{\"ok\":true}");
 }
+#endif // LPG_DEV_BUILD
 
 void WebPortal::handleCalibrate() {
   if (!requireAuth(UserRole::Maintenance)) return;
@@ -418,7 +486,18 @@ void WebPortal::handleCalibrate() {
 }
 
 bool WebPortal::requireAuth(UserRole minRole) {
-  const String token = server_.arg("token");
+  // Accept Authorization: Bearer <token> header; fall back to ?token= query arg for backward compat
+  String token;
+  if (server_.hasHeader("Authorization")) {
+    String auth = server_.header("Authorization");
+    if (auth.startsWith("Bearer ")) {
+      token = auth.substring(7);
+      token.trim();
+    }
+  }
+  if (token.isEmpty()) {
+    token = server_.arg("token");
+  }
   if (token.isEmpty()) {
     sendJson(401, "{\"ok\":false,\"message\":\"token required\"}");
     return false;
@@ -463,6 +542,7 @@ void WebPortal::handleLogin() {
 }
 
 void WebPortal::handleGetWifi() {
+  if (!requireAuth(UserRole::Admin)) return;
   const SettingsSnapshot s = settingsStore_.snapshot();
   String body = "{\"staSsid\":\"" + s.staSsid + "\",\"apSsid\":\"" + s.apSsid + "\"}";
   sendJson(200, body);
@@ -482,6 +562,7 @@ void WebPortal::handleSetWifi() {
 }
 
 void WebPortal::handleGetNetwork() {
+  if (!requireAuth(UserRole::Admin)) return;
   String body = "{";
   body += "\"staConnected\":" + String(networkManager_.isSTAConnected() ? "true" : "false") + ",";
   body += "\"staSSID\":\""    + networkManager_.staSSID() + "\",";
@@ -556,11 +637,113 @@ void WebPortal::handleDeleteUser() {
   sendJson(ok ? 200 : 400, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"cannot delete user\"}");
 }
 
+void WebPortal::handleGetSystem() {
+  // Manufacturer-only board resource endpoint
+  if (!requireAuth(UserRole::Maintenance)) return;
+
+  const size_t freeHeap    = ESP.getFreeHeap();
+  const size_t minFreeHeap = ESP.getMinFreeHeap();
+  const size_t heapTotal   = ESP.getHeapSize();
+
+  size_t spiffsUsed  = 0;
+  size_t spiffsTotal = 0;
+  if (SPIFFS.begin(false)) {
+    spiffsUsed  = SPIFFS.usedBytes();
+    spiffsTotal = SPIFFS.totalBytes();
+  }
+
+  const uint32_t uptimeSec = millis() / 1000UL;
+  const uint32_t cpuFreq   = ESP.getCpuFreqMHz();
+  const int8_t   wifiRssi  = networkManager_.isSTAConnected()
+                             ? static_cast<int8_t>(WiFi.RSSI())
+                             : 0;
+
+  const String boardTime = rtcService_.initialized()
+                         ? rtcService_.getIso8601String()
+                         : String("(RTC not set)");
+
+  String body = "{";
+  body += "\"freeHeap\":"    + String(freeHeap)    + ",";
+  body += "\"minFreeHeap\":" + String(minFreeHeap) + ",";
+  body += "\"heapTotal\":"   + String(heapTotal)   + ",";
+  body += "\"spiffsUsed\":"  + String(spiffsUsed)  + ",";
+  body += "\"spiffsTotal\":" + String(spiffsTotal) + ",";
+  body += "\"uptimeSec\":"   + String(uptimeSec)   + ",";
+  body += "\"cpuFreqMhz\":"  + String(cpuFreq)     + ",";
+  body += "\"wifiRssi\":"    + String(wifiRssi)    + ",";
+  body += "\"staIP\":\""     + networkManager_.staIP() + "\",";
+  body += "\"apIP\":\""      + networkManager_.apIP()  + "\",";
+  body += "\"boardTime\":"   + jsonStr(boardTime)  + ",";
+  body += "\"firmware\":\""  + String(BoardConfig::kFirmwareVersion) + "\"";
+  body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleGetMqtt() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const MqttSettingsSnapshot cfg = settingsStore_.mqttSnapshot();
+  String body = "{";
+  body += "\"enabled\":"   + jsonBool(cfg.enabled)          + ",";
+  body += "\"preset\":"    + String(cfg.preset)              + ",";
+  body += "\"brokerHost\":" + jsonStr(cfg.brokerHost)        + ",";
+  body += "\"brokerPort\":" + String(cfg.brokerPort)         + ",";
+  body += "\"topicPrefix\":" + jsonStr(cfg.topicPrefix)      + ",";
+  body += "\"clientId\":"  + jsonStr(cfg.clientId)           + ",";
+  body += "\"username\":"  + jsonStr(cfg.username)           + ",";
+  // Never return password — send a placeholder
+  body += "\"hasPassword\":" + jsonBool(!cfg.password.isEmpty());
+  body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleSetMqtt() {
+  if (!requireAuth(UserRole::Admin)) return;
+  MqttSettingsSnapshot cfg = settingsStore_.mqttSnapshot();
+
+  const String enabledArg = server_.arg("enabled");
+  if (!enabledArg.isEmpty())
+    cfg.enabled = enabledArg == "1" || enabledArg == "true";
+
+  const String presetArg = server_.arg("preset");
+  if (!presetArg.isEmpty()) cfg.preset = static_cast<uint8_t>(presetArg.toInt());
+
+  const String hostArg = server_.arg("brokerHost");
+  if (!hostArg.isEmpty()) cfg.brokerHost = hostArg;
+
+  const String portArg = server_.arg("brokerPort");
+  if (!portArg.isEmpty()) cfg.brokerPort = static_cast<uint16_t>(portArg.toInt());
+
+  const String prefixArg = server_.arg("topicPrefix");
+  if (!prefixArg.isEmpty()) cfg.topicPrefix = prefixArg;
+
+  const String clientIdArg = server_.arg("clientId");
+  if (!clientIdArg.isEmpty()) cfg.clientId = clientIdArg;
+
+  const String userArg = server_.arg("username");
+  if (!userArg.isEmpty()) cfg.username = userArg;
+
+  const String passArg = server_.arg("password");
+  if (!passArg.isEmpty()) cfg.password = passArg;
+
+  const bool ok = settingsStore_.setMqtt(cfg);
+  sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"NVS write failed\"}");
+}
+
 String WebPortal::statusJson() const {
   const StatusSnapshot status = statusStore_.snapshot();
+
+  // Board time from RTC
+  const String boardTime = rtcService_.initialized()
+                         ? rtcService_.getIso8601String()
+                         : String("");
+
   String body = "{";
   body += "\"state\":\"" + status.stateLabel + "\",";
   body += "\"bootReason\":\"" + status.bootReason + "\",";
+  body += "\"boardTime\":" + jsonStr(boardTime) + ",";
+  body += "\"staIP\":\"" + networkManager_.staIP() + "\",";
+  body += "\"wifiConnected\":" + jsonBool(networkManager_.isSTAConnected()) + ",";
+  body += "\"wifiRssi\":" + String(networkManager_.isSTAConnected() ? (int)WiFi.RSSI() : 0) + ",";
   body += "\"weightKg\":" + String(status.liveWeightKg, 3) + ",";
   body += "\"liveWeightKg\":" + String(status.liveWeightKg, 3) + ",";
   body += "\"tareWeightKg\":" + String(status.tareWeightKg, 3) + ",";
@@ -576,29 +759,151 @@ String WebPortal::statusJson() const {
   body += "\"targetAmount\":" + String(status.targetAmount, 2) + ",";
   body += "\"currentAmount\":" + String(status.netWeightKg * status.ratePerKg, 2) + ",";
   body += "\"ratePerKg\":" + String(status.ratePerKg, 2) + ",";
+  body += "\"slowFillThreshold\":" + String(settingsStore_.snapshot().slowFillThreshold, 2) + ",";
   body += "\"nozzleEngaged\":" + jsonBool(status.nozzleEngaged) + ",";
   body += "\"cylinderPresent\":" + jsonBool(status.cylinderPresent) + ",";
   body += "\"emergencyStopOk\":" + jsonBool(status.emergencyStopOk) + ",";
   body += "\"reasonCode\":\"" + status.lastReasonCode + "\",";
   body += "\"uptimeMs\":" + String(status.uptimeMs) + ",";
   body += "\"transactionCount\":" + String(transactionLog_.totalCount()) + ",";
-  body += "\"modbus\":{\"liveWeight\":4097,\"tareWeight\":4098,\"netWeight\":4099,\"fillingStatus\":4100,\"targetWeight\":4101,\"estopStatus\":4102},";
   body += "\"relays\":[";
-
   for (uint8_t i = 0; i < 6; ++i) {
-    if (i > 0) {
-      body += ",";
-    }
+    if (i > 0) body += ",";
     body += jsonBool(status.relays[i]);
   }
-
   body += "],\"inputs\":[";
   for (uint8_t i = 0; i < 6; ++i) {
-    if (i > 0) {
-      body += ",";
-    }
+    if (i > 0) body += ",";
     body += jsonBool(status.inputs[i]);
   }
   body += "]}";
   return body;
+}
+
+// GET /api/sd/months?token=X  (Operator+)
+void WebPortal::handleGetSdMonths() {
+  if (!requireAuth(UserRole::Operator)) return;
+  const String body = "{\"ready\":" + jsonBool(sdService_.isReady()) +
+                      ",\"months\":" + sdService_.listMonthsJson() +
+                      ",\"totalKb\":" + String(sdService_.totalKb()) +
+                      ",\"freeKb\":"  + String(sdService_.freeKb()) + "}";
+  sendJson(200, body);
+}
+
+// GET /api/sd/transactions?month=YYYY-MM&token=X  (Operator+)
+void WebPortal::handleGetSdTransactions() {
+  if (!requireAuth(UserRole::Operator)) return;
+  const String month = server_.arg("month");
+  if (month.isEmpty()) {
+    sendJson(400, "{\"ok\":false,\"message\":\"month required (YYYY-MM)\"}");
+    return;
+  }
+  const String body = "{\"month\":\"" + month + "\",\"transactions\":" +
+                       sdService_.readMonthJson(month) + "}";
+  sendJson(200, body);
+}
+
+// ── GET /api/stats — transaction statistics (Operator+) ──────────────────────
+void WebPortal::handleGetStats() {
+  if (!requireAuth(UserRole::Operator)) return;
+  const TxnStatsSnapshot s = transactionLog_.computeStats();
+  String body = "{";
+  body += "\"allCompleted\":"  + String(s.allCompleted)  + ",";
+  body += "\"allFailed\":"     + String(s.allFailed)     + ",";
+  body += "\"allKg\":"         + String(s.allKg,   3)    + ",";
+  body += "\"allAmount\":"     + String(s.allAmount, 2)  + ",";
+  body += "\"todayCompleted\":" + String(s.todayCompleted) + ",";
+  body += "\"todayFailed\":"   + String(s.todayFailed)   + ",";
+  body += "\"todayKg\":"       + String(s.todayKg,   3)  + ",";
+  body += "\"todayAmount\":"   + String(s.todayAmount, 2) + ",";
+  body += "\"weekCompleted\":"  + String(s.weekCompleted)  + ",";
+  body += "\"weekFailed\":"     + String(s.weekFailed)     + ",";
+  body += "\"weekKg\":"         + String(s.weekKg,   3)    + ",";
+  body += "\"weekAmount\":"     + String(s.weekAmount, 2)  + ",";
+  body += "\"monthCompleted\":" + String(s.monthCompleted) + ",";
+  body += "\"monthFailed\":"    + String(s.monthFailed)    + ",";
+  body += "\"monthKg\":"        + String(s.monthKg,   3)   + ",";
+  body += "\"monthAmount\":"    + String(s.monthAmount, 2) + ",";
+  body += "\"yearCompleted\":"  + String(s.yearCompleted)  + ",";
+  body += "\"yearFailed\":"     + String(s.yearFailed)     + ",";
+  body += "\"yearKg\":"         + String(s.yearKg,   3)    + ",";
+  body += "\"yearAmount\":"     + String(s.yearAmount, 2);
+  body += "}";
+  sendJson(200, body);
+}
+
+// ── GET /api/time — read RTC clock (any authenticated user) ──────────────────
+void WebPortal::handleGetTime() {
+  const RtcTime t = rtcService_.getTime();
+  String body = "{";
+  body += "\"year\":"   + String(t.year)   + ",";
+  body += "\"month\":"  + String(t.month)  + ",";
+  body += "\"day\":"    + String(t.date)   + ",";
+  body += "\"hour\":"   + String(t.hour)   + ",";
+  body += "\"minute\":" + String(t.minute) + ",";
+  body += "\"second\":" + String(t.second) + ",";
+  body += "\"initialized\":" + String(rtcService_.initialized() ? "true" : "false") + ",";
+  body += "\"lostPower\":"   + String(rtcService_.lostPower()   ? "true" : "false") + ",";
+  body += "\"iso8601\":\"" + rtcService_.getIso8601String() + "\"";
+  body += "}";
+  sendJson(200, body);
+}
+
+// ── POST /api/time — set RTC clock (Admin+) ───────────────────────────────────
+void WebPortal::handleSetTime() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const int year   = server_.arg("year").toInt();
+  const int month  = server_.arg("month").toInt();
+  const int day    = server_.arg("day").toInt();
+  const int hour   = server_.arg("hour").toInt();
+  const int minute = server_.arg("minute").toInt();
+  const int second = server_.arg("second").toInt();
+  if (year < 2020 || month < 1 || month > 12 || day < 1 || day > 31 ||
+      hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+    sendJson(400, "{\"message\":\"Invalid date/time values\"}");
+    return;
+  }
+  RtcTime t;
+  t.year = static_cast<uint16_t>(year);
+  t.month  = static_cast<uint8_t>(month);
+  t.date   = static_cast<uint8_t>(day);
+  t.hour   = static_cast<uint8_t>(hour);
+  t.minute = static_cast<uint8_t>(minute);
+  t.second = static_cast<uint8_t>(second);
+  t.day    = 1; // day-of-week not critical; RTC keeps it internally
+  rtcService_.setTime(t);
+  sendJson(200, "{\"message\":\"RTC time set\"}");
+}
+
+// ── GET /api/modbus-rtu — read RTU config (Maintenance) ──────────────────────
+void WebPortal::handleGetModbusRtu() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
+  String body = "{";
+  body += "\"enabled\":"      + String(rtu.enabled ? "true" : "false") + ",";
+  body += "\"slaveAddress\":" + String(rtu.slaveAddress) + ",";
+  body += "\"baudRate\":"     + String(rtu.baudRate)     + ",";
+  body += "\"parity\":"       + String(rtu.parity)       + ",";
+  body += "\"stopBits\":"     + String(rtu.stopBits)     + ",";
+  body += "\"rxPin\":"        + String(BoardConfig::kRtuRxPin) + ",";
+  body += "\"txPin\":"        + String(BoardConfig::kRtuTxPin) + ",";
+  body += "\"dePin\":"        + String(BoardConfig::kRtuDePin);
+  body += "}";
+  sendJson(200, body);
+}
+
+// ── POST /api/modbus-rtu — save RTU config (Maintenance) ─────────────────────
+void WebPortal::handleSetModbusRtu() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
+  if (server_.hasArg("enabled"))      rtu.enabled      = server_.arg("enabled") == "1";
+  if (server_.hasArg("slaveAddress")) rtu.slaveAddress = static_cast<uint8_t>(server_.arg("slaveAddress").toInt());
+  if (server_.hasArg("baudRate"))     rtu.baudRate     = static_cast<uint32_t>(server_.arg("baudRate").toInt());
+  if (server_.hasArg("parity"))       rtu.parity       = static_cast<uint8_t>(server_.arg("parity").toInt());
+  if (server_.hasArg("stopBits"))     rtu.stopBits     = static_cast<uint8_t>(server_.arg("stopBits").toInt());
+  if (!settingsStore_.setModbusRtu(rtu)) {
+    sendJson(400, "{\"message\":\"Invalid RTU parameters\"}");
+    return;
+  }
+  sendJson(200, "{\"message\":\"RTU settings saved. Changes take effect on next restart.\"}");
 }

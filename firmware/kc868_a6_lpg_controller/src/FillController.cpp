@@ -23,36 +23,87 @@ void FillController::tick() {
   statusStore_.setWeight(weightService_.liveWeightKg());
 
   const StatusSnapshot status = statusStore_.snapshot();
+  const unsigned long nowMs = millis();
+
+  // ── E-stop: fault immediately in any active state ─────────────────────────
   if (!status.emergencyStopOk && status.state != ProcessState::Fault) {
     setFault("emergency_stop");
     return;
   }
 
-  if (isActiveFillState(status.state) && !status.nozzleEngaged) {
+  if (!isActiveFillState(status.state)) {
+    // ── Settling: close valves, wait for scale to stabilise, then complete ──
+    if (status.state == ProcessState::Settling) {
+      if (nowMs - stateStartedMs_ >= kSettlingMs && status.weightStable) {
+        const StatusSnapshot s2 = statusStore_.snapshot();
+        if (activeTransactionId_ != 0) {
+          transactionLog_.completeTransaction(activeTransactionId_, s2.liveWeightKg, s2.netWeightKg);
+          activeTransactionId_ = 0;
+        }
+        transitionTo(ProcessState::Complete, "COMPLETE");
+        eventLog_.append("INFO", "fill_complete", "Settling complete — fill transaction closed");
+      }
+    }
+    return;
+  }
+
+  // ── Nozzle disengaged during active fill ──────────────────────────────────
+  if (!status.nozzleEngaged) {
     setFault("nozzle_disengaged");
     return;
   }
 
+  // ── Scale read failure during fill ───────────────────────────────────────
+  if (weightService_.readFailed()) {
+    setFault("scale_read_error");
+    return;
+  }
+
+  // ── Overfill guard: target + 500 g hard stop ─────────────────────────────
+  if (status.netWeightKg >= status.targetWeightKg + kOverfillMarginKg) {
+    setFault("overfill");
+    return;
+  }
+
+  // ── Max fill timeout ──────────────────────────────────────────────────────
+  if (nowMs - stateStartedMs_ >= kMaxFillMs) {
+    setFault("fill_timeout");
+    return;
+  }
+
+  // ── No-flow detection: sample weight every kNoFlowWindowMs ───────────────
+  if (nowMs - noFlowWindowStartMs_ >= kNoFlowWindowMs) {
+    const float delta = status.netWeightKg - noFlowWindowStartKg_;
+    if (delta < kNoFlowMinDeltaKg) {
+      setFault("no_flow");
+      return;
+    }
+    noFlowWindowStartMs_ = nowMs;
+    noFlowWindowStartKg_ = status.netWeightKg;
+  }
+
+  // ── Fast→Slow transition ──────────────────────────────────────────────────
   const float slowFillThreshold = settingsStore_.snapshot().slowFillThreshold;
-  if (status.state == ProcessState::FillingFast && status.netWeightKg >= status.targetWeightKg * slowFillThreshold) {
+  if (status.state == ProcessState::FillingFast &&
+      status.netWeightKg >= status.targetWeightKg * slowFillThreshold) {
     relayBank_.writeRelay(0, false);
     relayBank_.writeRelay(1, true);
     relayBank_.writeRelay(2, true);
     syncRelays();
+    // Reset no-flow window for slow fill phase
+    noFlowWindowStartMs_ = nowMs;
+    noFlowWindowStartKg_ = status.netWeightKg;
     transitionTo(ProcessState::FillingSlow, "FILLING_SLOW");
-    eventLog_.append("INFO", "fill_slow", "Controller entered slow fill");
+    eventLog_.append("INFO", "fill_slow", "Switched to slow fill");
     return;
   }
 
+  // ── Target reached → enter Settling ──────────────────────────────────────
   if (status.state == ProcessState::FillingSlow && status.netWeightKg >= status.targetWeightKg) {
     relayBank_.writeAllSafe();
     syncRelays();
-    if (activeTransactionId_ != 0) {
-      transactionLog_.completeTransaction(activeTransactionId_, status.liveWeightKg, status.netWeightKg);
-      activeTransactionId_ = 0;
-    }
-    transitionTo(ProcessState::Complete, "COMPLETE");
-    eventLog_.append("INFO", "fill_complete", "Target reached and outputs de-energized");
+    transitionTo(ProcessState::Settling, "SETTLING");
+    eventLog_.append("INFO", "fill_settling", "Target reached — entering settling");
   }
 }
 
@@ -91,11 +142,30 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
     return false;
   }
 
+  // Scale health checks — must be initialized, reading, and stable before fill
+  if (!weightService_.initialized()) {
+    reason = "Scale not initialized — check HX711 wiring";
+    return false;
+  }
+  if (weightService_.readFailed()) {
+    reason = "Scale read error — check HX711 connection";
+    return false;
+  }
+  if (!weightService_.stable()) {
+    reason = "Scale not stable — wait for weight to settle";
+    return false;
+  }
+
+  // Block fill if transaction log cannot create a record (e.g. SPIFFS full)
   activeTransactionId_ =
       transactionLog_.startTransaction(targetWeightKg, ratePerKg, targetAmount, status.tareWeightKg, "api", operatorUsername);
   if (activeTransactionId_ == 0) {
-    eventLog_.append("WARN", "transaction_start_failed", "Fill continuing without transaction record");
+    reason = "Transaction log failed — check storage";
+    return false;
   }
+
+  noFlowWindowStartMs_ = millis();
+  noFlowWindowStartKg_ = status.netWeightKg;
 
   statusStore_.setTargets(targetWeightKg, targetAmount, ratePerKg);
   relayBank_.writeAllSafe();

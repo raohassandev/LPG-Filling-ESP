@@ -21,7 +21,14 @@ import {
   connectStatusStream,
   createUser,
   deleteUser,
+  fetchMqttSettings,
+  fetchModbusRtu,
   fetchSettings,
+  fetchStats,
+  fetchSystem,
+  fetchTime,
+  fetchSdMonths,
+  fetchSdTransactions,
   fetchTransactions,
   fetchTransactionsForUser,
   fetchUsers,
@@ -31,6 +38,11 @@ import {
   logout,
   resetFill,
   saveRate,
+  saveSlowFillThreshold,
+  saveStorageMode,
+  saveMqttSettings,
+  saveModbusRtu,
+  saveTime,
   startFill,
   stopFill,
   updateUser,
@@ -41,7 +53,6 @@ import {
   DEV_AUTO_LOGIN_ROLE,
   DEV_CREDENTIALS,
 } from "./src/constants/device";
-import { NO_AUTH_TOKEN } from "./src/services/controllerApi";
 
 // ─── config ──────────────────────────────────────────────────────────────────
 
@@ -368,7 +379,7 @@ function CalibrationPanel({ activeUrl, authToken }) {
   useEffect(() => {
     let t;
     const poll = async () => {
-      try { setWeightData(await fetchWeight(activeUrl)); } catch {}
+      try { setWeightData(await fetchWeight(activeUrl, authToken)); } catch {}
       t = setTimeout(poll, 1000);
     };
     poll();
@@ -663,6 +674,661 @@ function UsersPanel({ activeUrl, authToken }) {
   );
 }
 
+// ─── BoardInfoBar ─────────────────────────────────────────────────────────────
+// Shown at the top of SetupScreen — board time, IP, Wi-Fi status
+
+const STREAM_MODE_LABELS = {
+  websocket:  { label: "WS",   color: "#34d399" },  // green — local WebSocket
+  mqtt:       { label: "MQTT", color: "#60a5fa" },  // blue  — remote MQTT
+  polling:    { label: "REST", color: "#fbbf24" },  // amber — REST polling
+  offline:    { label: "OFF",  color: "#f87171" },  // red   — offline
+  connecting: { label: "…",    color: "#94a3b8" },  // slate — connecting
+};
+
+function BoardInfoBar({ status, streamMode }) {
+  const connected = !!status.wifiConnected;
+  const rssi      = Number(status.wifiRssi || 0);
+  const ip        = status.staIP || "—";
+  const time      = status.boardTime || "";
+
+  const rssiLabel = !connected ? "No WiFi"
+                  : rssi >= -50 ? "▂▄▆█"
+                  : rssi >= -65 ? "▂▄▆░"
+                  : rssi >= -75 ? "▂▄░░"
+                  :               "▂░░░";
+
+  const sm = STREAM_MODE_LABELS[streamMode] || STREAM_MODE_LABELS.connecting;
+
+  return (
+    <View style={BI.bar}>
+      <View style={BI.col}>
+        <Text style={BI.label}>BOARD TIME</Text>
+        <Text style={BI.val} numberOfLines={1}>{time || "—"}</Text>
+      </View>
+      <View style={[BI.col, BI.colCenter]}>
+        <Text style={BI.label}>IP</Text>
+        <Text style={BI.val}>{ip}</Text>
+      </View>
+      <View style={[BI.col, BI.colRight]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, justifyContent: "flex-end" }}>
+          <Text style={[BI.label, { color: connected ? C.green : C.amber }]}>
+            {connected ? "WIFI" : "NO WIFI"}
+          </Text>
+          <View style={{ backgroundColor: sm.color + "28", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+            <Text style={{ fontSize: 8, fontWeight: "800", color: sm.color, letterSpacing: 0.5 }}>{sm.label}</Text>
+          </View>
+        </View>
+        <Text style={[BI.rssi, { color: connected ? C.green : C.amber }]}>{rssiLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── LastTransactionCard ──────────────────────────────────────────────────────
+
+function LastTransactionCard({ transactions }) {
+  const last = transactions.length > 0 ? transactions[transactions.length - 1] : null;
+  if (!last) return null;
+
+  const isOk = Number(last.status) === 1;
+  const ts   = Number(last.endTime || last.startTime || 0);
+  const dateStr = ts > 1000000000
+    ? new Date(ts * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  return (
+    <View style={LT.card}>
+      <View style={LT.headerRow}>
+        <Text style={T.label}>LAST FILL</Text>
+        <Pill label={isOk ? "COMPLETE" : "EXCEPTION"} ok={isOk} sm />
+      </View>
+      <View style={LT.bodyRow}>
+        <View style={LT.amtBlock}>
+          <Text style={LT.amtVal}>PKR {fmt.money(last.finalAmount)}</Text>
+          <Text style={LT.amtSub}>{fmt.kg(last.finalKg ?? last.netKg)} kg  ·  {fmt.money(last.ratePerKg)}/kg</Text>
+        </View>
+        <View style={LT.metaBlock}>
+          <Text style={LT.metaId} numberOfLines={1}>{last.transactionId || `#${last.id}`}</Text>
+          {dateStr && <Text style={LT.metaTime}>{dateStr}</Text>}
+          {!!last.operator && <Text style={LT.metaOp}>{last.operator}</Text>}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── SystemResourcesPanel ────────────────────────────────────────────────────
+
+function SystemResourcesPanel({ activeUrl, authToken }) {
+  const [info, setInfo] = useState(null);
+
+  useEffect(() => {
+    let t;
+    const poll = async () => {
+      try { setInfo(await fetchSystem(activeUrl, authToken)); } catch {}
+      t = setTimeout(poll, 5000);
+    };
+    poll();
+    return () => clearTimeout(t);
+  }, [activeUrl, authToken]);
+
+  if (!info) return (
+    <Text style={[T.body, { color: C.muted, textAlign: "center", paddingVertical: 12 }]}>Loading…</Text>
+  );
+
+  const heapPct = info.heapTotal > 0
+    ? Math.round((1 - info.freeHeap / info.heapTotal) * 100) : 0;
+  const spiffsPct = info.spiffsTotal > 0
+    ? Math.round((info.spiffsUsed / info.spiffsTotal) * 100) : 0;
+
+  const rows = [
+    { l: "FREE HEAP",     v: `${(info.freeHeap / 1024).toFixed(0)} KB`,        warn: heapPct > 80 },
+    { l: "MIN HEAP",      v: `${(info.minFreeHeap / 1024).toFixed(0)} KB`,      warn: false },
+    { l: "HEAP USED",     v: `${heapPct}%`,                                     warn: heapPct > 80 },
+    { l: "SPIFFS USED",   v: `${spiffsPct}%  (${(info.spiffsUsed / 1024).toFixed(0)} KB)`, warn: spiffsPct > 85 },
+    { l: "SPIFFS FREE",   v: `${((info.spiffsTotal - info.spiffsUsed) / 1024).toFixed(0)} KB`, warn: false },
+    { l: "UPTIME",        v: formatUptime(info.uptimeSec),                       warn: false },
+    { l: "CPU",           v: `${info.cpuFreqMhz} MHz`,                          warn: false },
+    { l: "WIFI RSSI",     v: info.wifiRssi ? `${info.wifiRssi} dBm` : "—",     warn: info.wifiRssi < -80 },
+    { l: "BOARD IP",      v: info.staIP || "—",                                 warn: false },
+    { l: "BOARD TIME",    v: info.boardTime || "—",                             warn: false },
+    { l: "FIRMWARE",      v: info.firmware || "—",                              warn: false },
+  ];
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 10 }]}>System Resources</Text>
+      {/* Heap gauge */}
+      <View style={SR.gaugeWrap}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+          <Text style={T.label}>HEAP PRESSURE</Text>
+          <Text style={[T.label, { color: heapPct > 80 ? C.red : C.green }]}>{heapPct}%</Text>
+        </View>
+        <View style={SR.gaugeTrack}>
+          <View style={[SR.gaugeFill, { width: `${heapPct}%`, backgroundColor: heapPct > 80 ? C.red : heapPct > 60 ? C.amber : C.green }]} />
+        </View>
+      </View>
+      {/* SPIFFS gauge */}
+      <View style={[SR.gaugeWrap, { marginTop: 10 }]}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+          <Text style={T.label}>SPIFFS USAGE</Text>
+          <Text style={[T.label, { color: spiffsPct > 85 ? C.red : C.green }]}>{spiffsPct}%</Text>
+        </View>
+        <View style={SR.gaugeTrack}>
+          <View style={[SR.gaugeFill, { width: `${spiffsPct}%`, backgroundColor: spiffsPct > 85 ? C.red : spiffsPct > 70 ? C.amber : C.teal }]} />
+        </View>
+      </View>
+      {/* KPI grid */}
+      <View style={[S.kpiRow, { marginTop: 14 }]}>
+        {rows.map(({ l, v, warn }) => (
+          <View key={l} style={[S.kpiCell, warn && S.kpiCellWarn, { minWidth: "45%" }]}>
+            <Text style={T.label}>{l}</Text>
+            <Text style={[T.body, { fontWeight: "700", marginTop: 3, fontSize: 13 }, warn && { color: C.red }]}>{v}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function formatUptime(sec) {
+  if (!sec) return "—";
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  return `${m}m ${s}s`;
+}
+
+// ─── MqttSettingsPanel ────────────────────────────────────────────────────────
+
+const MQTT_PRESETS = [
+  { key: "0", label: "Custom" },
+  { key: "1", label: "HiveMQ  (broker.hivemq.com)" },
+  { key: "2", label: "Mosquitto  (test.mosquitto.org)" },
+  { key: "3", label: "EMQX  (broker.emqx.io)" },
+];
+
+function MqttSettingsPanel({ activeUrl, authToken }) {
+  const [cfg,     setCfg]    = useState(null);
+  const [busy,    setBusy]   = useState(false);
+  const [result,  setResult] = useState(null);
+
+  useEffect(() => {
+    fetchMqttSettings(activeUrl, authToken)
+      .then((d) => setCfg(d))
+      .catch(() => {});
+  }, [activeUrl, authToken]);
+
+  async function save() {
+    if (!cfg) return;
+    setBusy(true); setResult(null);
+    try {
+      await saveMqttSettings(activeUrl, {
+        enabled:     cfg.enabled     ? "1" : "0",
+        preset:      cfg.preset,
+        brokerHost:  cfg.brokerHost  || "",
+        brokerPort:  cfg.brokerPort  || 1883,
+        topicPrefix: cfg.topicPrefix || "lpg/controller",
+        clientId:    cfg.clientId    || "",
+        username:    cfg.username    || "",
+        ...(cfg.newPassword ? { password: cfg.newPassword } : {}),
+      }, authToken);
+      setResult({ ok: true, msg: "MQTT settings saved" });
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Failed" });
+    } finally { setBusy(false); }
+  }
+
+  if (!cfg) return (
+    <Text style={[T.body, { color: C.muted, marginTop: 8 }]}>Loading MQTT settings…</Text>
+  );
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 4 }]}>MQTT</Text>
+      <Text style={[T.caption, { color: C.slate, marginBottom: 12 }]}>
+        Publish fill status and transactions to a MQTT broker for cloud dashboards, alerts, and billing integration.
+      </Text>
+
+      {/* Enable toggle */}
+      <Pressable onPress={() => setCfg((p) => ({ ...p, enabled: !p.enabled }))}
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <View style={{
+          width: 48, height: 28, borderRadius: 14,
+          backgroundColor: cfg.enabled ? C.teal : C.border,
+          justifyContent: "center", paddingHorizontal: 3,
+        }}>
+          <View style={{
+            width: 22, height: 22, borderRadius: 11, backgroundColor: C.white,
+            alignSelf: cfg.enabled ? "flex-end" : "flex-start",
+          }} />
+        </View>
+        <Text style={[T.body, { fontWeight: "700" }]}>
+          {cfg.enabled ? "MQTT Enabled" : "MQTT Disabled"}
+        </Text>
+      </Pressable>
+
+      {/* Broker preset */}
+      <Field label="Broker">
+        <SegControl
+          options={[
+            { key: "1", label: "HiveMQ" },
+            { key: "2", label: "Mosquitto" },
+            { key: "3", label: "EMQX" },
+            { key: "0", label: "Custom" },
+          ]}
+          value={String(cfg.preset)}
+          onChange={(v) => setCfg((p) => ({ ...p, preset: Number(v) }))}
+        />
+      </Field>
+
+      {/* Public broker note */}
+      {cfg.preset !== 0 && (
+        <Text style={[T.caption, { color: C.slate, marginTop: 6 }]}>
+          {MQTT_PRESETS.find((b) => b.key === String(cfg.preset))?.label}  ·  port 1883  ·  no auth required
+        </Text>
+      )}
+
+      {/* Custom host/port */}
+      {cfg.preset === 0 && (
+        <>
+          <Field label="Broker Host">
+            <TextInput value={cfg.brokerHost || ""} onChangeText={(v) => setCfg((p) => ({ ...p, brokerHost: v }))}
+              style={A.input} autoCapitalize="none" autoCorrect={false}
+              placeholder="192.168.1.100 or mqtt.example.com" placeholderTextColor={C.muted} />
+          </Field>
+          <Field label="Port">
+            <TextInput value={String(cfg.brokerPort || 1883)} keyboardType="number-pad"
+              onChangeText={(v) => setCfg((p) => ({ ...p, brokerPort: Number(v) || 1883 }))}
+              style={A.input} placeholderTextColor={C.muted} />
+          </Field>
+        </>
+      )}
+
+      <Field label="Topic Prefix">
+        <TextInput value={cfg.topicPrefix || "lpg/controller"} autoCapitalize="none"
+          onChangeText={(v) => setCfg((p) => ({ ...p, topicPrefix: v }))}
+          style={A.input} placeholderTextColor={C.muted} />
+      </Field>
+
+      <Text style={[T.caption, { color: C.muted, marginTop: 4, marginBottom: 12 }]}>
+        Topics: {cfg.topicPrefix || "lpg/controller"}/status  ·  /transaction  ·  /alert  ·  /lwt
+      </Text>
+
+      <Field label="Client ID  (leave blank = auto)">
+        <TextInput value={cfg.clientId || ""} autoCapitalize="none"
+          onChangeText={(v) => setCfg((p) => ({ ...p, clientId: v }))}
+          style={A.input} placeholder="lpg-controller-001" placeholderTextColor={C.muted} />
+      </Field>
+
+      <Field label="Username  (optional)">
+        <TextInput value={cfg.username || ""} autoCapitalize="none"
+          onChangeText={(v) => setCfg((p) => ({ ...p, username: v }))}
+          style={A.input} placeholder="(blank = no auth)" placeholderTextColor={C.muted} />
+      </Field>
+
+      <Field label={cfg.hasPassword ? "Password  (set — leave blank to keep)" : "Password  (optional)"}>
+        <TextInput value={cfg.newPassword || ""} secureTextEntry autoCapitalize="none"
+          onChangeText={(v) => setCfg((p) => ({ ...p, newPassword: v }))}
+          style={A.input} placeholder="••••••" placeholderTextColor={C.muted} />
+      </Field>
+
+      <View style={{ height: 14 }} />
+      <Btn label={busy ? "Saving…" : "Save MQTT Settings"} tone="primary" full disabled={busy} onPress={save} />
+      {result && (
+        <Text style={[T.caption, { color: result.ok ? C.green : C.red, marginTop: 8, textAlign: "center" }]}>
+          {result.msg}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── StatsPanel ───────────────────────────────────────────────────────────────
+// Manufacturer / admin: aggregated transaction KPIs by period
+
+const STAT_PERIODS = [
+  { key: "today", label: "Today" },
+  { key: "week",  label: "This Week" },
+  { key: "month", label: "This Month" },
+  { key: "year",  label: "This Year" },
+  { key: "all",   label: "All Time" },
+];
+
+function StatsPanel({ activeUrl, authToken }) {
+  const [stats,  setStats]  = useState(null);
+  const [period, setPeriod] = useState("today");
+
+  useEffect(() => {
+    let t;
+    const poll = async () => {
+      try { setStats(await fetchStats(activeUrl, authToken)); } catch {}
+      t = setTimeout(poll, 30000);
+    };
+    poll();
+    return () => clearTimeout(t);
+  }, [activeUrl, authToken]);
+
+  const p = period;
+  const completed = stats ? (p === "all" ? stats.allCompleted : stats[`${p}Completed`]) : "—";
+  const failed    = stats ? (p === "all" ? stats.allFailed    : stats[`${p}Failed`])    : "—";
+  const kg        = stats ? Number(p === "all" ? stats.allKg     : stats[`${p}Kg`])     : 0;
+  const amount    = stats ? Number(p === "all" ? stats.allAmount : stats[`${p}Amount`]) : 0;
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 8 }]}>Transaction Statistics</Text>
+      <View style={S.periodRow}>
+        {STAT_PERIODS.map(({ key, label }) => (
+          <Pressable key={key} style={[S.chip, period === key && S.chipOn]} onPress={() => setPeriod(key)}>
+            <Text style={[T.caption, { fontWeight: "700", color: period === key ? C.white : C.secondary }]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {!stats
+        ? <Text style={[T.body, { color: C.muted, textAlign: "center", paddingVertical: 12 }]}>Loading…</Text>
+        : (
+          <View style={S.kpiRow}>
+            {[
+              { l: "COMPLETED",   v: String(completed),               ok: true },
+              { l: "FAILED",      v: String(failed),                   ok: Number(failed) === 0 },
+              { l: "KG SOLD",     v: `${Number(kg).toFixed(1)} kg`,   ok: null },
+              { l: "REVENUE PKR", v: `${Number(amount).toFixed(0)}`,  ok: null },
+            ].map(({ l, v, ok }) => (
+              <View key={l} style={[S.kpiCell, ok === false && S.kpiCellWarn]}>
+                <Text style={T.label}>{l}</Text>
+                <Text style={[T.numSm, { marginTop: 4 }, ok === false && { color: C.red }]}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        )
+      }
+    </View>
+  );
+}
+
+// ─── ClockPanel ───────────────────────────────────────────────────────────────
+
+function ClockPanel({ activeUrl, authToken }) {
+  const [time,   setTime]   = useState(null);
+  const [year,   setYear]   = useState("");
+  const [month,  setMonth]  = useState("");
+  const [day,    setDay]    = useState("");
+  const [hour,   setHour]   = useState("");
+  const [minute, setMinute] = useState("");
+  const [second, setSecond] = useState("");
+  const [busy,   setBusy]   = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    fetchTime(activeUrl, authToken)
+      .then((d) => {
+        setTime(d);
+        setYear(String(d.year)); setMonth(String(d.month)); setDay(String(d.day));
+        setHour(String(d.hour)); setMinute(String(d.minute)); setSecond(String(d.second));
+      })
+      .catch(() => {});
+  }, [activeUrl]);
+
+  async function save() {
+    setBusy(true); setResult(null);
+    try {
+      await saveTime(activeUrl, { year, month, day, hour, minute, second }, authToken);
+      const d = await fetchTime(activeUrl, authToken);
+      setTime(d);
+      setResult({ ok: true, msg: "RTC updated" });
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Failed" });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 4 }]}>Board Clock (RTC)</Text>
+      {time && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <Pill label={time.initialized ? "RTC OK" : "NO RTC"} ok={!!time.initialized} sm />
+          {time.lostPower && <Pill label="Lost Power" ok={false} sm />}
+          <Text style={[T.body, { fontWeight: "700", fontVariant: ["tabular-nums"] }]}>{time.iso8601}</Text>
+        </View>
+      )}
+      <View style={A.inputRow}>
+        {[
+          { label: "Year",   val: year,   set: setYear,   kbType: "numeric", width: 70 },
+          { label: "Month",  val: month,  set: setMonth,  kbType: "numeric", width: 50 },
+          { label: "Day",    val: day,    set: setDay,    kbType: "numeric", width: 50 },
+        ].map(({ label, val, set, width }) => (
+          <View key={label} style={{ width }}>
+            <Text style={[A.fieldLbl, { marginBottom: 2 }]}>{label}</Text>
+            <TextInput value={val} onChangeText={set} keyboardType="numeric"
+              style={[A.input, { textAlign: "center" }]} placeholderTextColor={C.muted} />
+          </View>
+        ))}
+      </View>
+      <View style={[A.inputRow, { marginTop: 6 }]}>
+        {[
+          { label: "Hour",   val: hour,   set: setHour,   width: 50 },
+          { label: "Min",    val: minute, set: setMinute, width: 50 },
+          { label: "Sec",    val: second, set: setSecond, width: 50 },
+        ].map(({ label, val, set, width }) => (
+          <View key={label} style={{ width }}>
+            <Text style={[A.fieldLbl, { marginBottom: 2 }]}>{label}</Text>
+            <TextInput value={val} onChangeText={set} keyboardType="numeric"
+              style={[A.input, { textAlign: "center" }]} placeholderTextColor={C.muted} />
+          </View>
+        ))}
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <Btn label={busy ? "…" : "Set RTC"} onPress={save} disabled={busy} tone="ghost" />
+        </View>
+      </View>
+      {result && (
+        <Text style={[T.caption, { color: result.ok ? C.green : C.red, marginTop: 6 }]}>{result.msg}</Text>
+      )}
+    </View>
+  );
+}
+
+// ─── ModbusRtuPanel ───────────────────────────────────────────────────────────
+
+const BAUD_OPTIONS = [
+  { key: "9600",   label: "9600" },
+  { key: "19200",  label: "19.2k" },
+  { key: "38400",  label: "38.4k" },
+  { key: "57600",  label: "57.6k" },
+  { key: "115200", label: "115.2k" },
+];
+const PARITY_OPTIONS = [
+  { key: "0", label: "None" },
+  { key: "1", label: "Even" },
+  { key: "2", label: "Odd" },
+];
+
+function ModbusRtuPanel({ activeUrl, authToken }) {
+  const [cfg,    setCfg]    = useState(null);
+  const [busy,   setBusy]   = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    fetchModbusRtu(activeUrl, authToken)
+      .then((d) => setCfg(d))
+      .catch(() => {});
+  }, [activeUrl, authToken]);
+
+  async function save() {
+    if (!cfg) return;
+    setBusy(true); setResult(null);
+    try {
+      const r = await saveModbusRtu(activeUrl, {
+        enabled:      cfg.enabled ? "1" : "0",
+        slaveAddress: cfg.slaveAddress,
+        baudRate:     cfg.baudRate,
+        parity:       cfg.parity,
+        stopBits:     cfg.stopBits,
+      }, authToken);
+      setResult({ ok: true, msg: r.message || "RTU settings saved" });
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Failed" });
+    } finally { setBusy(false); }
+  }
+
+  if (!cfg) return <Text style={[T.body, { color: C.muted, marginTop: 8 }]}>Loading RTU config…</Text>;
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Text style={[T.cardTitle, { marginBottom: 4 }]}>Modbus RTU (RS-485)</Text>
+      <Text style={[T.caption, { color: C.slate, marginBottom: 8 }]}>
+        RX GPIO {cfg.rxPin} · TX GPIO {cfg.txPin} · DE GPIO {cfg.dePin}
+      </Text>
+
+      {/* Enable toggle */}
+      <Pressable onPress={() => setCfg((p) => ({ ...p, enabled: !p.enabled }))}
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <View style={{ width: 48, height: 28, borderRadius: 14,
+          backgroundColor: cfg.enabled ? C.teal : C.border, justifyContent: "center", paddingHorizontal: 3 }}>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: C.white,
+            alignSelf: cfg.enabled ? "flex-end" : "flex-start" }} />
+        </View>
+        <Text style={[T.body, { fontWeight: "700" }]}>{cfg.enabled ? "RTU Enabled" : "RTU Disabled"}</Text>
+      </Pressable>
+
+      {/* Slave Address */}
+      <Field label="Slave Address (1–247)">
+        <TextInput value={String(cfg.slaveAddress)}
+          onChangeText={(v) => setCfg((p) => ({ ...p, slaveAddress: Number(v) || 1 }))}
+          keyboardType="numeric" style={[A.input, { width: 80 }]}
+          returnKeyType="done" placeholderTextColor={C.muted} />
+      </Field>
+
+      {/* Baud Rate */}
+      <Field label="Baud Rate">
+        <SegControl
+          options={BAUD_OPTIONS}
+          value={String(cfg.baudRate)}
+          onChange={(v) => setCfg((p) => ({ ...p, baudRate: Number(v) }))}
+        />
+      </Field>
+
+      {/* Parity */}
+      <Field label="Parity">
+        <SegControl
+          options={PARITY_OPTIONS}
+          value={String(cfg.parity)}
+          onChange={(v) => setCfg((p) => ({ ...p, parity: Number(v) }))}
+        />
+      </Field>
+
+      {/* Stop Bits */}
+      <Field label="Stop Bits">
+        <SegControl
+          options={[{ key: "1", label: "1" }, { key: "2", label: "2" }]}
+          value={String(cfg.stopBits)}
+          onChange={(v) => setCfg((p) => ({ ...p, stopBits: Number(v) }))}
+        />
+      </Field>
+
+      <Btn label={busy ? "Saving…" : "Save RTU Settings"} onPress={save} disabled={busy} full />
+      <Text style={[T.caption, { color: C.muted, marginTop: 4, textAlign: "center" }]}>
+        Changes take effect after restart
+      </Text>
+      {result && (
+        <Text style={[T.caption, { color: result.ok ? C.green : C.red, marginTop: 6, textAlign: "center" }]}>
+          {result.msg}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── StatusDetailPanel ────────────────────────────────────────────────────────
+// Structured status view replacing raw JSON.stringify in MFG diagnostics
+
+function StatusDetailPanel({ status }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const sections = [
+    {
+      title: "Fill Process",
+      rows: [
+        { l: "State",       v: status.stateLabel || status.state || "—" },
+        { l: "Boot Reason", v: status.bootReason || "—" },
+        { l: "Uptime",      v: formatUptime(Math.round((status.uptimeMs || 0) / 1000)) },
+      ],
+    },
+    {
+      title: "Weight",
+      rows: [
+        { l: "Live",    v: `${fmt.kg(status.liveWeightKg ?? status.weightKg)} kg` },
+        { l: "Tare",    v: `${fmt.kg(status.tareWeightKg)} kg` },
+        { l: "Net",     v: `${fmt.kg(status.netWeightKg)} kg` },
+        { l: "Target",  v: `${fmt.kg(status.targetWeightKg)} kg` },
+        { l: "Stable",  v: status.weightStable ? "Yes" : "No",   warn: !status.weightStable },
+        { l: "HX711 DOUT", v: `GPIO ${status.hx711DoutPin || "?"} = ${status.hx711DoutLevel}` },
+      ],
+    },
+    {
+      title: "Safety Interlocks",
+      rows: [
+        { l: "E-Stop",    v: status.emergencyStopOk  ? "OK" : "TRIPPED", warn: !status.emergencyStopOk },
+        { l: "Cylinder",  v: status.cylinderPresent  ? "Present" : "Absent" },
+        { l: "Nozzle",    v: status.nozzleEngaged    ? "Engaged" : "Disengaged" },
+      ],
+    },
+    {
+      title: "Network",
+      rows: [
+        { l: "WiFi",      v: status.wifiConnected ? "Connected" : "Disconnected", warn: !status.wifiConnected },
+        { l: "IP",        v: status.staIP || "—" },
+        { l: "RSSI",      v: status.wifiRssi ? `${status.wifiRssi} dBm` : "—",  warn: status.wifiRssi < -80 },
+        { l: "Board Time",v: status.boardTime || "—" },
+      ],
+    },
+    {
+      title: "Settings",
+      rows: [
+        { l: "Rate / kg",        v: `PKR ${fmt.money(status.ratePerKg)}` },
+        { l: "Slow Fill at",     v: status.slowFillThreshold ? `${Math.round(status.slowFillThreshold * 100)}%` : "—" },
+        { l: "Transactions",     v: String(status.transactionCount || 0) },
+        { l: "Reason Code",      v: status.reasonCode || "—" },
+      ],
+    },
+  ];
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={S.panelDivider} />
+      <Pressable style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}
+        onPress={() => setExpanded((p) => !p)}>
+        <Text style={T.cardTitle}>Status Detail</Text>
+        <Text style={[T.caption, { color: C.teal, fontWeight: "700" }]}>{expanded ? "▲ Collapse" : "▼ Expand"}</Text>
+      </Pressable>
+      {expanded && sections.map(({ title, rows }) => (
+        <View key={title} style={SD.section}>
+          <Text style={SD.sectionTitle}>{title}</Text>
+          {rows.map(({ l, v, warn }) => (
+            <View key={l} style={SD.row}>
+              <Text style={SD.rowLabel}>{l}</Text>
+              <Text style={[SD.rowVal, warn && { color: C.amber }]}>{v}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
+      {expanded && (
+        <Pressable onPress={() => setExpanded(false)} style={{ marginTop: 4 }}>
+          <Text style={[T.caption, { color: C.muted, textAlign: "center" }]}>▲ Collapse</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 // ─── SetupScreen ──────────────────────────────────────────────────────────────
 
 function SafetyBadge({ label, ok }) {
@@ -676,7 +1342,86 @@ function SafetyBadge({ label, ok }) {
   );
 }
 
-function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, authCanSetRate, onLogout, transactions }) {
+// ─── SdArchivePanel ──────────────────────────────────────────────────────────
+// Shown in History tab when SD card is ready — month picker + SD transaction list
+
+function SdArchivePanel({ activeUrl, authToken }) {
+  const [months,      setMonths]      = useState([]);
+  const [sdReady,     setSdReady]     = useState(false);
+  const [selMonth,    setSelMonth]    = useState(null);
+  const [records,     setRecords]     = useState([]);
+  const [loading,     setLoading]     = useState(false);
+
+  useEffect(() => {
+    fetchSdMonths(activeUrl, authToken)
+      .then((d) => {
+        setSdReady(!!d.ready);
+        setMonths(Array.isArray(d.months) ? d.months : []);
+      })
+      .catch(() => {});
+  }, [activeUrl, authToken]);
+
+  async function loadMonth(month) {
+    setSelMonth(month); setLoading(true); setRecords([]);
+    try {
+      const rows = await fetchSdTransactions(activeUrl, month, authToken);
+      setRecords(rows);
+    } catch {}
+    setLoading(false);
+  }
+
+  if (!sdReady) return (
+    <View style={{ marginTop: 12, padding: 12, backgroundColor: C.surface, borderRadius: 10 }}>
+      <Text style={[T.label, { color: C.muted }]}>SD Card not mounted</Text>
+    </View>
+  );
+
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text style={T.cardTitle}>SD Archive</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+        {months.map((m) => (
+          <Pressable key={m}
+            style={[{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginRight: 6,
+                      backgroundColor: selMonth === m ? C.teal : C.surface,
+                      borderWidth: 1, borderColor: selMonth === m ? C.teal : C.border }]}
+            onPress={() => loadMonth(m)}>
+            <Text style={[T.label, { color: selMonth === m ? C.white : C.textPrimary }]}>{m}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      {loading && <Text style={[T.caption, { color: C.muted }]}>Loading…</Text>}
+      {records.map((rec, i) => {
+        const isOk = Number(rec.status) === 1;
+        const ts   = Number(rec.endTime || rec.startTime || 0);
+        const dateStr = ts > 1e9
+          ? new Date(ts * 1000).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })
+          : "—";
+        return (
+          <View key={rec.id ?? i} style={[S.txnRow, { marginBottom: 6 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[T.label, { color: isOk ? C.green : C.amber }]}>
+                {isOk ? "● Complete" : "✗ " + (rec.faultCode || "Aborted")}
+              </Text>
+              <Text style={T.caption}>{dateStr} · {rec.operator || "—"}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={T.numSm}>{fmt.kg(rec.netKg)} kg</Text>
+              <Text style={[T.caption, { color: C.muted }]}>PKR {fmt.money(rec.finalAmount)}</Text>
+            </View>
+          </View>
+        );
+      })}
+      {!loading && selMonth && records.length === 0 && (
+        <Text style={[T.caption, { color: C.muted }]}>No records for {selMonth}</Text>
+      )}
+    </View>
+  );
+}
+
+// ─── SetupScreen ─────────────────────────────────────────────────────────────
+
+function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, authCanSetRate, onLogout, transactions, streamMode }) {
   const [tareWeight,  setTareWeight]  = useState(fmt.money(status.tareWeightKg));
   const [targetWeight,setTargetWeight]= useState("11.800");
   const [targetAmount,setTargetAmount]= useState("2950.00");
@@ -686,6 +1431,8 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
   const [period,      setPeriod]      = useState("all");
   const [secTab,      setSecTab]      = useState(null);
   const [editTare,      setEditTare]    = useState(false);
+  const [slowFillPct,   setSlowFillPct] = useState(String(Math.round((status.slowFillThreshold ?? 0.95) * 100)));
+  const slowFillInit = useRef(false);
   const rateInitialized = useRef(false);
   const [formShakeX,  formShake]      = useShake();
 
@@ -697,6 +1444,13 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
       rateInitialized.current = true;
     }
   }, [status.ratePerKg]);
+
+  useEffect(() => {
+    if (!slowFillInit.current && status.slowFillThreshold) {
+      setSlowFillPct(String(Math.round(status.slowFillThreshold * 100)));
+      slowFillInit.current = true;
+    }
+  }, [status.slowFillThreshold]);
 
   function syncTargets(mode, changed, value) {
     const r = Number(rate || 0);
@@ -746,6 +1500,9 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={S.setupShell} keyboardShouldPersistTaps="handled">
 
+        {/* board info bar — time, IP, Wi-Fi */}
+        <BoardInfoBar status={status} streamMode={streamMode} />
+
         {/* weight strip */}
         <View style={S.weightStrip}>
           {[
@@ -767,6 +1524,9 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
             <Text style={[T.caption, { color: "rgba(255,255,255,0.5)", marginTop: 1 }]}>kg</Text>
           </View>
         </View>
+
+        {/* last transaction summary */}
+        <LastTransactionCard transactions={transactions} />
 
         {/* fill form */}
         <Animated.View style={[S.fillCard, { transform: [{ translateX: formShakeX }] }]}>
@@ -847,6 +1607,30 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
               </View>
             </View>
           </View>
+
+          {/* slow fill threshold */}
+          <View style={S.fillDivider} />
+          <Field label={`Fast→Slow switch at ${slowFillPct || "—"}% of target`}>
+            <View style={A.inputRow}>
+              <TextInput
+                value={slowFillPct}
+                onChangeText={authCanSetRate ? setSlowFillPct : undefined}
+                editable={!!authCanSetRate}
+                keyboardType="numeric"
+                style={[A.input, A.inputFlex, !authCanSetRate && { color: C.muted }]}
+                placeholder="95" placeholderTextColor={C.muted} returnKeyType="done"
+              />
+              <Text style={[T.caption, { color: C.muted, alignSelf: "center" }]}>%</Text>
+              {authCanSetRate && (
+                <Btn label="Set" tone="ghost"
+                  onPress={() => {
+                    const v = Number(slowFillPct) / 100;
+                    run(() => saveSlowFillThreshold(activeUrl, v, authToken), "Threshold saved");
+                  }}
+                />
+              )}
+            </View>
+          </Field>
 
           {!safety.every((s) => s.ok) && (
             <Text style={S.interlockWarn}>⚠  Check interlocks before starting</Text>
@@ -956,6 +1740,10 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
                     </View>
                   );
                 })}
+            {/* SD archive — only when card is mounted */}
+            {(authRole === "admin" || authRole === "manufacturer") && status.sdReady && (
+              <SdArchivePanel activeUrl={activeUrl} authToken={authToken} />
+            )}
           </View>
         )}
 
@@ -976,7 +1764,44 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
                 <Btn label="Save" onPress={() => run(() => saveRate(activeUrl, adminRate, authToken), "Rate saved")} tone="ghost" />
               </View>
             </Field>
+            <Field label={`Fast→Slow switch (${slowFillPct || "—"}% of target)`}>
+              <View style={A.inputRow}>
+                <TextInput value={slowFillPct} onChangeText={setSlowFillPct}
+                  keyboardType="numeric" style={[A.input, A.inputFlex]}
+                  returnKeyType="done" placeholderTextColor={C.muted} placeholder="95" />
+                <Text style={[T.caption, { color: C.muted, alignSelf: "center" }]}>%</Text>
+                <Btn label="Save" tone="ghost"
+                  onPress={() => {
+                    const v = Number(slowFillPct) / 100;
+                    run(() => saveSlowFillThreshold(activeUrl, v, authToken), "Threshold saved");
+                  }}
+                />
+              </View>
+            </Field>
             <SettingsWifiPanel activeUrl={activeUrl} authToken={authToken} />
+            <MqttSettingsPanel activeUrl={activeUrl} authToken={authToken} />
+            {authRole === "manufacturer" && (
+              <>
+                <ClockPanel    activeUrl={activeUrl} authToken={authToken} />
+                <ModbusRtuPanel activeUrl={activeUrl} authToken={authToken} />
+                <View style={S.panelDivider} />
+                <Text style={T.cardTitle}>Storage Mode</Text>
+                <Text style={[T.caption, { color: C.muted, marginBottom: 8 }]}>
+                  {status.sdReady
+                    ? `SD ready — ${Math.round((status.sdFreeKb||0)/1024)} MB free of ${Math.round((status.sdTotalKb||0)/1024)} MB`
+                    : "SD not mounted (wire microSD to SPI2: MOSI=13 MISO=12 CLK=14 CS=27)"}
+                </Text>
+                <SegControl
+                  options={[
+                    { key: "0", label: "SPIFFS" },
+                    { key: "1", label: "SD Only" },
+                    { key: "2", label: "Both" },
+                  ]}
+                  value={String(status.storageMode ?? 0)}
+                  onChange={(v) => run(() => saveStorageMode(activeUrl, Number(v), authToken), "Storage mode saved")}
+                />
+              </>
+            )}
           </View>
         )}
 
@@ -1002,8 +1827,9 @@ function SetupScreen({ status, activeUrl, authToken, authRole, authUsername, aut
                 </View>
               ))}
             </View>
-            <Text style={[T.label, { marginTop: 14 }]}>Raw status</Text>
-            <Text style={S.rawTxt}>{JSON.stringify(status, null, 2)}</Text>
+            <StatsPanel activeUrl={activeUrl} authToken={authToken} />
+            <SystemResourcesPanel activeUrl={activeUrl} authToken={authToken} />
+            <StatusDetailPanel status={status} />
             <CalibrationPanel activeUrl={activeUrl} authToken={authToken} />
           </View>
         )}
@@ -1195,11 +2021,20 @@ export default function App() {
   const [authUsername,   setAuthUsername]   = useState("");
   const [authCanSetRate, setAuthCanSetRate] = useState(false);
   const [authLoading,    setAuthLoading]    = useState(true);
+  const [mqttConfig,     setMqttConfig]     = useState(null);
+
+  // Fetch MQTT config once after login so connectStatusStream can use it
+  useEffect(() => {
+    if (!authToken) return;
+    fetchMqttSettings(activeUrl, authToken)
+      .then((d) => setMqttConfig(d))
+      .catch(() => {});
+  }, [activeUrl, authToken]);
 
   useEffect(() => {
-    const stop = connectStatusStream(activeUrl, setStatus, setStreamMode);
+    const stop = connectStatusStream(activeUrl, setStatus, setStreamMode, mqttConfig, authToken);
     return () => stop();
-  }, [activeUrl, connectionKey]);
+  }, [activeUrl, connectionKey, mqttConfig, authToken]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -1207,8 +2042,16 @@ export default function App() {
       try {
         const txns = await fetchTransactionsForUser(activeUrl, "", authToken);
         setTransactions(txns);
-        const s = await fetchSettings(activeUrl);
-        if (s.ratePerKg) setStatus((p) => ({ ...p, ratePerKg: s.ratePerKg }));
+        const s = await fetchSettings(activeUrl, authToken);
+        setStatus((p) => ({
+          ...p,
+          ...(s.ratePerKg         != null && { ratePerKg: s.ratePerKg }),
+          ...(s.slowFillThreshold != null && { slowFillThreshold: s.slowFillThreshold }),
+          ...(s.storageMode       != null && { storageMode: s.storageMode }),
+          ...(s.sdReady           != null && { sdReady: s.sdReady }),
+          ...(s.sdTotalKb         != null && { sdTotalKb: s.sdTotalKb }),
+          ...(s.sdFreeKb          != null && { sdFreeKb: s.sdFreeKb }),
+        }));
       } catch {}
     };
     refresh();
@@ -1224,20 +2067,21 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!DEV_AUTO_LOGIN_ROLE) { setAuthLoading(false); return; }
     setAuthToken(""); setAuthLoading(true);
-    login(activeUrl, DEV_AUTO_LOGIN_ROLE, DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE])
+    login(activeUrl, DEV_AUTO_LOGIN_ROLE, DEV_CREDENTIALS[DEV_AUTO_LOGIN_ROLE] ?? "")
       .then((r) => { applySession(r); setAuthLoading(false); })
       .catch(()  => setAuthLoading(false));
   }, [activeUrl, connectionKey]);
 
   async function handleLogout() {
-    if (authToken && authToken !== NO_AUTH_TOKEN) { try { await logout(activeUrl, authToken); } catch {} }
+    if (authToken) { try { await logout(activeUrl, authToken); } catch {} }
     setAuthToken(""); setAuthRole("operator"); setAuthUsername(""); setAuthCanSetRate(false);
   }
 
   const phase    = getPhase(status.state);
   const filling  = phase === "filling";
-  const connected = streamMode === "polling" || streamMode === "websocket";
+  const connected = streamMode === "polling" || streamMode === "websocket" || streamMode === "mqtt";
 
   return (
     <SafeAreaView style={[S.safe, filling && S.safeFilling]}>
@@ -1279,7 +2123,7 @@ export default function App() {
       ) : (
         <SetupScreen status={status} activeUrl={activeUrl} authToken={authToken}
           authRole={authRole} authUsername={authUsername} authCanSetRate={authCanSetRate}
-          onLogout={handleLogout} transactions={transactions} />
+          onLogout={handleLogout} transactions={transactions} streamMode={streamMode} />
       )}
     </SafeAreaView>
   );
@@ -1521,4 +2365,50 @@ const cyl = StyleSheet.create({
   gasLabelTxt: { color: "rgba(255,255,255,0.2)", fontSize: 10, fontWeight: "800", letterSpacing: 2 },
   shine:     { position: "absolute", top: 0, bottom: 0, left: 8, width: 10, backgroundColor: "rgba(255,255,255,1)", borderRadius: 5 },
   foot:      { width: 80, height: 10, backgroundColor: "#2d3f55", borderRadius: 5, marginTop: 2 },
+});
+
+// board info bar styles
+const BI = StyleSheet.create({
+  bar:        { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 7,
+                backgroundColor: C.surface, borderRadius: 10, marginBottom: 8, gap: 0 },
+  col:        { flex: 1 },
+  colCenter:  { flex: 1, alignItems: "center" },
+  colRight:   { flex: 1, alignItems: "flex-end" },
+  label:      { fontSize: 9, fontWeight: "700", color: C.muted, letterSpacing: 0.8, textTransform: "uppercase" },
+  val:        { fontSize: 12, fontWeight: "700", color: C.textPrimary, marginTop: 1, fontVariant: ["tabular-nums"] },
+  rssi:       { fontSize: 14, lineHeight: 16 },
+});
+
+// last transaction card styles
+const LT = StyleSheet.create({
+  card:       { backgroundColor: C.surface, borderRadius: 12, padding: 12, marginBottom: 10,
+                borderWidth: 1, borderColor: C.border },
+  headerRow:  { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  bodyRow:    { flexDirection: "row", alignItems: "center", gap: 10 },
+  amtBlock:   { flex: 1 },
+  amtVal:     { fontSize: 20, fontWeight: "900", color: C.teal, fontVariant: ["tabular-nums"] },
+  amtSub:     { fontSize: 11, color: C.slate, marginTop: 1 },
+  metaBlock:  { alignItems: "flex-end" },
+  metaId:     { fontSize: 11, fontWeight: "700", color: C.secondary },
+  metaTime:   { fontSize: 10, color: C.muted, marginTop: 2 },
+  metaOp:     { fontSize: 10, color: C.muted, marginTop: 1 },
+});
+
+// system resources panel styles
+const SR = StyleSheet.create({
+  gaugeWrap:  { marginBottom: 12 },
+  gaugeTrack: { height: 8, backgroundColor: C.border, borderRadius: 4, marginTop: 4, overflow: "hidden" },
+  gaugeFill:  { height: 8, borderRadius: 4 },
+});
+
+// status detail panel styles
+const SD = StyleSheet.create({
+  section:      { marginBottom: 10 },
+  sectionTitle: { fontSize: 10, fontWeight: "800", color: C.teal, letterSpacing: 0.8,
+                  textTransform: "uppercase", marginBottom: 4, marginTop: 6 },
+  row:          { flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+                  paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: C.border },
+  rowLabel:     { fontSize: 11, color: C.slate, flex: 1 },
+  rowVal:       { fontSize: 11, fontWeight: "700", color: C.textPrimary, textAlign: "right",
+                  flex: 1, fontVariant: ["tabular-nums"] },
 });

@@ -42,8 +42,18 @@ class FillController {
   SettingsStore& settingsStore_;
   EventLog& eventLog_;
   TransactionLog& transactionLog_;
+  static constexpr unsigned long kMaxFillMs       = 5UL * 60UL * 1000UL; // 5-minute hard timeout
+  static constexpr unsigned long kNoFlowWindowMs  = 10UL * 1000UL;       // 10-second no-flow window
+  static constexpr float         kNoFlowMinDeltaKg = 0.010f;             // minimum delta to not be "no-flow"
+  static constexpr float         kOverfillMarginKg = 0.500f;             // 500 g past target → fault
+  static constexpr unsigned long kSettlingMs       = 3UL * 1000UL;       // wait 3 s for scale to stabilise
+
   uint32_t activeTransactionId_ = 0;
   unsigned long stateStartedMs_ = 0;
+
+  // No-flow detection: snapshot weight at window start, check delta after kNoFlowWindowMs
+  unsigned long noFlowWindowStartMs_ = 0;
+  float         noFlowWindowStartKg_ = 0.0f;
 
   bool simInputsActive_    = false;
   bool simCylinderPresent_ = false;

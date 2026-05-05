@@ -1,4 +1,5 @@
 #include "AuthService.h"
+#include <esp_system.h>
 
 void AuthService::begin()
 {
@@ -26,7 +27,12 @@ bool AuthService::login(const String& username, const String& password)
     currentUsername_   = username;
     currentCanSetRate_ = canSetRate || (currentRole_ == UserRole::Admin);
 
-    currentSession_.sessionId    = String(millis());
+    // Generate cryptographically random 128-bit session token
+    uint8_t rndBytes[16];
+    esp_fill_random(rndBytes, sizeof(rndBytes));
+    char tokenBuf[33]; tokenBuf[32] = '\0';
+    for (int i = 0; i < 16; i++) snprintf(tokenBuf + i*2, 3, "%02x", rndBytes[i]);
+    currentSession_.sessionId = String(tokenBuf);
     currentSession_.role         = currentRole_;
     currentSession_.createdAt    = millis();
     currentSession_.lastActivity = millis();
