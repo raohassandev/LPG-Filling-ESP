@@ -1,0 +1,81 @@
+================================================================================
+  LPG Display Firmware — ESP-IDF Setup & Build Commands
+  Board: Waveshare ESP32-S3-Touch-LCD-5
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 1 — Install ESP-IDF (Windows)
+────────────────────────────────────────────────────────────────────────────────
+Download the offline installer (recommended, ~1 GB):
+  https://dl.espressif.com/dl/esp-idf/
+
+Run the installer → select ESP-IDF v5.2 or later.
+The installer sets up Python, Git, CMake, and the Xtensa toolchain automatically.
+
+After installation, open "ESP-IDF 5.x CMD" or "ESP-IDF 5.x PowerShell"
+from the Start Menu — all commands below must be run inside that shell.
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 2 — Set build target
+────────────────────────────────────────────────────────────────────────────────
+cd D:\Working\LPG-Filling-ESP\firmware\lpg_display
+
+idf.py set-target esp32s3
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 3 — Fetch managed components (auto on first build)
+────────────────────────────────────────────────────────────────────────────────
+The file main/idf_component.yml lists these dependencies:
+  - lvgl/lvgl ^8.4.0
+  - espressif/esp_lvgl_port ^2.3.0
+  - espressif/esp_lcd_touch_gt911 ^1.1.0
+  - espressif/esp_io_expander_ch422g ^1.0.0
+
+They are downloaded automatically when you run `idf.py build`.
+Requires internet access on first build only.
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 4 — Build
+────────────────────────────────────────────────────────────────────────────────
+idf.py build
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 5 — Flash (replace COMx with your port)
+────────────────────────────────────────────────────────────────────────────────
+idf.py -p COM3 flash
+
+Flash + open serial monitor in one command:
+idf.py -p COM3 flash monitor
+
+Exit monitor: Ctrl + ]
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 6 — Serial monitor only
+────────────────────────────────────────────────────────────────────────────────
+idf.py -p COM3 monitor
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 7 — menuconfig (optional, to inspect/change settings)
+────────────────────────────────────────────────────────────────────────────────
+idf.py menuconfig
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 8 — Clean build
+────────────────────────────────────────────────────────────────────────────────
+idf.py fullclean
+idf.py build
+
+────────────────────────────────────────────────────────────────────────────────
+VERIFY PINS BEFORE FIRST FLASH
+────────────────────────────────────────────────────────────────────────────────
+Open main/DisplayConfig.h and verify pin numbers against the board schematic:
+  https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-5
+  → Resources tab → Schematic PDF
+
+Key pins to confirm:
+  kLcdData[16]   — RGB 16-bit data bus (B4:B0 G5:G0 R4:R0)
+  kLcdPclk/Hsync/Vsync/De — RGB sync signals
+  kI2cSda / kI2cScl       — shared I2C for GT911 + CH422G
+  kRtuTxPin / kRtuRxPin   — RS485 (GPIO43/44 — confirmed from board spec)
+
+================================================================================
