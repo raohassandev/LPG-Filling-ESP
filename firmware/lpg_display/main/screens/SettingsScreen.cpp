@@ -1,6 +1,7 @@
 #include "screens/SettingsScreen.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include <initializer_list>
 
 extern ScreenManager screenManager;
 

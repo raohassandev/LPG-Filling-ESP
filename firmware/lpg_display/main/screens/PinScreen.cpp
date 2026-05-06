@@ -58,7 +58,7 @@ void PinScreen::build() {
     lv_obj_set_style_bg_color(btn, TC::surface2(), 0);
     lv_obj_set_style_radius(btn, 8, 0);
     lv_obj_set_style_shadow_width(btn, 0, 0);
-    lv_obj_set_style_margin_all(btn, 4, 0);
+    lv_obj_set_style_pad_all(btn, 4, 0);
 
     lv_obj_t* lbl = lv_label_create(btn);
     lv_label_set_text(lbl, kNumLabels[i]);
@@ -121,7 +121,7 @@ void PinScreen::backspace() {
 }
 
 void PinScreen::submit() {
-  if (entered_ == DisplayConfig::kAdminPin) {
+  if (entered_ == kAdminPin) {
     screenManager.navigateTo(Screen::Settings);
   } else {
     lv_label_set_text(lblError_, "Incorrect PIN — try again");

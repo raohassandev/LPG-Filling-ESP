@@ -1,6 +1,7 @@
 #include "screens/FillCompleteScreen.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include "esp_timer.h"
 
 extern ScreenManager screenManager;
 
@@ -90,7 +91,7 @@ void FillCompleteScreen::build(ModbusClient& mbus) {
   lv_obj_set_pos(btnDone, 420, 400);
   lv_obj_add_event_cb(btnDone, onDone, LV_EVENT_CLICKED, this);
 
-  arrivedAt_ = millis();
+  arrivedAt_ = (uint32_t)(esp_timer_get_time() / 1000);
 }
 
 void FillCompleteScreen::update(const ControllerSnapshot& snap) {
