@@ -12,6 +12,7 @@ void LpgNetworkManager::begin()
 void LpgNetworkManager::poll()
 {
     if (currentMode_ == NetworkMode::APOnly) return;
+    if (!staConfigured_) return;
 
     const wl_status_t wifiStatus = WiFi.status();
 
@@ -20,22 +21,36 @@ void LpgNetworkManager::poll()
         if (status_ != NetworkStatus::Connected)
         {
             updateStatus(NetworkStatus::Connected);
+            lastReconnectAttemptMs_ = millis();
             Serial.printf("[NET] STA connected: %s  IP: %s\n",
                           WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-            if (mdnsRestart_) { startMdns(); mdnsRestart_ = false; }
+            // Always (re)start mDNS on every fresh connection — first-time or reconnect
+            startMdns();
         }
     }
     else if (status_ == NetworkStatus::Connected)
     {
+        // Just lost connection
         updateStatus(NetworkStatus::Disconnected);
         Serial.println("[NET] STA disconnected");
-        if (autoReconnect_ && staConfigured_)
+        if (autoReconnect_)
         {
             updateStatus(NetworkStatus::Connecting);
+            lastReconnectAttemptMs_ = millis();
             WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
             Serial.println("[NET] STA reconnect initiated");
-            // mDNS will restart when poll() sees WL_CONNECTED next tick
-            mdnsRestart_ = true;
+        }
+    }
+    else if (autoReconnect_ && status_ != NetworkStatus::Connected)
+    {
+        // Periodic retry when still not connected (handles first-boot timeout fallback
+        // and persistent WL_CONNECT_FAILED / WL_NO_SSID_AVAIL states)
+        if (millis() - lastReconnectAttemptMs_ >= kReconnectIntervalMs)
+        {
+            lastReconnectAttemptMs_ = millis();
+            updateStatus(NetworkStatus::Connecting);
+            WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
+            Serial.printf("[NET] STA retry (ssid: %s)\n", staSsid_.c_str());
         }
     }
 }
@@ -62,6 +77,10 @@ void LpgNetworkManager::setMode(NetworkMode mode)
 
 bool LpgNetworkManager::connectSTA(const String &ssid, const String &password)
 {
+    if (ssid.isEmpty()) {
+        Serial.println("[NET] connectSTA: empty SSID ignored");
+        return false;
+    }
     staSsid_ = ssid;
     staPassword_ = password;
     staConfigured_ = true;
@@ -142,25 +161,10 @@ bool LpgNetworkManager::startSTA()
     }
 
     updateStatus(NetworkStatus::Connecting);
+    lastReconnectAttemptMs_ = millis();
     WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
-
-    // Wait for connection with timeout
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        startMdns();
-        return true;
-    }
-
-    updateStatus(NetworkStatus::Failed);
-    return false;
+    Serial.printf("[NET] STA connecting to: %s\n", staSsid_.c_str());
+    return true; // poll() will detect WL_CONNECTED and start mDNS
 }
 
 void LpgNetworkManager::updateStatus(NetworkStatus newStatus)

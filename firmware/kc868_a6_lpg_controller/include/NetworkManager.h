@@ -58,8 +58,10 @@ private:
     String staSsid_;
     String staPassword_;
 
-    unsigned long lastStatusChange_ = 0;
-    bool mdnsRestart_ = false;
+    unsigned long lastStatusChange_      = 0;
+    unsigned long lastReconnectAttemptMs_ = 0;
+
+    static constexpr unsigned long kReconnectIntervalMs = 30000; // retry every 30 s
 
     void updateStatus(NetworkStatus newStatus);
     void startAP();

@@ -159,9 +159,9 @@ void ModbusTcpService::dispatchPdu(WiFiClient& client, const uint8_t* mbap, uint
             handleFC06(client, mbap, startAddr, word2);
             break;
         case kFC_WriteMultiHR:
-            // FC16 PDU: FC(1)+addr(2)+qty(2)+byteCount(1)+data(qty*2) — need ≥6 bytes
-            if (pduLen < 6) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
-            handleFC16(client, mbap, startAddr, word2, &pdu[5]);
+            // FC16 PDU: FC(1)+addr(2)+qty(2)+byteCount(1)+data(qty*2) — need ≥8 bytes for 1 register
+            if (pduLen < 8) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
+            handleFC16(client, mbap, startAddr, word2, &pdu[6]); // pdu[5]=byteCount, data starts at pdu[6]
             break;
         default:
             sendException(client, mbap, fc, kEx_IllegalFunc);

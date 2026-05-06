@@ -1,7 +1,17 @@
 #pragma once
 
+// Define LPG_WEBSOCKET_ENABLED=1 in your build flags to compile WebSocket
+// push support (requires the WebSockets library by Markus Sattler / Links2004).
+// Without the flag the WebPortal compiles with HTTP-only; the broadcastStatus()
+// method becomes a no-op so the rest of the firmware builds with no extra libs.
+#ifndef LPG_WEBSOCKET_ENABLED
+#define LPG_WEBSOCKET_ENABLED 0
+#endif
+
 #include <WebServer.h>
+#if LPG_WEBSOCKET_ENABLED
 #include <WebSocketsServer.h>
+#endif
 
 #include "AuthService.h"
 #include "NetworkManager.h"
@@ -89,6 +99,8 @@ class WebPortal {
   RtcService& rtcService_;
   SdService& sdService_;
   WebServer server_{80};
+#if LPG_WEBSOCKET_ENABLED
   WebSocketsServer wsServer_{81};
   unsigned long lastBroadcastMs_{0};
+#endif
 };

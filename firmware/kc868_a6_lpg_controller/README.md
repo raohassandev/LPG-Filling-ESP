@@ -211,3 +211,65 @@ Check transaction history:
 ```powershell
 Invoke-RestMethod -Uri http://192.168.0.108/api/transactions | ConvertTo-Json -Depth 5
 ```
+
+
+
+Flash Firmware to KC868-A6
+Step 1 — Install Arduino IDE 2.x
+Download from arduino.cc if not already installed.
+
+Step 2 — Add ESP32 Board Support
+In Arduino IDE: File → Preferences → Additional Boards Manager URLs, add:
+
+
+https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+Then Tools → Board → Boards Manager, search esp32, install "esp32 by Espressif Systems" (3.x).
+
+Step 3 — Install Required Libraries
+Tools → Manage Libraries, install exactly these two:
+
+Library	Author	Search term
+WebSockets	Markus Sattler (Links2004)	WebSocketsServer
+PubSubClient	Nick O'Leary	PubSubClient
+No other external libraries needed — HX711, OLED, and RTC are all implemented directly in the firmware.
+
+Step 4 — Open the Sketch
+File → Open → navigate to:
+
+
+firmware/kc868_a6_lpg_controller/kc868_a6_lpg_controller.ino
+Step 5 — Configure Board Settings
+Tools menu — set these exactly:
+
+Setting	Value
+Board	ESP32 Dev Module
+Upload Speed	921600
+CPU Frequency	240MHz (WiFi/BT)
+Flash Mode	QIO
+Flash Size	4MB (32Mb)
+Partition Scheme	Custom
+Core Debug Level	None
+PSRAM	Disabled
+The partitions.csv in the sketch folder is picked up automatically when Custom is selected.
+
+Step 6 — Connect the Board
+USB-to-serial cable to KC868-A6 UART0 (or built-in USB if your revision has it)
+Tools → Port → select the COM port that appears
+Step 7 — Upload
+Click Upload (→ arrow button). Arduino will compile and flash. Takes ~30-60 seconds.
+
+Step 8 — First Boot
+Open Tools → Serial Monitor at 115200 baud. You'll see:
+
+
+[BOOT] First boot — admin password: xxxxxxxx
+[BOOT] AP SSID: LPG-XXXXXX  password: LPXXXXXX
+Write down the admin password — it's printed only once (unless you erase NVS).
+
+Step 9 — SPIFFS Upload (Web Portal UI) — Optional
+If you want the web portal served from the device:
+
+Install ESP32 Sketch Data Upload plugin
+Place index.html in firmware/kc868_a6_lpg_controller/data/
+Tools → ESP32 Sketch Data Upload
+If no index.html is present, the REST API still works — only the browser portal is missing.

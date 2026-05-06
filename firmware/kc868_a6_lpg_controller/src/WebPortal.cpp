@@ -8,13 +8,14 @@
 namespace {
 String jsonBool(bool value) { return value ? "true" : "false"; }
 String jsonStr(const String& s) {
-  // Minimal JSON string escape — replaces " and \
+  // Minimal JSON string escape: replaces " and backslash
   String out = "\"";
-  for (char c : s) {
+  for (size_t i = 0; i < s.length(); i++) {
+    const char c = s[i];
     if (c == '"')       out += "\\\"";
     else if (c == '\\') out += "\\\\";
     else                out += c;
-  }
+  } // end for
   out += "\"";
   return out;
 }
@@ -45,21 +46,28 @@ void WebPortal::begin() {
   server_.begin();
   Serial.println(F("[WEB] HTTP server started on port 80"));
 
+#if LPG_WEBSOCKET_ENABLED
   wsServer_.begin();
   wsServer_.onEvent([](uint8_t, WStype_t type, uint8_t*, size_t) {
     if (type == WStype_CONNECTED) Serial.println(F("[WS] Client connected"));
     if (type == WStype_DISCONNECTED) Serial.println(F("[WS] Client disconnected"));
   });
   Serial.println(F("[WS] WebSocket server started on port 81"));
+#else
+  Serial.println(F("[WS] Disabled (LPG_WEBSOCKET_ENABLED=0)"));
+#endif
 }
 
 void WebPortal::handleClient() {
   server_.handleClient();
+#if LPG_WEBSOCKET_ENABLED
   wsServer_.loop();
   broadcastStatus();
+#endif
 }
 
 void WebPortal::broadcastStatus() {
+#if LPG_WEBSOCKET_ENABLED
   if (millis() - lastBroadcastMs_ < 200) return;
   lastBroadcastMs_ = millis();
   if (wsServer_.connectedClients() == 0) return;
@@ -78,6 +86,7 @@ void WebPortal::broadcastStatus() {
                  + ",\"emergencyStopOk\":" + jsonBool(s.emergencyStopOk)
                  + "}";
   wsServer_.broadcastTXT(payload);
+#endif
 }
 
 void WebPortal::sendCorsHeaders() {
@@ -304,6 +313,7 @@ void WebPortal::handleModbusMap() {
   if (!requireAuth(UserRole::Maintenance)) return;
   using namespace ModbusRegisterMap;
   const StatusSnapshot status = statusStore_.snapshot();
+  const RtcTime rtcTime = rtcService_.getTime();
   // Expose raw 16-bit register values for all 25 holding registers (PDU 0x0000–0x0018).
   // Addresses shown as Modbus Poll display numbers (40001 + PDU addr).
   char buf[32];
@@ -313,7 +323,7 @@ void WebPortal::handleModbusMap() {
                 "\"diBase\":10001,\"diCount\":" + String(kDI_Count) + ","
                 "\"registers\":{";
   for (uint16_t i = 0; i < kHR_Count; i++) {
-    const uint16_t val = readHR(i, status, transactionLog_);
+    const uint16_t val = readHR(i, status, transactionLog_, settingsStore_, rtcTime, false);
     snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, val);
     body += (i > 0 ? "," : "");
     body += buf;
@@ -572,14 +582,18 @@ void WebPortal::handleLogin() {
 void WebPortal::handleGetWifi() {
   if (!requireAuth(UserRole::Admin)) return;
   const SettingsSnapshot s = settingsStore_.snapshot();
-  String body = "{\"staSsid\":\"" + s.staSsid + "\",\"apSsid\":\"" + s.apSsid + "\"}";
+  const bool connected = networkManager_.isSTAConnected();
+  const String staIP   = connected ? networkManager_.staIP() : "";
+  String body = "{\"ssid\":\"" + s.staSsid + "\",\"apSsid\":\"" + s.apSsid
+              + "\",\"connected\":" + (connected ? "true" : "false")
+              + ",\"staIP\":\"" + staIP + "\"}";
   sendJson(200, body);
 }
 
 void WebPortal::handleSetWifi() {
   if (!requireAuth(UserRole::Admin)) return;
-  const String ssid = server_.arg("staSsid");
-  const String pass = server_.arg("staPassword");
+  const String ssid = server_.arg("ssid");
+  const String pass = server_.arg("password");
   if (!settingsStore_.setWifi(ssid, pass)) {
     sendJson(400, "{\"ok\":false,\"message\":\"SSID required and password must be 8+ chars\"}");
     return;

@@ -76,13 +76,16 @@ static String unixToYearMonth(uint32_t unix) {
 // ── SdService ────────────────────────────────────────────────────────────────
 
 bool SdService::begin() {
+  // KC868-A6 note: GPIO18/19/23/5 are the shared SPI bus also used by LoRa/nRF24L01.
+  // If no SD card is present we release the bus so other SPI peripherals are unaffected.
   SPI.begin(BoardConfig::kSdClkPin,
             BoardConfig::kSdMisoPin,
             BoardConfig::kSdMosiPin,
             BoardConfig::kSdCsPin);
 
-  if (!SD.begin(BoardConfig::kSdCsPin)) {
-    Serial.println("[SD] mount failed — no card or wiring error");
+  if (!SD.begin(BoardConfig::kSdCsPin, SPI)) {
+    Serial.println("[SD] not present — SPI bus released");
+    SPI.end();          // release GPIO18/19/23/5 back to GPIO so LoRa/nRF24 can use them
     ready_ = false;
     return false;
   }

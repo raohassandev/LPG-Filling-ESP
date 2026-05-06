@@ -63,7 +63,7 @@ void SettingsStore::begin() {
   // RTU settings stored in a separate NVS namespace
   Preferences rtuPref;
   rtuPref.begin("lpgrtu", true);
-  rtu_.enabled      = rtuPref.getBool("enabled",  false);
+  rtu_.enabled      = rtuPref.getBool("enabled",  true);
   rtu_.slaveAddress = rtuPref.getUChar("addr",    1);
   rtu_.baudRate     = rtuPref.getUInt("baud",     9600);
   rtu_.parity       = rtuPref.getUChar("parity",  0);

@@ -40,8 +40,10 @@ void ModbusRtuService::begin() {
     const uint32_t cfg = serialConfig(rtu.parity, rtu.stopBits);
     uart_.begin(rtu.baudRate, cfg, BoardConfig::kRtuRxPin, BoardConfig::kRtuTxPin);
 
-    pinMode(BoardConfig::kRtuDePin, OUTPUT);
-    digitalWrite(BoardConfig::kRtuDePin, LOW);  // receive mode
+    if (BoardConfig::kRtuDePin != 255) {
+        pinMode(BoardConfig::kRtuDePin, OUTPUT);
+        digitalWrite(BoardConfig::kRtuDePin, LOW);  // receive mode
+    }
 
     active_ = true;
     Serial.printf("[RTU] Modbus RTU started: addr=%u baud=%u parity=%u stop=%u\n",
@@ -95,8 +97,8 @@ void ModbusRtuService::processFrame() {
 
     if (!ok) {
         // Exception response: addr(1) + (FC|0x80)(1) + exCode(1) + CRC(2)
+        // respBuf[2] already holds the exception code written by the handler via resp[0]
         respBuf[1] = fc | 0x80;
-        respBuf[2] = respPduLen; // dispatchFC writes exception code into respBuf[2] = respPduLen first byte
         const uint16_t excCrc = crc16(respBuf, 3);
         respBuf[3] = static_cast<uint8_t>(excCrc & 0xFF);
         respBuf[4] = static_cast<uint8_t>(excCrc >> 8);
@@ -114,12 +116,16 @@ void ModbusRtuService::processFrame() {
 }
 
 void ModbusRtuService::sendResponse(const uint8_t* buf, uint16_t len) {
-    digitalWrite(BoardConfig::kRtuDePin, HIGH); // transmit mode
-    delayMicroseconds(50);
+    if (BoardConfig::kRtuDePin != 255) {
+        digitalWrite(BoardConfig::kRtuDePin, HIGH); // transmit mode
+        delayMicroseconds(50);
+    }
     uart_.write(buf, len);
     uart_.flush();
-    delayMicroseconds(50);
-    digitalWrite(BoardConfig::kRtuDePin, LOW);  // receive mode
+    if (BoardConfig::kRtuDePin != 255) {
+        delayMicroseconds(50);
+        digitalWrite(BoardConfig::kRtuDePin, LOW);  // receive mode
+    }
 }
 
 bool ModbusRtuService::dispatchFC(uint8_t fc, const uint8_t* req, uint16_t reqLen,

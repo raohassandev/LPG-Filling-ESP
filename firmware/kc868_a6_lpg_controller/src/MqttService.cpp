@@ -1,5 +1,7 @@
 #include "MqttService.h"
 
+#if LPG_MQTT_ENABLED
+
 // ── Public broker host/port tables ───────────────────────────────────────────
 static const char* kBrokerHosts[] = {
     "",                       // 0 = Custom (taken from settings)
@@ -157,3 +159,5 @@ uint16_t MqttService::brokerPort() const {
     if (cfg.preset < 4) return kBrokerPorts[cfg.preset];
     return 1883;
 }
+
+#endif // LPG_MQTT_ENABLED

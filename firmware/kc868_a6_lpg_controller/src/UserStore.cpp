@@ -24,7 +24,7 @@ String UserStore::generateSalt() {
 String UserStore::hashPassword(const String& password, const String& salt) {
     const String input = salt + ":" + password;
     uint8_t hash[32];
-    mbedtls_sha256_ret((const unsigned char*)input.c_str(), input.length(), hash, 0);
+    mbedtls_sha256((const unsigned char*)input.c_str(), input.length(), hash, 0);
     char hex[65]; hex[64] = '\0';
     for (int i = 0; i < 32; i++) snprintf(hex + i*2, 3, "%02x", hash[i]);
     return String(hex);

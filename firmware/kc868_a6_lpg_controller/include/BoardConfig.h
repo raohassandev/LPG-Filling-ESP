@@ -22,14 +22,16 @@ struct BoardConfig {
   static constexpr const char* kFallbackApPassword = "";   // Generated per-device in SettingsStore
   static constexpr const char* kFirmwareVersion = "0.1.0";
 
-  // RS-485 / Modbus RTU — UART2 (verify traces on your KC868-A6 PCB revision)
-  static constexpr uint8_t kRtuRxPin  = 16;   // UART2 RX
-  static constexpr uint8_t kRtuTxPin  = 17;   // UART2 TX
-  static constexpr uint8_t kRtuDePin  = 5;    // DE/RE tied together (HIGH=transmit)
+  // RS-485 / Modbus RTU — UART2
+  // KC868-A6 RS485 port: GPIO27=TX, GPIO14=RX (NOT the RS232 port on GPIO16/17)
+  // The board uses an auto-direction RS485 transceiver — no DE/RE pin needed.
+  static constexpr uint8_t kRtuRxPin  = 14;    // UART2 RX → RS485 RO
+  static constexpr uint8_t kRtuTxPin  = 27;    // UART2 TX → RS485 DI
+  static constexpr uint8_t kRtuDePin  = 255;   // 255 = not connected (auto-direction transceiver)
 
-  // microSD — SPI2/VSPI (verify KC868-A6 PCB — these pins should be free)
-  static constexpr uint8_t kSdMosiPin = 13;
-  static constexpr uint8_t kSdMisoPin = 12;
-  static constexpr uint8_t kSdClkPin  = 14;
-  static constexpr uint8_t kSdCsPin   = 27;
+  // microSD — VSPI (GPIO18/23/19/5 per KC868-A6 schematic)
+  static constexpr uint8_t kSdMosiPin = 23;
+  static constexpr uint8_t kSdMisoPin = 19;
+  static constexpr uint8_t kSdClkPin  = 18;
+  static constexpr uint8_t kSdCsPin   = 5;
 };

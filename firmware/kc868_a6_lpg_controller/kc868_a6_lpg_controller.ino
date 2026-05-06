@@ -2,7 +2,6 @@
 #include <SPIFFS.h>
 #include <Wire.h>
 #include <WiFi.h>
-#include <ESPmDNS.h>
 
 #include "BoardConfig.h"
 #include "FillController.h"
@@ -37,13 +36,13 @@ TransactionLog transactionLog(rtcService);
 AuthService authService;
 OledDisplay oledDisplay(boardConfig);
 LpgNetworkManager networkManager;
+SdService sdService;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
 WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService);
 ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService);
 ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService);
 MqttService mqttService(networkManager, settingsStore, statusStore);
-SdService   sdService;
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -266,14 +265,9 @@ void setup() {
   fillController.begin();
   networkManager.begin();
   networkManager.connectSTA(settingsStore.snapshot().staSsid, settingsStore.snapshot().staPassword);
-  if (!MDNS.begin("lpg-controller")) {
-    Serial.println(F("[MDNS] Failed to start"));
-  } else {
-    Serial.println(F("[MDNS] Started: lpg-controller.local"));
-  }
+  // mDNS is managed entirely by NetworkManager — started/restarted via poll() on every connection
   sdService.begin();
   webPortal.begin();
-  MDNS.addService("http", "tcp", 80);
   modbusTcpService.begin();
   modbusRtuService.begin();
   mqttService.begin();
