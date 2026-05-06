@@ -10,9 +10,11 @@ float ModbusClient::regsToFloat(uint16_t hi, uint16_t lo) {
   return f;
 }
 
+static HardwareSerial RtuSerial(DisplayConfig::kRtuUartNum);
+
 void ModbusClient::begin() {
-  Serial2.begin(DisplayConfig::kRtuBaud, SERIAL_8N1,
-                DisplayConfig::kRtuRxPin, DisplayConfig::kRtuTxPin);
+  RtuSerial.begin(DisplayConfig::kRtuBaud, SERIAL_8N1,
+                  DisplayConfig::kRtuRxPin, DisplayConfig::kRtuTxPin);
   if (DisplayConfig::kRtuDePin != 255) {
     pinMode(DisplayConfig::kRtuDePin, OUTPUT);
     digitalWrite(DisplayConfig::kRtuDePin, LOW);
@@ -112,14 +114,14 @@ bool ModbusClient::readHR(uint16_t startReg, uint16_t count, uint16_t* out) {
 bool ModbusClient::sendAndReceive(uint8_t* req, uint8_t reqLen,
                                    uint8_t* resp, uint16_t expectedLen) {
   // Flush stale bytes
-  while (Serial2.available()) Serial2.read();
+  while (RtuSerial.available()) RtuSerial.read();
 
   if (DisplayConfig::kRtuDePin != 255) {
     digitalWrite(DisplayConfig::kRtuDePin, HIGH);
     delayMicroseconds(100);
   }
-  Serial2.write(req, reqLen);
-  Serial2.flush();
+  RtuSerial.write(req, reqLen);
+  RtuSerial.flush();
   if (DisplayConfig::kRtuDePin != 255) {
     delayMicroseconds(100);
     digitalWrite(DisplayConfig::kRtuDePin, LOW);
@@ -128,7 +130,7 @@ bool ModbusClient::sendAndReceive(uint8_t* req, uint8_t reqLen,
   unsigned long t0 = millis();
   uint16_t rxLen = 0;
   while (millis() - t0 < kTimeoutMs && rxLen < expectedLen) {
-    if (Serial2.available()) resp[rxLen++] = (uint8_t)Serial2.read();
+    if (RtuSerial.available()) resp[rxLen++] = (uint8_t)RtuSerial.read();
   }
   if (rxLen < expectedLen) return false;
 

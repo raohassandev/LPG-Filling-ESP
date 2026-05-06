@@ -1,68 +1,96 @@
 #include "Bsp.h"
 #include <Arduino.h>
 
-// ── TODO: Replace this file with your board's BSP ────────────────────────────
+// ── Waveshare ESP32-S3-Touch-LCD-5 BSP ───────────────────────────────────────
+// Library required: "ESP32_Display_Panel" by Espressif (Arduino Library Manager)
+// Also install:     "ESP32_IO_Expander"   by Espressif
 //
-// Common options for ESP32-S3 5" display boards:
+// Board manager: "esp32" by Espressif 3.x
+// Board target:  "ESP32S3 Dev Module"
+//   Partition:    16M Flash (3MB APP/9.9MB FATFS)  or  Huge APP
+//   PSRAM:        OPI PSRAM
+//   Flash Mode:   QIO 80MHz
 //
-// 1. Sunton / Guition boards → use "ESP32_Display_Panel" library:
-//    https://github.com/esp-arduino-libs/ESP32_Display_Panel
-//    #include <ESP_Panel_Library.h>
-//    ESP_Panel panel; panel.init(); panel.begin();
-//
-// 2. Elecrow / Waveshare boards → usually provide their own BSP header.
-//
-// 3. Custom wiring → wire SPI/RGB display driver (ST7796, ILI9488, etc.)
-//    and I2C touch (FT5x06, GT911) manually using TFT_eSPI + lvgl.
-//
-// The LVGL tick (lv_tick_inc) must be called every 1 ms.
-// The display flush and touch read callbacks must be registered.
+// In Arduino IDE: Tools → USB CDC On Boot → Enabled  (keeps Serial on USB)
 // ─────────────────────────────────────────────────────────────────────────────
 
-static lv_disp_draw_buf_t drawBuf;
-static lv_color_t         buf1[800 * 20];   // ~32 KB — adjust if tight on RAM
-static lv_disp_drv_t      dispDrv;
-static lv_indev_drv_t     indevDrv;
+#include <ESP_Panel_Library.h>
+#include <lvgl.h>
 
-// Called by LVGL when it has pixels to push to the screen
+static ESP_Panel* panel = nullptr;
+
+// LVGL draw buffer — two half-screen buffers for smooth rendering
+static lv_disp_draw_buf_t drawBuf;
+static lv_color_t buf1[800 * 40];   // ~64 KB — fits in PSRAM
+static lv_color_t buf2[800 * 40];
+
+static lv_disp_drv_t  dispDrv;
+static lv_indev_drv_t indevDrv;
+
+// ── Display flush callback ────────────────────────────────────────────────────
 static void displayFlush(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p) {
-  // TODO: write pixels at (area->x1,area->y1)..(area->x2,area->y2) to display
-  // e.g.: tft.pushImage(area->x1, area->y1, w, h, (uint16_t*)color_p);
+  panel->getLcd()->drawBitmap(area->x1, area->y1,
+                               area->x2 - area->x1 + 1,
+                               area->y2 - area->y1 + 1,
+                               (const uint8_t*)color_p);
   lv_disp_flush_ready(drv);
 }
 
-// Called by LVGL to read touch
+// ── Touch read callback ───────────────────────────────────────────────────────
 static void touchRead(lv_indev_drv_t* drv, lv_indev_data_t* data) {
-  // TODO: read touch controller (FT6336, GT911, etc.)
-  // If touched:
-  //   data->point.x = tx; data->point.y = ty;
-  //   data->state   = LV_INDEV_STATE_PR;
-  // else:
-  //   data->state   = LV_INDEV_STATE_REL;
-  data->state = LV_INDEV_STATE_REL;
+  ESP_PanelTouch* touch = panel->getTouch();
+  if (!touch) { data->state = LV_INDEV_STATE_REL; return; }
+
+  ESP_PanelTouchPoint point[1];
+  int num = touch->readPoints(point, 1, -1);
+  if (num > 0) {
+    data->point.x = point[0].x;
+    data->point.y = point[0].y;
+    data->state   = LV_INDEV_STATE_PR;
+  } else {
+    data->state = LV_INDEV_STATE_REL;
+  }
 }
 
+// ── Bsp::init ─────────────────────────────────────────────────────────────────
 bool Bsp::init() {
+  // Init display panel (handles LCD driver, backlight, touch, I/O expander)
+  panel = new ESP_Panel();
+  if (!panel->init()) {
+    Serial.println("[BSP] Panel init failed");
+    return false;
+  }
+  if (!panel->begin()) {
+    Serial.println("[BSP] Panel begin failed");
+    return false;
+  }
+
+  // Reset touch
+  if (panel->getTouch()) panel->getTouch()->swapXY(false);
+
   lv_init();
 
-  lv_disp_draw_buf_init(&drawBuf, buf1, nullptr, 800 * 20);
+  // Use PSRAM for draw buffers (board has 8 MB OPI PSRAM)
+  lv_disp_draw_buf_init(&drawBuf, buf1, buf2, 800 * 40);
 
   lv_disp_drv_init(&dispDrv);
-  dispDrv.hor_res    = 800;
-  dispDrv.ver_res    = 480;
-  dispDrv.flush_cb   = displayFlush;
-  dispDrv.draw_buf   = &drawBuf;
+  dispDrv.hor_res  = 800;
+  dispDrv.ver_res  = 480;
+  dispDrv.flush_cb = displayFlush;
+  dispDrv.draw_buf = &drawBuf;
+  dispDrv.full_refresh = 0;
   lv_disp_drv_register(&dispDrv);
 
   lv_indev_drv_init(&indevDrv);
-  indevDrv.type     = LV_INDEV_TYPE_POINTER;
-  indevDrv.read_cb  = touchRead;
+  indevDrv.type    = LV_INDEV_TYPE_POINTER;
+  indevDrv.read_cb = touchRead;
   lv_indev_drv_register(&indevDrv);
 
-  Serial.println("[BSP] LVGL initialized (display flush stub — wire your driver)");
+  Serial.println("[BSP] Waveshare ESP32-S3-Touch-LCD-5 initialized");
   return true;
 }
 
+// ── Bsp::tick ─────────────────────────────────────────────────────────────────
 void Bsp::tick() {
   lv_timer_handler();
 }
