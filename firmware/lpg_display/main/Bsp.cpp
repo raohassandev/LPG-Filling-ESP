@@ -51,9 +51,9 @@ static esp_err_t ch422g_write(uint8_t dev_addr, uint8_t data) {
 static esp_err_t initExpander() {
     ESP_RETURN_ON_ERROR(ch422g_write(0x24, 0x01), TAG, "CH422G set output mode");
     ESP_RETURN_ON_ERROR(ch422g_write(0x38, 0x00), TAG, "CH422G reset assert");
-    vTaskDelay(pdMS_TO_TICKS(20));
+    vTaskDelay(pdMS_TO_TICKS(50));   // GT911 requires >=10ms reset pulse
     ESP_RETURN_ON_ERROR(ch422g_write(0x38, 0x07), TAG, "CH422G reset release");
-    vTaskDelay(pdMS_TO_TICKS(20));
+    vTaskDelay(pdMS_TO_TICKS(150));  // GT911 needs ~100ms after reset before ready
     ESP_LOGI(TAG, "CH422G ready, backlight ON");
     return ESP_OK;
 }

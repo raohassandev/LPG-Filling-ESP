@@ -19,8 +19,10 @@ static constexpr gpio_num_t  kI2cSda    = GPIO_NUM_19;
 static constexpr gpio_num_t  kI2cScl    = GPIO_NUM_20;
 static constexpr uint32_t    kI2cHz     = 400000;
 
-// GT911 touch
-static constexpr uint8_t     kTouchAddr = 0x5D;
+// GT911 touch — address depends on INT pin state at reset:
+//   0x5D when INT is LOW during reset (default if INT is driven)
+//   0x14 when INT floats HIGH (common on Waveshare boards with no INT pull-down)
+static constexpr uint8_t     kTouchAddr = 0x14;
 
 // CH422G I/O expander (backlight, LCD reset, touch reset)
 static constexpr uint8_t     kCh422gAddr = 0x24;
