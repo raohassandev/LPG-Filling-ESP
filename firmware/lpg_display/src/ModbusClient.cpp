@@ -1,15 +1,14 @@
 #include "ModbusClient.h"
 #include "DisplayConfig.h"
+#include <string.h>
 
-// Modbus holding register base on KC868-A6 (matches ModbusRegisterMap.h kHR_Base)
-static constexpr uint16_t kHR_Base        = 100;
-static constexpr uint16_t kHR_State       = 0;   // offset from base
-static constexpr uint16_t kHR_LiveWeight  = 1;
-static constexpr uint16_t kHR_NetWeight   = 3;
-static constexpr uint16_t kHR_TargetWeight = 5;
-static constexpr uint16_t kHR_RatePerKg   = 7;
-static constexpr uint16_t kHR_Coils       = 9;   // packed coil bits
-static constexpr uint16_t kHR_ReadCount   = 10;
+// FLOAT32 decode: two uint16 big-endian (Hi word at lower address) → IEEE-754
+float ModbusClient::regsToFloat(uint16_t hi, uint16_t lo) {
+  uint32_t bits = ((uint32_t)hi << 16) | lo;
+  float f;
+  memcpy(&f, &bits, sizeof(f));
+  return f;
+}
 
 void ModbusClient::begin() {
   Serial2.begin(DisplayConfig::kRtuBaud, SERIAL_8N1,
@@ -18,39 +17,80 @@ void ModbusClient::begin() {
     pinMode(DisplayConfig::kRtuDePin, OUTPUT);
     digitalWrite(DisplayConfig::kRtuDePin, LOW);
   }
-  Serial.println("[MBUS] ModbusClient started");
+  Serial.println("[MBUS] Modbus RTU master started");
 }
 
 void ModbusClient::poll() {
-  if (millis() - lastPollMs_ < kPollIntervalMs) return;
-  lastPollMs_ = millis();
+  const unsigned long now = millis();
 
-  uint16_t regs[kHR_ReadCount] = {};
-  if (!readHoldingRegisters(kHR_Base + kHR_State, kHR_ReadCount, regs)) {
-    snap_.valid = false;
-    return;
+  // Fast poll: weights, state, flags (registers 0x0000–0x0017, 24 regs)
+  if (now - lastFastMs_ >= kFastMs) {
+    lastFastMs_ = now;
+    uint16_t r[24] = {};
+    if (readHR(0x0000, 24, r)) {
+      snap_.liveWeightKg   = regsToFloat(r[0x00], r[0x01]);
+      snap_.tareWeightKg   = regsToFloat(r[0x02], r[0x03]);
+      snap_.netWeightKg    = regsToFloat(r[0x04], r[0x05]);
+      snap_.targetWeightKg = regsToFloat(r[0x06], r[0x07]);
+      snap_.ratePerKg      = regsToFloat(r[0x08], r[0x09]);
+      snap_.targetAmount   = regsToFloat(r[0x0A], r[0x0B]);
+      snap_.currentAmount  = regsToFloat(r[0x0C], r[0x0D]);
+      snap_.state          = static_cast<FillState>(r[0x0E]);
+      snap_.eStopOk        = r[0x0F] != 0;
+      snap_.cylinderPresent= r[0x10] != 0;
+      snap_.nozzleEngaged  = r[0x11] != 0;
+      snap_.weightStable   = r[0x12] != 0;
+      snap_.valid          = true;
+      snap_.connected      = true;
+      snap_.lastOkMs       = now;
+    } else {
+      if (now - snap_.lastOkMs > 3000) snap_.connected = false;
+    }
   }
 
-  snap_.stateCode       = (uint8_t)regs[kHR_State];
-  // Registers store float×1000 as two consecutive uint16 (hi/lo)
-  uint32_t lw = ((uint32_t)regs[kHR_LiveWeight] << 16) | regs[kHR_LiveWeight + 1];
-  uint32_t nw = ((uint32_t)regs[kHR_NetWeight]  << 16) | regs[kHR_NetWeight  + 1];
-  uint32_t tw = ((uint32_t)regs[kHR_TargetWeight] << 16) | regs[kHR_TargetWeight + 1];
-  uint32_t rk = ((uint32_t)regs[kHR_RatePerKg]  << 16) | regs[kHR_RatePerKg  + 1];
-  snap_.liveWeightKg    = (float)lw / 1000.0f;
-  snap_.netWeightKg     = (float)nw / 1000.0f;
-  snap_.targetWeightKg  = (float)tw / 1000.0f;
-  snap_.ratePerKg       = (float)rk / 100.0f;
-  uint16_t coils        = regs[kHR_Coils];
-  snap_.nozzleEngaged   = (coils >> 0) & 1;
-  snap_.cylinderPresent = (coils >> 1) & 1;
-  snap_.eStopOk         = (coils >> 2) & 1;
-  snap_.valid = true;
+  // Slow poll: RTC (registers 0x0020–0x0025, 6 regs)
+  if (now - lastSlowMs_ >= kSlowMs) {
+    lastSlowMs_ = now;
+    uint16_t r[6] = {};
+    if (readHR(0x0020, 6, r)) {
+      snap_.rtcHour   = r[3];
+      snap_.rtcMinute = r[4];
+      snap_.rtcSecond = r[5];
+    }
+  }
+
+  // Stats poll: today stats (registers 0x0030–0x0035, 6 regs)
+  if (now - lastStatMs_ >= kStatMs) {
+    lastStatMs_ = now;
+    uint16_t r[6] = {};
+    if (readHR(0x0030, 6, r)) {
+      snap_.todayFills  = r[0];
+      snap_.todayFails  = r[1];
+      snap_.todayKg     = regsToFloat(r[2], r[3]);
+      snap_.todayAmount = regsToFloat(r[4], r[5]);
+    }
+  }
 }
 
-bool ModbusClient::readHoldingRegisters(uint16_t startReg, uint16_t count, uint16_t* out) {
+bool ModbusClient::writeRegister(uint16_t regAddr, uint16_t value) {
   uint8_t req[8];
-  req[0] = DisplayConfig::kRtuAddr;
+  req[0] = DisplayConfig::kRtuSlaveAddr;
+  req[1] = 0x06;
+  req[2] = (uint8_t)(regAddr >> 8);
+  req[3] = (uint8_t)(regAddr & 0xFF);
+  req[4] = (uint8_t)(value >> 8);
+  req[5] = (uint8_t)(value & 0xFF);
+  uint16_t crc = crc16(req, 6);
+  req[6] = (uint8_t)(crc & 0xFF);
+  req[7] = (uint8_t)(crc >> 8);
+
+  uint8_t resp[8];
+  return sendAndReceive(req, 8, resp, 8);
+}
+
+bool ModbusClient::readHR(uint16_t startReg, uint16_t count, uint16_t* out) {
+  uint8_t req[8];
+  req[0] = DisplayConfig::kRtuSlaveAddr;
   req[1] = 0x03;
   req[2] = (uint8_t)(startReg >> 8);
   req[3] = (uint8_t)(startReg & 0xFF);
@@ -60,34 +100,41 @@ bool ModbusClient::readHoldingRegisters(uint16_t startReg, uint16_t count, uint1
   req[6] = (uint8_t)(crc & 0xFF);
   req[7] = (uint8_t)(crc >> 8);
 
+  const uint16_t expectedLen = 5 + count * 2;
+  uint8_t resp[256];
+  if (!sendAndReceive(req, 8, resp, expectedLen)) return false;
+
+  for (uint16_t i = 0; i < count; i++)
+    out[i] = ((uint16_t)resp[3 + i * 2] << 8) | resp[4 + i * 2];
+  return true;
+}
+
+bool ModbusClient::sendAndReceive(uint8_t* req, uint8_t reqLen,
+                                   uint8_t* resp, uint16_t expectedLen) {
+  // Flush stale bytes
+  while (Serial2.available()) Serial2.read();
+
   if (DisplayConfig::kRtuDePin != 255) {
     digitalWrite(DisplayConfig::kRtuDePin, HIGH);
-    delayMicroseconds(50);
+    delayMicroseconds(100);
   }
-  Serial2.write(req, 8);
+  Serial2.write(req, reqLen);
   Serial2.flush();
   if (DisplayConfig::kRtuDePin != 255) {
-    delayMicroseconds(50);
+    delayMicroseconds(100);
     digitalWrite(DisplayConfig::kRtuDePin, LOW);
   }
 
-  const uint16_t expectedLen = 5 + count * 2;
-  uint8_t resp[256];
   unsigned long t0 = millis();
   uint16_t rxLen = 0;
-  while (millis() - t0 < 150 && rxLen < expectedLen) {
+  while (millis() - t0 < kTimeoutMs && rxLen < expectedLen) {
     if (Serial2.available()) resp[rxLen++] = (uint8_t)Serial2.read();
   }
   if (rxLen < expectedLen) return false;
 
-  uint16_t rxCrc   = (uint16_t)resp[rxLen-2] | ((uint16_t)resp[rxLen-1] << 8);
+  uint16_t rxCrc   = (uint16_t)resp[rxLen - 2] | ((uint16_t)resp[rxLen - 1] << 8);
   uint16_t calcCrc = crc16(resp, rxLen - 2);
-  if (rxCrc != calcCrc) return false;
-
-  for (uint16_t i = 0; i < count; i++) {
-    out[i] = ((uint16_t)resp[3 + i*2] << 8) | resp[4 + i*2];
-  }
-  return true;
+  return rxCrc == calcCrc;
 }
 
 uint16_t ModbusClient::crc16(const uint8_t* data, uint16_t len) {
