@@ -8,6 +8,7 @@ idf_component_register(
         esp_timer
         freertos
         esp_lcd
+        esp_lcd_touch
         esp_io_expander_ch422g
         esp_lcd_touch_gt911
         esp_lvgl_port
