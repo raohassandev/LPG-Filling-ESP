@@ -109,24 +109,34 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_set_style_text_color(lblState_, TC::white(), 0);
   lv_obj_center(lblState_);
 
-  // Right side of status bar: WiFi | time | admin
+  // Right side of status bar: status | wifi | time | role | admin
   lblConnStatus_ = lv_label_create(bar);
   lv_label_set_text(lblConnStatus_, LV_SYMBOL_WIFI " OFFLINE");
   lv_obj_set_style_text_font(lblConnStatus_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblConnStatus_, TC::danger(), 0);
-  lv_obj_align(lblConnStatus_, LV_ALIGN_RIGHT_MID, -220, 0);
+  lv_obj_align(lblConnStatus_, LV_ALIGN_RIGHT_MID, -340, 0);
 
   // WiFi nav button
   lv_obj_t* btnWifi = Theme::button(bar, LV_SYMBOL_WIFI,
                                     TC::surface2(), TC::textSub(), 42, 34);
-  lv_obj_align(btnWifi, LV_ALIGN_RIGHT_MID, -164, 0);
+  lv_obj_align(btnWifi, LV_ALIGN_RIGHT_MID, -290, 0);
   lv_obj_add_event_cb(btnWifi, onWifiPressed, LV_EVENT_CLICKED, this);
 
   lblTime_ = lv_label_create(bar);
   lv_label_set_text(lblTime_, "00:00");
   lv_obj_set_style_text_font(lblTime_, TF::lg(), 0);
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
-  lv_obj_align(lblTime_, LV_ALIGN_RIGHT_MID, -90, 0);
+  lv_obj_align(lblTime_, LV_ALIGN_RIGHT_MID, -218, 0);
+
+  // Role button (password-protected role selector)
+  btnRole_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
+                            TC::surface2(), TC::textSub(), 110, 34);
+  lv_obj_align(btnRole_, LV_ALIGN_RIGHT_MID, -110, 0);
+  lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
+  // Update the button label text after creation (child 0 of btn is the label)
+  lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
+  lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");
+  lv_obj_set_style_text_font(lblRoleBtn_, TF::sm(), 0);
 
   lv_obj_t* btnAdmin = Theme::button(bar, LV_SYMBOL_SETTINGS " ADMIN",
                                      TC::surface2(), TC::textSub(), 100, 34);
@@ -260,10 +270,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_set_flex_align(dotCol, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
   lv_obj_set_style_pad_row(dotCol, 14, 0);
 
-  dotEstop_    = Theme::statusDot(dotCol, "E-STOP OK",        false);
-  dotCylinder_ = Theme::statusDot(dotCol, "CYLINDER PRESENT", false);
-  dotNozzle_   = Theme::statusDot(dotCol, "NOZZLE ENGAGED",   false);
-  dotStable_   = Theme::statusDot(dotCol, "WEIGHT STABLE",    false);
+  dotEstop_    = Theme::statusDot(dotCol, LV_SYMBOL_POWER   "  E-STOP OK",        false);
+  dotCylinder_ = Theme::statusDot(dotCol, LV_SYMBOL_HOME    "  CYLINDER PRESENT", false);
+  dotNozzle_   = Theme::statusDot(dotCol, LV_SYMBOL_TINT    "  NOZZLE ENGAGED",   false);
+  dotStable_   = Theme::statusDot(dotCol, LV_SYMBOL_LOOP    "  WEIGHT STABLE",    false);
 
   // ── Right column: Start Fill button (x=492, y=276, 292×158) ──────────────
   btnStart_ = lv_obj_create(scr_);
@@ -322,6 +332,19 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   updateDot(dotCylinder_, snap.cylinderPresent);
   updateDot(dotNozzle_,   snap.nozzleEngaged);
   updateDot(dotStable_,   snap.weightStable);
+
+  // Blink weight-stable dot while controller is actively measuring
+  const bool isMeasuring = (snap.state == FillState::Validating ||
+                             snap.state == FillState::Fast       ||
+                             snap.state == FillState::Slow       ||
+                             snap.state == FillState::Settling);
+  if (isMeasuring && !snap.weightStable && !stableBlinking_) {
+    startStableBlink();
+    stableBlinking_ = true;
+  } else if ((!isMeasuring || snap.weightStable) && stableBlinking_) {
+    stopStableBlink();
+    stableBlinking_ = false;
+  }
 
   // Today stats
   lv_label_set_text_fmt(lblTodayFills_, "%u fills",   snap.todayFills);
@@ -499,4 +522,231 @@ void DashboardScreen::onAdminPressed(lv_event_t* e) {
 
 void DashboardScreen::onWifiPressed(lv_event_t* e) {
   screenManager.navigateTo(Screen::Wifi);
+}
+
+// ── Blink animation ───────────────────────────────────────────────────────────
+
+void DashboardScreen::blinkAnimCb(void* obj, int32_t v) {
+  lv_obj_set_style_opa((lv_obj_t*)obj, (lv_opa_t)v, 0);
+}
+
+void DashboardScreen::startStableBlink() {
+  lv_obj_t* dot = lv_obj_get_child(dotStable_, 0);
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, dot);
+  lv_anim_set_exec_cb(&a, blinkAnimCb);
+  lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
+  lv_anim_set_time(&a, 500);
+  lv_anim_set_playback_time(&a, 500);
+  lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+  lv_anim_start(&a);
+}
+
+void DashboardScreen::stopStableBlink() {
+  lv_obj_t* dot = lv_obj_get_child(dotStable_, 0);
+  lv_anim_del(dot, blinkAnimCb);
+  lv_obj_set_style_opa(dot, LV_OPA_COVER, 0);
+}
+
+// ── Role selector ─────────────────────────────────────────────────────────────
+
+static constexpr uint32_t kAdminRolePin        = 1234;
+static constexpr uint32_t kManufacturerRolePin = 9999;
+static constexpr uint8_t  kRolePinDigits       = 4;
+
+static const char* kRoleNumLabels[] = {
+  "1","2","3","4","5","6","7","8","9","","0",LV_SYMBOL_BACKSPACE
+};
+
+void DashboardScreen::updateRoleButton() {
+  if (!lblRoleBtn_) return;
+  switch (currentRole_) {
+    case Role::Operator:     lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");     break;
+    case Role::Admin:        lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " ADMIN");        break;
+    case Role::Manufacturer: lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " MANUFACTURER"); break;
+  }
+}
+
+void DashboardScreen::openRoleModal() {
+  if (roleModal_) return;
+  roleEntered_ = 0;
+  roleDigits_  = 0;
+
+  roleModal_ = lv_obj_create(scr_);
+  lv_obj_set_size(roleModal_, 420, 420);
+  lv_obj_center(roleModal_);
+  lv_obj_set_style_bg_color(roleModal_, TC::surface(), 0);
+  lv_obj_set_style_bg_opa(roleModal_, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(roleModal_, TC::border(), 0);
+  lv_obj_set_style_border_width(roleModal_, 1, 0);
+  lv_obj_set_style_radius(roleModal_, 12, 0);
+  lv_obj_set_style_pad_all(roleModal_, 20, 0);
+  lv_obj_clear_flag(roleModal_, LV_OBJ_FLAG_SCROLLABLE);
+
+  // If already Admin/Manufacturer, show role-switch buttons
+  if (currentRole_ != Role::Operator) {
+    Theme::label(roleModal_, "Switch Role", TF::xl(), TC::text());
+    lv_obj_t* t = lv_obj_get_child(roleModal_, 0);
+    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+
+    lv_obj_t* btnOp = Theme::button(roleModal_, LV_SYMBOL_SETTINGS " OPERATOR",
+                                    TC::surface2(), TC::text(), 280, 52);
+    lv_obj_align(btnOp, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_user_data(btnOp, (void*)(uintptr_t)0);
+    lv_obj_add_event_cb(btnOp, onRoleSelect, LV_EVENT_CLICKED, this);
+
+    lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+                                         TC::danger(), TC::white(), 120, 44);
+    lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
+      DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+      self->closeRoleModal();
+    }, LV_EVENT_CLICKED, this);
+    return;
+  }
+
+  // Operator → show PIN entry to elevate role
+  Theme::label(roleModal_, "Select Role", TF::xl(), TC::text());
+  lv_obj_t* title = lv_obj_get_child(roleModal_, 0);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+  Theme::label(roleModal_, "Enter PIN to access higher role", TF::sm(), TC::textSub());
+  lv_obj_t* sub = lv_obj_get_child(roleModal_, 1);
+  lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, 30);
+
+  lblRolePinDots_ = lv_label_create(roleModal_);
+  lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  lv_obj_set_style_text_font(lblRolePinDots_, TF::xxl(), 0);
+  lv_obj_set_style_text_color(lblRolePinDots_, TC::active(), 0);
+  lv_obj_align(lblRolePinDots_, LV_ALIGN_TOP_MID, 0, 60);
+
+  lblRolePinErr_ = lv_label_create(roleModal_);
+  lv_label_set_text(lblRolePinErr_, "");
+  lv_obj_set_style_text_font(lblRolePinErr_, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblRolePinErr_, TC::danger(), 0);
+  lv_obj_align(lblRolePinErr_, LV_ALIGN_TOP_MID, 0, 108);
+
+  // Compact numpad
+  lv_obj_t* pad = lv_obj_create(roleModal_);
+  lv_obj_set_size(pad, 300, 220);
+  lv_obj_align(pad, LV_ALIGN_CENTER, 0, 40);
+  lv_obj_set_style_bg_opa(pad, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(pad, 0, 0);
+  lv_obj_set_style_pad_all(pad, 0, 0);
+  lv_obj_set_layout(pad, LV_LAYOUT_GRID);
+  static lv_coord_t cols[] = {88, 88, 88, LV_GRID_TEMPLATE_LAST};
+  static lv_coord_t rows[] = {48, 48, 48, 48, LV_GRID_TEMPLATE_LAST};
+  lv_obj_set_grid_dsc_array(pad, cols, rows);
+
+  for (int i = 0; i < 12; i++) {
+    lv_obj_t* btn = lv_btn_create(pad);
+    lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, i % 3, 1,
+                              LV_GRID_ALIGN_STRETCH, i / 3, 1);
+    lv_obj_set_style_bg_color(btn, TC::surface2(), 0);
+    lv_obj_set_style_radius(btn, 8, 0);
+    lv_obj_set_style_shadow_width(btn, 0, 0);
+    lv_obj_set_style_pad_all(btn, 2, 0);
+
+    lv_obj_t* lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, kRoleNumLabels[i]);
+    lv_obj_set_style_text_font(lbl, TF::lg(), 0);
+    lv_obj_set_style_text_color(lbl, TC::text(), 0);
+    lv_obj_center(lbl);
+
+    if (i == 9) {
+      lv_obj_clear_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    } else if (i == 11) {
+      lv_obj_add_event_cb(btn, onRolePinDel, LV_EVENT_CLICKED, this);
+    } else {
+      lv_obj_set_user_data(btn, (void*)(uintptr_t)((i == 10) ? 0 : i + 1));
+      lv_obj_add_event_cb(btn, onRolePinKey, LV_EVENT_CLICKED, this);
+    }
+  }
+
+  lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+                                       TC::surface2(), TC::textSub(), 100, 36);
+  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
+    DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+    self->closeRoleModal();
+  }, LV_EVENT_CLICKED, this);
+}
+
+void DashboardScreen::closeRoleModal() {
+  if (!roleModal_) return;
+  lv_obj_del(roleModal_);
+  roleModal_     = nullptr;
+  lblRolePinDots_ = nullptr;
+  lblRolePinErr_ = nullptr;
+  roleEntered_   = 0;
+  roleDigits_    = 0;
+}
+
+void DashboardScreen::appendRoleDigit(uint8_t d) {
+  if (roleDigits_ >= kRolePinDigits) return;
+  roleEntered_ = roleEntered_ * 10 + d;
+  roleDigits_++;
+
+  char buf[16] = "";
+  for (int i = 0; i < (int)kRolePinDigits; i++) {
+    strcat(buf, i < roleDigits_ ? "● " : "○ ");
+  }
+  buf[strlen(buf) - 1] = 0;
+  if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, buf);
+  if (lblRolePinErr_)  lv_label_set_text(lblRolePinErr_,  "");
+
+  if (roleDigits_ == kRolePinDigits) submitRolePin();
+}
+
+void DashboardScreen::submitRolePin() {
+  if (roleEntered_ == kAdminRolePin) {
+    currentRole_ = Role::Admin;
+    updateRoleButton();
+    closeRoleModal();
+  } else if (roleEntered_ == kManufacturerRolePin) {
+    currentRole_ = Role::Manufacturer;
+    updateRoleButton();
+    closeRoleModal();
+  } else {
+    if (lblRolePinErr_) lv_label_set_text(lblRolePinErr_, "Incorrect PIN");
+    roleEntered_ = 0;
+    roleDigits_  = 0;
+    if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  }
+}
+
+void DashboardScreen::onRolePressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  self->openRoleModal();
+}
+
+void DashboardScreen::onRolePinKey(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_obj_t* btn = lv_event_get_current_target(e);
+  uint8_t d = (uint8_t)(uintptr_t)lv_obj_get_user_data(btn);
+  self->appendRoleDigit(d);
+}
+
+void DashboardScreen::onRolePinDel(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->roleDigits_ == 0) return;
+  self->roleEntered_ /= 10;
+  self->roleDigits_--;
+  char buf[16] = "";
+  for (int i = 0; i < (int)kRolePinDigits; i++) {
+    strcat(buf, i < self->roleDigits_ ? "● " : "○ ");
+  }
+  buf[strlen(buf) - 1] = 0;
+  if (self->lblRolePinDots_) lv_label_set_text(self->lblRolePinDots_, buf);
+}
+
+void DashboardScreen::onRoleSelect(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_obj_t* btn = lv_event_get_current_target(e);
+  uint8_t role = (uint8_t)(uintptr_t)lv_obj_get_user_data(btn);
+  self->currentRole_ = (Role)role;
+  self->updateRoleButton();
+  self->closeRoleModal();
 }

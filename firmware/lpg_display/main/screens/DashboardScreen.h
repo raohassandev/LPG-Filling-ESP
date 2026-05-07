@@ -38,6 +38,18 @@ private:
   float              lastRatePerKg_ = 250.0f;
   ControllerSnapshot lastSnap_      = {};
   bool               firstUpdate_   = true;
+  bool               stableBlinking_= false;
+
+  // Role selector
+  enum class Role : uint8_t { Operator = 0, Admin, Manufacturer };
+  Role         currentRole_    = Role::Operator;
+  lv_obj_t*    btnRole_        = nullptr;
+  lv_obj_t*    lblRoleBtn_     = nullptr;
+  lv_obj_t*    roleModal_      = nullptr;
+  lv_obj_t*    lblRolePinDots_ = nullptr;
+  lv_obj_t*    lblRolePinErr_  = nullptr;
+  uint32_t     roleEntered_    = 0;
+  uint8_t      roleDigits_     = 0;
 
   ModbusClient* mbus_ = nullptr;
 
@@ -45,6 +57,13 @@ private:
   void openStartDialog();
   void closeStartDialog();
   void updateDialogLabels();
+  void startStableBlink();
+  void stopStableBlink();
+  void updateRoleButton();
+  void openRoleModal();
+  void closeRoleModal();
+  void appendRoleDigit(uint8_t d);
+  void submitRolePin();
 
   static void onStartPressed(lv_event_t* e);
   static void onStartConfirm(lv_event_t* e);
@@ -55,4 +74,9 @@ private:
   static void onRatePlus(lv_event_t* e);
   static void onAdminPressed(lv_event_t* e);
   static void onWifiPressed(lv_event_t* e);
+  static void onRolePressed(lv_event_t* e);
+  static void onRolePinKey(lv_event_t* e);
+  static void onRolePinDel(lv_event_t* e);
+  static void onRoleSelect(lv_event_t* e);
+  static void blinkAnimCb(void* obj, int32_t v);
 };
