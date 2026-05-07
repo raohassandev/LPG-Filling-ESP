@@ -22,8 +22,11 @@ CONFIG_FREERTOS_HZ=1000
 # USB-Serial (keeps Serial monitor working over USB-C)
 CONFIG_ESP_CONSOLE_USB_CDC=y
 
-# RGB LCD — ISR in IRAM for no-tear rendering
-CONFIG_LCD_RGB_ISR_IRAM_SAFE=y
+# RGB LCD — IRAM safe ISR disabled (lvgl_port vsync callback not IRAM_ATTR)
+CONFIG_LCD_RGB_ISR_IRAM_SAFE=n
+
+# Stack overflow detection
+CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 
 # Logging
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y

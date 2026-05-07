@@ -24,10 +24,21 @@ private:
   lv_obj_t* lblTodayAmt_   = nullptr;
   lv_obj_t* btnStart_      = nullptr;
   lv_obj_t* lblConnStatus_ = nullptr;
+  lv_obj_t* startModal_    = nullptr;
+  lv_obj_t* taTarget_      = nullptr;
+  lv_obj_t* taRate_        = nullptr;
+  lv_obj_t* kbStart_       = nullptr;
+  lv_obj_t* lblStartError_ = nullptr;
+  float     lastRatePerKg_ = 250.0f;
 
   ModbusClient* mbus_ = nullptr;
 
   void updateDot(lv_obj_t* dot, bool ok);
+  void openStartDialog();
+  void closeStartDialog();
   static void onStartPressed(lv_event_t* e);
+  static void onStartConfirm(lv_event_t* e);
+  static void onStartCancel(lv_event_t* e);
+  static void onStartTextarea(lv_event_t* e);
   static void onAdminPressed(lv_event_t* e);
 };

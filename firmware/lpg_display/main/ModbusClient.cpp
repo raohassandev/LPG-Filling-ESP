@@ -100,6 +100,62 @@ bool ModbusClient::writeRegister(uint16_t reg, uint16_t val) {
     return sendRecv(req, 8, resp, 8);
 }
 
+bool ModbusClient::writeRegisters(uint16_t startReg, const uint16_t* values, uint16_t count) {
+    if (!values || count == 0 || count > 123) return false;
+
+    uint8_t req[256];
+    const int byteCount = count * 2;
+    const int reqLen = 9 + byteCount;
+    req[0] = kRtuAddr;
+    req[1] = 0x10;
+    req[2] = startReg >> 8; req[3] = startReg & 0xFF;
+    req[4] = count >> 8;    req[5] = count & 0xFF;
+    req[6] = byteCount;
+    for (uint16_t i = 0; i < count; i++) {
+        req[7 + i * 2] = values[i] >> 8;
+        req[8 + i * 2] = values[i] & 0xFF;
+    }
+    uint16_t c = crc16(req, reqLen - 2);
+    req[reqLen - 2] = c & 0xFF;
+    req[reqLen - 1] = c >> 8;
+
+    uint8_t resp[8];
+    return sendRecv(req, reqLen, resp, 8);
+}
+
+bool ModbusClient::writeFloat(uint16_t startReg, float value) {
+    uint32_t bits;
+    memcpy(&bits, &value, sizeof(bits));
+    const uint16_t regs[2] = {
+        static_cast<uint16_t>(bits >> 16),
+        static_cast<uint16_t>(bits & 0xFFFF),
+    };
+    return writeRegisters(startReg, regs, 2);
+}
+
+bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
+    if (targetWeightKg <= 0.0f || targetWeightKg > 500.0f ||
+        ratePerKg <= 0.0f || ratePerKg > 100000.0f) {
+        return false;
+    }
+
+    const float targetAmount = targetWeightKg * ratePerKg;
+    uint32_t targetBits, rateBits, amountBits;
+    memcpy(&targetBits, &targetWeightKg, sizeof(targetBits));
+    memcpy(&rateBits, &ratePerKg, sizeof(rateBits));
+    memcpy(&amountBits, &targetAmount, sizeof(amountBits));
+
+    const uint16_t regs[6] = {
+        static_cast<uint16_t>(targetBits >> 16),
+        static_cast<uint16_t>(targetBits & 0xFFFF),
+        static_cast<uint16_t>(rateBits >> 16),
+        static_cast<uint16_t>(rateBits & 0xFFFF),
+        static_cast<uint16_t>(amountBits >> 16),
+        static_cast<uint16_t>(amountBits & 0xFFFF),
+    };
+    return writeRegisters(0x0006, regs, 6) && cmdStart();
+}
+
 bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
     uint8_t req[8];
     req[0] = kRtuAddr; req[1] = 0x03;
@@ -128,7 +184,11 @@ bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
 
     uint16_t rxCrc   = (uint16_t)resp[rx-2] | ((uint16_t)resp[rx-1] << 8);
     uint16_t calcCrc = crc16(resp, rx - 2);
-    return rxCrc == calcCrc;
+    if (rxCrc != calcCrc) return false;
+    if (resp[0] != kRtuAddr) return false;
+    if (resp[1] & 0x80) return false;
+    if (resp[1] != req[1]) return false;
+    return true;
 }
 
 uint16_t ModbusClient::crc16(const uint8_t* data, int len) {

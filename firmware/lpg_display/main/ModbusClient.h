@@ -44,6 +44,9 @@ public:
     const ControllerSnapshot& snapshot() const { return snap_; }
 
     bool writeRegister(uint16_t reg, uint16_t val);
+    bool writeRegisters(uint16_t startReg, const uint16_t* values, uint16_t count);
+    bool writeFloat(uint16_t startReg, float value);
+    bool startFill(float targetWeightKg, float ratePerKg);
     bool cmdStart()   { return writeRegister(0x0017, 1); }
     bool cmdStop()    { return writeRegister(0x0017, 2); }
     bool cmdReset()   { return writeRegister(0x0017, 3); }

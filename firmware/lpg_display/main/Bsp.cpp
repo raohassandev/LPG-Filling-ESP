@@ -39,21 +39,26 @@ static esp_err_t ch422g_write(uint8_t dev_addr, uint8_t data) {
     i2c_device_config_t dcfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address  = dev_addr,
-        .scl_speed_hz    = 400000,
+        .scl_speed_hz    = 100000,  // slow down for reliability
     };
     ESP_RETURN_ON_ERROR(
         i2c_master_bus_add_device(s_i2c_bus, &dcfg, &dev), TAG, "CH422G add dev");
-    esp_err_t ret = i2c_master_transmit(dev, &data, 1, pdMS_TO_TICKS(50));
+    esp_err_t ret = ESP_FAIL;
+    for (int attempt = 0; attempt < 3 && ret != ESP_OK; attempt++) {
+        ret = i2c_master_transmit(dev, &data, 1, pdMS_TO_TICKS(50));
+        if (ret != ESP_OK) vTaskDelay(pdMS_TO_TICKS(10));
+    }
     i2c_master_bus_rm_device(dev);
     return ret;
 }
 
 static esp_err_t initExpander() {
+    vTaskDelay(pdMS_TO_TICKS(50));  // give CH422G time after power-on / reboot
     ESP_RETURN_ON_ERROR(ch422g_write(0x24, 0x01), TAG, "CH422G set output mode");
     ESP_RETURN_ON_ERROR(ch422g_write(0x38, 0x00), TAG, "CH422G reset assert");
-    vTaskDelay(pdMS_TO_TICKS(50));   // GT911 requires >=10ms reset pulse
+    vTaskDelay(pdMS_TO_TICKS(50));
     ESP_RETURN_ON_ERROR(ch422g_write(0x38, 0x07), TAG, "CH422G reset release");
-    vTaskDelay(pdMS_TO_TICKS(150));  // GT911 needs ~100ms after reset before ready
+    vTaskDelay(pdMS_TO_TICKS(150));
     ESP_LOGI(TAG, "CH422G ready, backlight ON");
     return ESP_OK;
 }
@@ -73,11 +78,12 @@ static esp_err_t initLcd() {
             .vsync_pulse_width = (uint32_t)kLcdVpw,   // must come before back/front porch
             .vsync_back_porch  = (uint32_t)kLcdVbp,
             .vsync_front_porch = (uint32_t)kLcdVfp,
-            .flags = { .pclk_active_neg = 0 },
+            .flags = { .pclk_active_neg = 1 },
         },
-        .data_width        = 16,
-        .num_fbs           = 2,
-        .psram_trans_align = 64,
+        .data_width             = 16,
+        .num_fbs                = 1,
+        .bounce_buffer_size_px  = 10 * kLcdHres,
+        .psram_trans_align      = 64,
         .hsync_gpio_num    = kLcdHsync,
         .vsync_gpio_num    = kLcdVsync,
         .de_gpio_num       = kLcdDe,
@@ -90,9 +96,9 @@ static esp_err_t initLcd() {
             kLcdData[12], kLcdData[13], kLcdData[14], kLcdData[15],
         },
         .flags = {
-            .refresh_on_demand = 0,  // must be first in flags struct
+            .refresh_on_demand = 0,
             .fb_in_psram       = 1,
-            .double_fb         = 1,
+            .double_fb         = 0,
         },
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_rgb_panel(&cfg, &s_panel), TAG, "RGB panel");
@@ -118,7 +124,7 @@ static esp_err_t initTouch() {
         .flags                = { .disable_control_phase = 1 },
         .scl_speed_hz         = 100000,
     };
-    esp_lcd_panel_io_handle_t tp_io;
+    esp_lcd_panel_io_handle_t tp_io = nullptr;
     ESP_RETURN_ON_ERROR(
         esp_lcd_new_panel_io_i2c(s_i2c_bus, &tp_io_cfg, &tp_io),
         TAG, "touch IO");
@@ -131,22 +137,26 @@ static esp_err_t initTouch() {
         .levels       = { .reset = 0, .interrupt = 0 },
         .flags        = { .swap_xy = 0, .mirror_x = 0, .mirror_y = 0 },
     };
-    ESP_RETURN_ON_ERROR(esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &s_touch),
-                        TAG, "GT911 init");
+    esp_err_t ret = esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &s_touch);
+    if (ret != ESP_OK) {
+        esp_lcd_panel_io_del(tp_io);  // prevent orphaned polling
+        return ret;
+    }
     ESP_LOGI(TAG, "GT911 touch ready");
     return ESP_OK;
 }
 
 // ── LVGL port ─────────────────────────────────────────────────────────────────
 static esp_err_t initLvgl() {
-    const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    lvgl_cfg.task_stack = 8192;
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL port init");
 
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle     = nullptr,
         .panel_handle  = s_panel,
-        .buffer_size   = (uint32_t)(kLcdHres * 40),
-        .double_buffer = true,
+        .buffer_size   = (uint32_t)(kLcdHres * 40),  // partial render strips
+        .double_buffer = false,
         .hres          = (uint32_t)kLcdHres,
         .vres          = (uint32_t)kLcdVres,
         .monochrome    = false,
@@ -154,21 +164,23 @@ static esp_err_t initLvgl() {
         .flags         = {
             .buff_dma     = false,
             .buff_spiram  = true,
-            .full_refresh = true,
+            .full_refresh = false,
         },
     };
     const lvgl_port_display_rgb_cfg_t rgb_cfg = {
-        .flags = { .bb_mode = 0, .avoid_tearing = 0 },
+        .flags = { .bb_mode = 1, .avoid_tearing = 0 },
     };
     lv_display_t* disp = lvgl_port_add_disp_rgb(&disp_cfg, &rgb_cfg);
     if (!disp) { ESP_LOGE(TAG, "lvgl_port_add_disp_rgb failed"); return ESP_FAIL; }
 
-    const lvgl_port_touch_cfg_t touch_cfg = {
-        .disp   = disp,
-        .handle = s_touch,
-    };
-    lv_indev_t* indev = lvgl_port_add_touch(&touch_cfg);
-    if (!indev) { ESP_LOGE(TAG, "lvgl_port_add_touch failed"); return ESP_FAIL; }
+    if (s_touch) {
+        const lvgl_port_touch_cfg_t touch_cfg = {
+            .disp   = disp,
+            .handle = s_touch,
+        };
+        lv_indev_t* indev = lvgl_port_add_touch(&touch_cfg);
+        if (!indev) ESP_LOGW(TAG, "lvgl_port_add_touch failed — no touch input");
+    }
 
     ESP_LOGI(TAG, "LVGL port ready");
     return ESP_OK;
@@ -179,7 +191,7 @@ bool Bsp::init() {
     if (initI2c()      != ESP_OK) return false;
     if (initExpander() != ESP_OK) return false;
     if (initLcd()      != ESP_OK) return false;
-    if (initTouch()    != ESP_OK) return false;
+    if (initTouch()    != ESP_OK) ESP_LOGW(TAG, "Touch init failed — continuing without touch");
     if (initLvgl()     != ESP_OK) return false;
     ESP_LOGI(TAG, "BSP init complete");
     return true;

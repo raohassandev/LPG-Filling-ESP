@@ -152,7 +152,8 @@ void SettingsScreen::update(const ControllerSnapshot& snap) {
 
 void SettingsScreen::onTare(lv_event_t* e) {
   SettingsScreen* self = static_cast<SettingsScreen*>(lv_event_get_user_data(e));
-  if (self->mbus_) self->mbus_->writeRegister(0x0017, 5); // ZeroLive (tare)
+  // The public Modbus command set exposes Zero Net, not hardware tare.
+  if (self->mbus_) self->mbus_->cmdZeroNet();
 }
 
 void SettingsScreen::onZeroNet(lv_event_t* e) {

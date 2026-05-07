@@ -1,6 +1,8 @@
 #include "screens/DashboardScreen.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include <cstdio>
+#include <stdlib.h>
 
 extern ScreenManager screenManager;
 extern ModbusClient  modbusClient;
@@ -211,6 +213,7 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   lv_label_set_text_fmt(lblTodayFills_, "%u fills", snap.todayFills);
   lv_label_set_text_fmt(lblTodayKg_,   "%.1f kg",  snap.todayKg);
   lv_label_set_text_fmt(lblTodayAmt_,  "%.0f " LV_SYMBOL_CHARGE, snap.todayAmount);
+  if (snap.ratePerKg > 0.0f) lastRatePerKg_ = snap.ratePerKg;
 
   // Start button enabled only when idle/ready
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
@@ -227,11 +230,124 @@ void DashboardScreen::updateDot(lv_obj_t* row, bool ok) {
   lv_obj_set_style_text_color(lbl, ok ? TC::text() : TC::muted(), 0);
 }
 
+void DashboardScreen::openStartDialog() {
+  if (startModal_) return;
+
+  startModal_ = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(startModal_, 520, 390);
+  lv_obj_center(startModal_);
+  Theme::applyCard(startModal_, TC::surface());
+  lv_obj_set_style_border_color(startModal_, TC::active(), 0);
+  lv_obj_set_style_border_width(startModal_, 2, 0);
+
+  lv_obj_t* title = lv_label_create(startModal_);
+  lv_label_set_text(title, "START FILL");
+  lv_obj_set_style_text_font(title, TF::xl(), 0);
+  lv_obj_set_style_text_color(title, TC::text(), 0);
+  lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  lv_obj_t* lblTarget = lv_label_create(startModal_);
+  lv_label_set_text(lblTarget, "Target weight (kg)");
+  lv_obj_set_style_text_font(lblTarget, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblTarget, TC::textSub(), 0);
+  lv_obj_set_pos(lblTarget, 0, 46);
+
+  taTarget_ = lv_textarea_create(startModal_);
+  lv_obj_set_size(taTarget_, 220, 46);
+  lv_obj_set_pos(taTarget_, 0, 68);
+  lv_textarea_set_one_line(taTarget_, true);
+  lv_textarea_set_accepted_chars(taTarget_, "0123456789.");
+  lv_textarea_set_max_length(taTarget_, 7);
+  lv_textarea_set_placeholder_text(taTarget_, "10.000");
+  lv_obj_set_style_text_font(taTarget_, TF::lg(), 0);
+  lv_obj_add_event_cb(taTarget_, onStartTextarea, LV_EVENT_FOCUSED, this);
+
+  lv_obj_t* lblRate = lv_label_create(startModal_);
+  lv_label_set_text(lblRate, "Rate per kg");
+  lv_obj_set_style_text_font(lblRate, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblRate, TC::textSub(), 0);
+  lv_obj_set_pos(lblRate, 260, 46);
+
+  taRate_ = lv_textarea_create(startModal_);
+  lv_obj_set_size(taRate_, 220, 46);
+  lv_obj_set_pos(taRate_, 260, 68);
+  lv_textarea_set_one_line(taRate_, true);
+  lv_textarea_set_accepted_chars(taRate_, "0123456789.");
+  lv_textarea_set_max_length(taRate_, 9);
+  char rateBuf[16];
+  snprintf(rateBuf, sizeof(rateBuf), "%.2f", lastRatePerKg_);
+  lv_textarea_set_text(taRate_, rateBuf);
+  lv_obj_set_style_text_font(taRate_, TF::lg(), 0);
+  lv_obj_add_event_cb(taRate_, onStartTextarea, LV_EVENT_FOCUSED, this);
+
+  lblStartError_ = lv_label_create(startModal_);
+  lv_label_set_text(lblStartError_, "");
+  lv_obj_set_style_text_font(lblStartError_, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblStartError_, TC::danger(), 0);
+  lv_obj_set_pos(lblStartError_, 0, 122);
+
+  kbStart_ = lv_keyboard_create(startModal_);
+  lv_obj_set_size(kbStart_, 480, 170);
+  lv_obj_set_pos(kbStart_, 0, 150);
+  lv_keyboard_set_mode(kbStart_, LV_KEYBOARD_MODE_NUMBER);
+  lv_keyboard_set_textarea(kbStart_, taTarget_);
+
+  lv_obj_t* btnCancel = Theme::button(startModal_, "CANCEL", TC::surface2(), TC::text(), 160, 46);
+  lv_obj_set_pos(btnCancel, 120, 326);
+  lv_obj_add_event_cb(btnCancel, onStartCancel, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* btnGo = Theme::button(startModal_, "START", TC::active(), TC::white(), 160, 46);
+  lv_obj_set_pos(btnGo, 300, 326);
+  lv_obj_add_event_cb(btnGo, onStartConfirm, LV_EVENT_CLICKED, this);
+}
+
+void DashboardScreen::closeStartDialog() {
+  if (!startModal_) return;
+  lv_obj_del(startModal_);
+  startModal_ = nullptr;
+  taTarget_ = nullptr;
+  taRate_ = nullptr;
+  kbStart_ = nullptr;
+  lblStartError_ = nullptr;
+}
+
 // ── event handlers ────────────────────────────────────────────────────────────
 
 void DashboardScreen::onStartPressed(lv_event_t* e) {
   DashboardScreen* self = static_cast<DashboardScreen*>(lv_event_get_user_data(e));
-  if (self->mbus_) self->mbus_->cmdStart();
+  self->openStartDialog();
+}
+
+void DashboardScreen::onStartConfirm(lv_event_t* e) {
+  DashboardScreen* self = static_cast<DashboardScreen*>(lv_event_get_user_data(e));
+  if (!self->mbus_ || !self->taTarget_ || !self->taRate_) return;
+
+  const float targetKg = strtof(lv_textarea_get_text(self->taTarget_), nullptr);
+  const float rate = strtof(lv_textarea_get_text(self->taRate_), nullptr);
+  if (targetKg <= 0.0f || targetKg > 500.0f || rate <= 0.0f || rate > 100000.0f) {
+    if (self->lblStartError_) {
+      lv_label_set_text(self->lblStartError_, "Enter target 0-500 kg and a positive rate.");
+    }
+    return;
+  }
+
+  if (!self->mbus_->startFill(targetKg, rate)) {
+    if (self->lblStartError_) {
+      lv_label_set_text(self->lblStartError_, "Controller rejected start. Check readiness and RTU write enable.");
+    }
+    return;
+  }
+  self->closeStartDialog();
+}
+
+void DashboardScreen::onStartCancel(lv_event_t* e) {
+  DashboardScreen* self = static_cast<DashboardScreen*>(lv_event_get_user_data(e));
+  self->closeStartDialog();
+}
+
+void DashboardScreen::onStartTextarea(lv_event_t* e) {
+  DashboardScreen* self = static_cast<DashboardScreen*>(lv_event_get_user_data(e));
+  if (self->kbStart_) lv_keyboard_set_textarea(self->kbStart_, lv_event_get_target(e));
 }
 
 void DashboardScreen::onAdminPressed(lv_event_t* e) {
