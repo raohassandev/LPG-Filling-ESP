@@ -14,7 +14,17 @@ static FaultScreen        faultScr;
 static PinScreen          pinScr;
 static SettingsScreen     settScr;
 
-void ScreenManager::begin() {}
+void ScreenManager::begin(ModbusClient& mbus) {
+    ControllerSnapshot empty{};
+    if (Bsp::lock()) {
+        dashScr.build(mbus);
+        dashScr.update(empty);
+        lv_scr_load(dashScr.screen());
+        Bsp::unlock();
+    }
+    current_ = Screen::Dashboard;
+    pending_ = Screen::Dashboard;
+}
 
 Screen ScreenManager::stateToScreen(FillState s) const {
     switch (s) {
@@ -30,7 +40,9 @@ Screen ScreenManager::stateToScreen(FillState s) const {
 }
 
 void ScreenManager::update(const ControllerSnapshot& snap, ModbusClient& mbus) {
-    if (!snap.valid) return;
+    // Always update dashboard so the connection-status label stays current.
+    // For all other screens, bail if we have no valid data.
+    if (!snap.valid && current_ != Screen::Dashboard) return;
 
     // Auto-transition on state change (not for user-driven screens)
     if (current_ != Screen::Pin && current_ != Screen::Settings) {

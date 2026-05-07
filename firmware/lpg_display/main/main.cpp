@@ -80,16 +80,16 @@ static void modbusTask(void*) {
 
 // ── UI task (core 1, 8 KB stack) ──────────────────────────────────────────────
 static void uiTask(void*) {
-    screenManager.begin();
-
-    // Display self-test: 5 colour bars + info panel for 2.5 s
+    // Show self-test colour bars for 2.5 s, then load dashboard.
     showDisplaySelfTest();
     vTaskDelay(pdMS_TO_TICKS(2500));
+
+    screenManager.begin(modbusClient);
 
     for (;;) {
         const ControllerSnapshot& snap = modbusClient.snapshot();
         screenManager.update(snap, modbusClient);
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 

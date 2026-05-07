@@ -29,7 +29,9 @@ private:
   lv_obj_t* taRate_        = nullptr;
   lv_obj_t* kbStart_       = nullptr;
   lv_obj_t* lblStartError_ = nullptr;
-  float     lastRatePerKg_ = 250.0f;
+  float              lastRatePerKg_ = 250.0f;
+  ControllerSnapshot lastSnap_      = {};
+  bool               firstUpdate_   = true;
 
   ModbusClient* mbus_ = nullptr;
 

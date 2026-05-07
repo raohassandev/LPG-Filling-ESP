@@ -179,8 +179,29 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
 // ── update ────────────────────────────────────────────────────────────────────
 
+static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b) {
+  return a.state         != b.state
+      || a.connected     != b.connected
+      || a.eStopOk       != b.eStopOk
+      || a.cylinderPresent != b.cylinderPresent
+      || a.nozzleEngaged != b.nozzleEngaged
+      || a.weightStable  != b.weightStable
+      || a.liveWeightKg  != b.liveWeightKg
+      || a.tareWeightKg  != b.tareWeightKg
+      || a.netWeightKg   != b.netWeightKg
+      || a.rtcHour       != b.rtcHour
+      || a.rtcMinute     != b.rtcMinute
+      || a.todayFills    != b.todayFills
+      || a.todayKg       != b.todayKg
+      || a.todayAmount   != b.todayAmount
+      || a.ratePerKg     != b.ratePerKg;
+}
+
 void DashboardScreen::update(const ControllerSnapshot& snap) {
   if (!scr_) return;
+  if (!firstUpdate_ && !snapChanged(snap, lastSnap_)) return;
+  firstUpdate_ = false;
+  lastSnap_ = snap;
 
   // State chip
   lv_label_set_text(lblState_, stateLabel(snap.state));

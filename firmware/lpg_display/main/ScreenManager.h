@@ -5,7 +5,7 @@ enum class Screen { Dashboard, FillProgress, FillComplete, Fault, Pin, Settings 
 
 class ScreenManager {
 public:
-    void begin();
+    void begin(ModbusClient& mbus);
     void update(const ControllerSnapshot& snap, ModbusClient& mbus);
     void navigateTo(Screen s);
     Screen current() const { return current_; }
