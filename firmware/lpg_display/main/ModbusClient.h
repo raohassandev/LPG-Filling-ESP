@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 enum class FillState : uint8_t {
     Idle = 0, Ready, Validating, Fast, Slow, Settling,
@@ -54,6 +56,7 @@ public:
 
 private:
     ControllerSnapshot snap_;
+    SemaphoreHandle_t busMutex_ = nullptr;
     int64_t lastFastUs_ = 0;
     int64_t lastSlowUs_ = 0;
     int64_t lastStatUs_ = 0;

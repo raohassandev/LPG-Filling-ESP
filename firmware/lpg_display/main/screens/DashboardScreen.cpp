@@ -3,6 +3,7 @@
 #include "Theme.h"
 #include "ScreenManager.h"
 #include "esp_log.h"
+#include <cstdarg>
 #include <cstdio>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +47,23 @@ static lv_color_t stateColor(FillState s) {
 static bool fne(float a, float b, float eps = 0.005f) { return (a - b) > eps || (b - a) > eps; }
 
 static void setReadyIcon(lv_obj_t* iconLbl, bool ok, lv_color_t activeColor);
+
+static void setLabelTextIfChanged(lv_obj_t* label, const char* text) {
+  if (!label || !text) return;
+  const char* old = lv_label_get_text(label);
+  if (old && strcmp(old, text) == 0) return;
+  lv_label_set_text(label, text);
+}
+
+static void setLabelFmtIfChanged(lv_obj_t* label, const char* fmt, ...) {
+  if (!label || !fmt) return;
+  char buf[96];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  setLabelTextIfChanged(label, buf);
+}
 
 static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b) {
   return a.state           != b.state
@@ -305,9 +323,9 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_obj_align(*statLabels[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
   }
 
-  // ── Right column: compact readiness strip (x=492, y=68, 292×60) ───────────
+  // ── Right column: compact readiness strip (x=492, y=68, 292×68) ───────────
   lv_obj_t* rCard = lv_obj_create(scr_);
-  lv_obj_set_size(rCard, 292, 60);
+  lv_obj_set_size(rCard, 292, 68);
   lv_obj_set_pos(rCard, 492, 68);
   Theme::applyCard(rCard);
   lv_obj_set_style_pad_all(rCard, 4, 0);
@@ -320,8 +338,8 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   for (int i = 0; i < 4; i++) {
     lv_obj_t* cell = lv_obj_create(rCard);
-    lv_obj_set_size(cell, 66, 52);
-    lv_obj_set_pos(cell, i * 70, 4);
+    lv_obj_set_size(cell, 66, 56);
+    lv_obj_set_pos(cell, i * 70, 5);
     lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
     lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(cell, TC::border(), 0);
@@ -332,7 +350,7 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
     *readyRefs[i] = lv_label_create(cell);
     lv_label_set_text(*readyRefs[i], kReadySym[i]);
-    lv_obj_set_style_text_font(*readyRefs[i], TF::xl(), 0);
+    lv_obj_set_style_text_font(*readyRefs[i], TF::lg(), 0);
     lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
     lv_obj_center(*readyRefs[i]);
   }
@@ -361,23 +379,29 @@ void DashboardScreen::build(ModbusClient& mbus) {
 void DashboardScreen::update(const ControllerSnapshot& snap) {
   if (!scr_) return;
   if (!firstUpdate_ && !snapChanged(snap, lastSnap_)) return;
+  const ControllerSnapshot prev = lastSnap_;
+  const bool fullRefresh = firstUpdate_;
   firstUpdate_ = false;
   lastSnap_ = snap;
 
   // State badge
-  lv_color_t sc = stateColor(snap.state);
-  lv_label_set_text(lblState_, stateLabel(snap.state));
-  lv_obj_set_style_bg_color(stateBadge_, sc, 0);
+  if (fullRefresh || snap.state != prev.state) {
+    lv_color_t sc = stateColor(snap.state);
+    setLabelTextIfChanged(lblState_, stateLabel(snap.state));
+    lv_obj_set_style_bg_color(stateBadge_, sc, 0);
 
-  // Weight accent border color mirrors state
-  lv_obj_set_style_bg_color(weightAccent_, sc, 0);
+    // Weight accent border color mirrors state
+    lv_obj_set_style_bg_color(weightAccent_, sc, 0);
+  }
 
   // Time
-  if (snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
-      (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
-    lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
-  } else {
-    lv_label_set_text(lblTime_, "--:--");
+  if (fullRefresh || snap.rtcHour != prev.rtcHour || snap.rtcMinute != prev.rtcMinute) {
+    if (snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
+        (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
+      setLabelFmtIfChanged(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+    } else {
+      setLabelTextIfChanged(lblTime_, "--:--");
+    }
   }
 
   // Live weight (no "kg" in hero — separate unit label)
@@ -385,11 +409,15 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   display_label_setf(lblTare_, "Tare: %.3f kg", snap.tareWeightKg);
   display_label_setf(lblNet_,  "Net: %.3f kg",  snap.netWeightKg);
 
-  // Readiness icons — each icon has a semantically correct active colour
-  setReadyIcon(dotEstop_,    snap.eStopOk,         snap.eStopOk ? TC::ready()  : TC::danger());
-  setReadyIcon(dotCylinder_, snap.cylinderPresent,  TC::ready());
-  setReadyIcon(dotNozzle_,   snap.nozzleEngaged,    TC::active());
-  setReadyIcon(dotStable_,   snap.weightStable,     snap.weightStable ? TC::ready() : TC::warning());
+  // Readiness icons — only restyle the icon whose boolean changed.
+  if (fullRefresh || snap.eStopOk != prev.eStopOk)
+    setReadyIcon(dotEstop_,    snap.eStopOk,         snap.eStopOk ? TC::ready()  : TC::danger());
+  if (fullRefresh || snap.cylinderPresent != prev.cylinderPresent)
+    setReadyIcon(dotCylinder_, snap.cylinderPresent,  TC::ready());
+  if (fullRefresh || snap.nozzleEngaged != prev.nozzleEngaged)
+    setReadyIcon(dotNozzle_,   snap.nozzleEngaged,    TC::active());
+  if (fullRefresh || snap.weightStable != prev.weightStable)
+    setReadyIcon(dotStable_,   snap.weightStable,     snap.weightStable ? TC::ready() : TC::warning());
 
   // Blink weight-stable dot while controller is actively measuring
   const bool isMeasuring = (snap.state == FillState::Validating ||
@@ -405,7 +433,7 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   }
 
   // Today stats
-  lv_label_set_text_fmt(lblTodayFills_, "%u fills",   snap.todayFills);
+  setLabelFmtIfChanged(lblTodayFills_, "%u fills",   snap.todayFills);
   display_label_setf(lblTodayKg_,   "%.1f kg", snap.todayKg);
   display_label_setf(lblTodayAmt_,  "%.0f",    snap.todayAmount);
   if (snap.ratePerKg > 0.0f) lastRatePerKg_ = snap.ratePerKg;
@@ -418,9 +446,13 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   // Start button — tappable while idle/ready so offline taps can show guidance.
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
                         && (snap.eStopOk || !snap.connected);
-  lv_obj_set_style_bg_color(btnStart_, canStart ? TC::active() : TC::muted(), 0);
-  if (canStart) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
-  else          lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
+  const bool prevCanStart = (prev.state == FillState::Idle || prev.state == FillState::Ready)
+                            && (prev.eStopOk || !prev.connected);
+  if (fullRefresh || canStart != prevCanStart) {
+    lv_obj_set_style_bg_color(btnStart_, canStart ? TC::active() : TC::muted(), 0);
+    if (canStart) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
+    else          lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
+  }
 }
 
 // iconLbl is the lv_label_create()'d symbol inside a readiness cell.

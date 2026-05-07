@@ -20,6 +20,8 @@ float ModbusClient::regsToFloat(uint16_t hi, uint16_t lo) {
 }
 
 void ModbusClient::begin() {
+    if (!busMutex_) busMutex_ = xSemaphoreCreateRecursiveMutex();
+
     uart_config_t cfg = {
         .baud_rate  = kRtuBaud,
         .data_bits  = UART_DATA_8_BITS,
@@ -134,10 +136,26 @@ bool ModbusClient::writeFloat(uint16_t startReg, float value) {
 }
 
 bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
+    bool locked = false;
+    if (busMutex_) {
+        if (xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(kTimeoutMs + 400)) != pdTRUE) {
+            ESP_LOGW(TAG, "Start fill failed: RTU bus busy");
+            return false;
+        }
+        locked = true;
+    }
+    auto unlock = [&]() {
+        if (locked && busMutex_) {
+            xSemaphoreGiveRecursive(busMutex_);
+            locked = false;
+        }
+    };
+
     if (targetWeightKg <= 0.0f || targetWeightKg > 500.0f ||
         ratePerKg <= 0.0f || ratePerKg > 100000.0f) {
         ESP_LOGW(TAG, "Start fill rejected locally: target=%.3f rate=%.2f",
                  targetWeightKg, ratePerKg);
+        unlock();
         return false;
     }
 
@@ -164,22 +182,30 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     // its low word arrives, using the latest persisted values for the other fields.
     if (!writeRegisters(0x0006, targetRegs, 2)) {
         ESP_LOGW(TAG, "Start fill failed: target write did not get RTU response");
+        unlock();
         return false;
     }
+    vTaskDelay(pdMS_TO_TICKS(80));
     if (!writeRegisters(0x0008, rateRegs, 2)) {
         ESP_LOGW(TAG, "Start fill failed: rate write did not get RTU response");
+        unlock();
         return false;
     }
+    vTaskDelay(pdMS_TO_TICKS(80));
     if (!writeRegisters(0x000A, amountRegs, 2)) {
         ESP_LOGW(TAG, "Start fill failed: amount write did not get RTU response");
+        unlock();
         return false;
     }
+    vTaskDelay(pdMS_TO_TICKS(80));
     if (!cmdStart()) {
         ESP_LOGW(TAG, "Start fill failed: command write did not get RTU response");
+        unlock();
         return false;
     }
     ESP_LOGI(TAG, "Start fill command accepted: target=%.3fkg rate=%.2f amount=%.2f",
              targetWeightKg, ratePerKg, targetAmount);
+    unlock();
     return true;
 }
 
@@ -202,6 +228,11 @@ bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
 
 bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
                               uint8_t* resp, int expectLen) {
+    if (busMutex_ && xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(kTimeoutMs + 100)) != pdTRUE) {
+        ESP_LOGW(TAG, "RTU busy req=%02X %02X", reqLen > 0 ? req[0] : 0, reqLen > 1 ? req[1] : 0);
+        return false;
+    }
+
     static int64_t lastDiagUs = 0;
     auto diag = [&](const char* reason, int rx) {
         const int64_t now = now_us();
@@ -222,36 +253,74 @@ bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
         }
     };
 
+    auto validFrame = [&]() {
+        uint16_t rxCrc   = (uint16_t)resp[expectLen-2] | ((uint16_t)resp[expectLen-1] << 8);
+        uint16_t calcCrc = crc16(resp, expectLen - 2);
+        if (rxCrc != calcCrc) return false;
+        if (resp[0] != kRtuAddr) return false;
+        if (resp[1] & 0x80) return true;  // valid Modbus exception frame
+        return resp[1] == req[1];
+    };
+
+    uint8_t buf[320] = {};
+    int len = 0;
+    const int64_t deadline = now_us() + (int64_t)kTimeoutMs * 1000;
+
     uart_flush_input(kRtuUart);
     uart_write_bytes(kRtuUart, req, reqLen);
     uart_wait_tx_done(kRtuUart, pdMS_TO_TICKS(50));
-    uart_flush_input(kRtuUart);  // discard any self-echo on the RS485 bus
 
-    int rx = uart_read_bytes(kRtuUart, resp, expectLen, pdMS_TO_TICKS(kTimeoutMs));
-    if (rx < expectLen) {
-        diag(rx == 0 ? "timeout/no-rx" : "short-frame", rx);
-        return false;
+    while (now_us() < deadline) {
+        const int room = (int)sizeof(buf) - len;
+        if (room <= 0) break;
+        int got = uart_read_bytes(kRtuUart, buf + len, room, pdMS_TO_TICKS(10));
+        if (got > 0) len += got;
+
+        // Half-duplex RS485 can echo our TX bytes. Drop a complete echoed request
+        // only when the expected response shape differs or extra bytes follow.
+        if (reqLen > 0 && len >= reqLen &&
+            (reqLen != expectLen || len > expectLen) &&
+            memcmp(buf, req, reqLen) == 0) {
+            memmove(buf, buf + reqLen, len - reqLen);
+            len -= reqLen;
+        }
+
+        while (len >= expectLen) {
+            memcpy(resp, buf, expectLen);
+            if (validFrame()) {
+                if (resp[1] & 0x80) {
+                    diag("exception", expectLen);
+                    if (busMutex_) xSemaphoreGiveRecursive(busMutex_);
+                    return false;
+                }
+                if (busMutex_) xSemaphoreGiveRecursive(busMutex_);
+                return true;
+            }
+            memmove(buf, buf + 1, len - 1);
+            len--;
+        }
+
+        if (len >= 5 && buf[0] == kRtuAddr && buf[1] == (req[1] | 0x80)) {
+            const uint16_t rxCrc = (uint16_t)buf[3] | ((uint16_t)buf[4] << 8);
+            const uint16_t calcCrc = crc16(buf, 3);
+            if (rxCrc == calcCrc) {
+                memcpy(resp, buf, 5);
+                diag("exception", 5);
+                if (busMutex_) xSemaphoreGiveRecursive(busMutex_);
+                return false;
+            }
+        }
     }
 
-    uint16_t rxCrc   = (uint16_t)resp[rx-2] | ((uint16_t)resp[rx-1] << 8);
-    uint16_t calcCrc = crc16(resp, rx - 2);
-    if (rxCrc != calcCrc) {
-        diag("crc-error", rx);
-        return false;
+    if (len > 0) {
+        const int copy = len < expectLen ? len : expectLen;
+        memcpy(resp, buf, copy);
+        diag(len < expectLen ? "short-frame" : "crc-error", len);
+    } else {
+        diag("timeout/no-rx", 0);
     }
-    if (resp[0] != kRtuAddr) {
-        diag("wrong-slave", rx);
-        return false;
-    }
-    if (resp[1] & 0x80) {
-        diag("exception", rx);
-        return false;
-    }
-    if (resp[1] != req[1]) {
-        diag("wrong-fc", rx);
-        return false;
-    }
-    return true;
+    if (busMutex_) xSemaphoreGiveRecursive(busMutex_);
+    return false;
 }
 
 uint16_t ModbusClient::crc16(const uint8_t* data, int len) {
