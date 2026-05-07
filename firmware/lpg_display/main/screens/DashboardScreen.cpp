@@ -31,6 +31,43 @@ static const char* stateLabel(FillState s) {
   }
 }
 
+static const char* alertTitle(const ControllerSnapshot& s) {
+  if (!s.connected) return "Controller link lost";
+  if (!s.eStopOk) return "Emergency stop active";
+  if (!s.cylinderPresent) return "Cylinder not detected";
+  if (!s.nozzleEngaged) return "Nozzle not engaged";
+  if (!s.weightStable && (s.state == FillState::Idle || s.state == FillState::Ready))
+    return "Scale is still settling";
+  switch (s.state) {
+    case FillState::Fault:    return "Fault requires reset";
+    case FillState::Aborted:  return "Fill aborted";
+    case FillState::Complete: return "Fill complete";
+    default:                  return "System ready";
+  }
+}
+
+static const char* alertBody(const ControllerSnapshot& s) {
+  if (!s.connected) return "Check RS485 wiring and controller power.";
+  if (!s.eStopOk) return "Release the emergency push button, then press RESET.";
+  if (!s.cylinderPresent) return "Place cylinder correctly on the platform.";
+  if (!s.nozzleEngaged) return "Connect nozzle securely before filling.";
+  if (!s.weightStable && (s.state == FillState::Idle || s.state == FillState::Ready))
+    return "Wait until the scale indicator turns ready.";
+  switch (s.state) {
+    case FillState::Fault:    return "Outputs are safe. Inspect the alarm condition, then press RESET.";
+    case FillState::Aborted:  return "Press RESET to return the controller to idle.";
+    case FillState::Complete: return "Transaction closed. Press RESET before the next fill if needed.";
+    default:                  return "All primary readiness checks are healthy.";
+  }
+}
+
+static lv_color_t alertColor(const ControllerSnapshot& s) {
+  if (!s.connected || s.state == FillState::Fault || !s.eStopOk) return TC::danger();
+  if (s.state == FillState::Aborted || !s.cylinderPresent || !s.nozzleEngaged || !s.weightStable) return TC::warning();
+  if (s.state == FillState::Complete) return TC::complete();
+  return TC::ready();
+}
+
 static lv_color_t stateColor(FillState s) {
   switch (s) {
     case FillState::Ready:      return TC::ready();
@@ -78,6 +115,7 @@ static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b
       || fne(a.currentAmount, b.currentAmount, 0.5f)
       || a.rtcHour         != b.rtcHour
       || a.rtcMinute       != b.rtcMinute
+      || a.rtcSecond       != b.rtcSecond
       || a.todayFills      != b.todayFills
       || fne(a.todayKg,     b.todayKg, 0.05f)
       || fne(a.todayAmount, b.todayAmount, 0.5f);
@@ -154,10 +192,19 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
   lv_obj_set_pos(lblTime_, 500, 15);
 
+  lblMbus_ = lv_label_create(bar);
+  lv_label_set_text(lblMbus_, LV_SYMBOL_CLOSE " RTU");
+  lv_obj_set_size(lblMbus_, 64, 24);
+  lv_label_set_long_mode(lblMbus_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblMbus_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lblMbus_, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblMbus_, TC::danger(), 0);
+  lv_obj_set_pos(lblMbus_, 576, 18);
+
   // Role button (password-protected role selector)
   btnRole_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
-                            TC::surface2(), TC::textSub(), 174, 34);
-  lv_obj_set_pos(btnRole_, 604, 12);
+                            TC::surface2(), TC::textSub(), 138, 34);
+  lv_obj_set_pos(btnRole_, 644, 12);
   lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
   // Update the button label text after creation (child 0 of btn is the label)
   lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
@@ -325,14 +372,17 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // ── Right column: compact readiness strip (x=492, y=68, 292×68) ───────────
   lv_obj_t* rCard = lv_obj_create(scr_);
-  lv_obj_set_size(rCard, 292, 68);
+  lv_obj_set_size(rCard, 292, 84);
   lv_obj_set_pos(rCard, 492, 68);
   Theme::applyCard(rCard);
   lv_obj_set_style_pad_all(rCard, 4, 0);
 
-  // 4 icons: E-STOP (power), CYLINDER (home), NOZZLE (tint), WEIGHT (loop)
+  // 4 status cells: E-stop, cylinder, nozzle, stable scale.
   static const char* kReadySym[4] = {
-    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
+    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_UPLOAD, LV_SYMBOL_OK
+  };
+  static const char* kReadyText[4] = {
+    "E-STOP", "CYL", "NOZZLE", "SCALE"
   };
   lv_obj_t** readyRefs[4] = { &dotEstop_, &dotCylinder_, &dotNozzle_, &dotStable_ };
 
@@ -352,12 +402,44 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_label_set_text(*readyRefs[i], kReadySym[i]);
     lv_obj_set_style_text_font(*readyRefs[i], TF::lg(), 0);
     lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
-    lv_obj_center(*readyRefs[i]);
+    lv_obj_align(*readyRefs[i], LV_ALIGN_TOP_MID, 0, 6);
+
+    lv_obj_t* txt = lv_label_create(cell);
+    lv_label_set_text(txt, kReadyText[i]);
+    lv_obj_set_width(txt, 62);
+    lv_label_set_long_mode(txt, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_text_align(txt, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(txt, TF::sm(), 0);
+    lv_obj_set_style_text_color(txt, TC::textSub(), 0);
+    lv_obj_align(txt, LV_ALIGN_BOTTOM_MID, 0, -5);
   }
+
+  alertCard_ = lv_obj_create(scr_);
+  lv_obj_set_size(alertCard_, 292, 122);
+  lv_obj_set_pos(alertCard_, 492, 160);
+  Theme::applyCard(alertCard_);
+  lv_obj_set_style_pad_all(alertCard_, 12, 0);
+  lv_obj_clear_flag(alertCard_, LV_OBJ_FLAG_SCROLLABLE);
+
+  lblAlertTitle_ = lv_label_create(alertCard_);
+  lv_label_set_text(lblAlertTitle_, "System ready");
+  lv_obj_set_width(lblAlertTitle_, 260);
+  lv_label_set_long_mode(lblAlertTitle_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_font(lblAlertTitle_, TF::md(), 0);
+  lv_obj_set_style_text_color(lblAlertTitle_, TC::ready(), 0);
+  lv_obj_align(lblAlertTitle_, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  lblAlertBody_ = lv_label_create(alertCard_);
+  lv_label_set_text(lblAlertBody_, "All primary readiness checks are healthy.");
+  lv_obj_set_width(lblAlertBody_, 260);
+  lv_label_set_long_mode(lblAlertBody_, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_font(lblAlertBody_, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblAlertBody_, TC::textSub(), 0);
+  lv_obj_align(lblAlertBody_, LV_ALIGN_TOP_LEFT, 0, 32);
 
   // ── Right column: Start Fill button (bottom-right, compact action) ───────
   btnStart_ = lv_obj_create(scr_);
-  lv_obj_set_size(btnStart_, 292, 118);
+  lv_obj_set_size(btnStart_, 292, 78);
   lv_obj_set_pos(btnStart_, 492, 356);
   lv_obj_set_style_bg_color(btnStart_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(btnStart_, LV_OPA_COVER, 0);
@@ -367,11 +449,11 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(btnStart_, onStartPressed, LV_EVENT_CLICKED, this);
 
-  lv_obj_t* startIcon = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::xxl(), TC::white());
-  lv_obj_align(startIcon, LV_ALIGN_CENTER, 0, -22);
+  lblActionIcon_ = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::xl(), TC::white());
+  lv_obj_align(lblActionIcon_, LV_ALIGN_CENTER, 0, -16);
 
-  lv_obj_t* startLbl = Theme::label(btnStart_, "START FILL", TF::xl(), TC::white());
-  lv_obj_align(startLbl, LV_ALIGN_CENTER, 0, 26);
+  lblActionText_ = Theme::label(btnStart_, "START FILL", TF::lg(), TC::white());
+  lv_obj_align(lblActionText_, LV_ALIGN_CENTER, 0, 18);
 }
 
 // ── update ────────────────────────────────────────────────────────────────────
@@ -395,13 +477,18 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   }
 
   // Time
-  if (fullRefresh || snap.rtcHour != prev.rtcHour || snap.rtcMinute != prev.rtcMinute) {
+  if (fullRefresh || snap.rtcHour != prev.rtcHour || snap.rtcMinute != prev.rtcMinute || snap.rtcSecond != prev.rtcSecond) {
     if (snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
         (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
-      setLabelFmtIfChanged(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+      setLabelFmtIfChanged(lblTime_, "%02u:%02u:%02u", snap.rtcHour, snap.rtcMinute, snap.rtcSecond);
     } else {
-      setLabelTextIfChanged(lblTime_, "--:--");
+      setLabelTextIfChanged(lblTime_, "--:--:--");
     }
+  }
+
+  if (fullRefresh || snap.connected != prev.connected) {
+    setLabelTextIfChanged(lblMbus_, snap.connected ? LV_SYMBOL_OK " RTU" : LV_SYMBOL_CLOSE " RTU");
+    lv_obj_set_style_text_color(lblMbus_, snap.connected ? TC::ready() : TC::danger(), 0);
   }
 
   // Live weight (no "kg" in hero — separate unit label)
@@ -443,16 +530,39 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
                        snap.currentAmount > 0.0f ? snap.currentAmount : snap.todayAmount);
   }
 
+  updateAlert(snap, fullRefresh);
+
   // Start button — tappable while idle/ready so offline taps can show guidance.
+  const bool needsReset = snap.state == FillState::Fault ||
+                          snap.state == FillState::Aborted ||
+                          snap.state == FillState::Complete ||
+                          (!snap.eStopOk && snap.connected);
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
                         && (snap.eStopOk || !snap.connected);
+  const bool canAct = canStart || needsReset;
   const bool prevCanStart = (prev.state == FillState::Idle || prev.state == FillState::Ready)
                             && (prev.eStopOk || !prev.connected);
-  if (fullRefresh || canStart != prevCanStart) {
-    lv_obj_set_style_bg_color(btnStart_, canStart ? TC::active() : TC::muted(), 0);
-    if (canStart) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
-    else          lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
+  const bool prevNeedsReset = prev.state == FillState::Fault ||
+                              prev.state == FillState::Aborted ||
+                              prev.state == FillState::Complete ||
+                              (!prev.eStopOk && prev.connected);
+  if (fullRefresh || canStart != prevCanStart || needsReset != prevNeedsReset) {
+    lv_obj_set_style_bg_color(btnStart_, needsReset ? TC::warning() : (canStart ? TC::active() : TC::muted()), 0);
+    setLabelTextIfChanged(lblActionIcon_, needsReset ? LV_SYMBOL_REFRESH : LV_SYMBOL_PLAY);
+    setLabelTextIfChanged(lblActionText_, needsReset ? "RESET" : "START FILL");
+    if (canAct) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
+    else        lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
   }
+}
+
+void DashboardScreen::updateAlert(const ControllerSnapshot& snap, bool fullRefresh) {
+  if (!alertCard_) return;
+  const lv_color_t c = alertColor(snap);
+  if (fullRefresh) lv_obj_set_style_border_width(alertCard_, 1, 0);
+  setLabelTextIfChanged(lblAlertTitle_, alertTitle(snap));
+  setLabelTextIfChanged(lblAlertBody_, alertBody(snap));
+  lv_obj_set_style_border_color(alertCard_, c, 0);
+  lv_obj_set_style_text_color(lblAlertTitle_, c, 0);
 }
 
 // iconLbl is the lv_label_create()'d symbol inside a readiness cell.
@@ -673,6 +783,15 @@ void DashboardScreen::onStartPressed(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
   if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
   if (!self->mbus_) return;
+  const bool needsReset = self->lastSnap_.state == FillState::Fault ||
+                          self->lastSnap_.state == FillState::Aborted ||
+                          self->lastSnap_.state == FillState::Complete ||
+                          (!self->lastSnap_.eStopOk && self->lastSnap_.connected);
+  if (needsReset) {
+    const bool ok = self->mbus_->cmdReset();
+    ESP_LOGI(TAG, "RESET pressed ok=%d", ok ? 1 : 0);
+    return;
+  }
   if (!self->lastSnap_.connected) {
     ESP_LOGW(TAG, "START blocked: controller offline");
     self->openOfflineModal();

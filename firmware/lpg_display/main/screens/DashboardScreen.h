@@ -14,6 +14,7 @@ private:
   lv_obj_t* lblState_       = nullptr;
   lv_obj_t* weightAccent_   = nullptr;
   lv_obj_t* lblTime_        = nullptr;
+  lv_obj_t* lblMbus_        = nullptr;
   lv_obj_t* lblLive_        = nullptr;
   lv_obj_t* lblTare_        = nullptr;
   lv_obj_t* lblNet_         = nullptr;
@@ -25,6 +26,11 @@ private:
   lv_obj_t* lblTodayKg_     = nullptr;
   lv_obj_t* lblTodayAmt_    = nullptr;
   lv_obj_t* btnStart_       = nullptr;
+  lv_obj_t* lblActionIcon_   = nullptr;
+  lv_obj_t* lblActionText_   = nullptr;
+  lv_obj_t* alertCard_      = nullptr;
+  lv_obj_t* lblAlertTitle_  = nullptr;
+  lv_obj_t* lblAlertBody_   = nullptr;
   lv_obj_t* offlineModal_   = nullptr;
 
   // Fill params strip
@@ -86,6 +92,7 @@ private:
   void submitRolePin();
   void openOfflineModal();
   void closeOfflineModal();
+  void updateAlert(const ControllerSnapshot& snap, bool fullRefresh);
 
   static void onStartPressed(lv_event_t* e);
   static void onStartConfirm(lv_event_t* e);
