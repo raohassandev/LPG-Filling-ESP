@@ -25,7 +25,6 @@ private:
   lv_obj_t* lblTodayKg_     = nullptr;
   lv_obj_t* lblTodayAmt_    = nullptr;
   lv_obj_t* btnStart_       = nullptr;
-  lv_obj_t* lblConnStatus_  = nullptr;
 
   // Start dialog (stepper-based, no keyboard)
   lv_obj_t* startModal_     = nullptr;
@@ -72,7 +71,6 @@ private:
   static void onTargetPlus(lv_event_t* e);
   static void onRateMinus(lv_event_t* e);
   static void onRatePlus(lv_event_t* e);
-  static void onAdminPressed(lv_event_t* e);
   static void onWifiPressed(lv_event_t* e);
   static void onRolePressed(lv_event_t* e);
   static void onRolePinKey(lv_event_t* e);

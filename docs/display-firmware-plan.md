@@ -43,7 +43,7 @@ Boot
        │     ├─ state = Fault/Abort  ──→ FaultScreen        ──→ Dashboard
        │     └─ [STOP] confirmed     ──→ Dashboard
        ├─ state = Fault              ──→ FaultScreen
-       └─ [ADMIN] button             ──→ PinScreen ──→ SettingsScreen
+       └─ [ROLE] button              ──→ role/PIN modal
 ```
 
 ---
@@ -92,7 +92,7 @@ Protocol: FC03 read holding registers, FC06 write single register
 ### DashboardScreen
 ```
 ┌──────────────────────────────────────────────────── 800 ─────┐
-│ LPG FILLING STATION          ● IDLE      12:34    [ADMIN]    │ 52
+│ LPG FILLING STATION          IDLE    WiFi  12:34  [OPERATOR] │ 58
 ├──────────────────────────────────────────────────────────────┤
 │ ┌──────────────────────────────────┐ ┌──────────────────────┐│
 │ │ LIVE WEIGHT                       │ │ READINESS            ││

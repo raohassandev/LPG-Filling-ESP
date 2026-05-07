@@ -149,7 +149,7 @@ static esp_err_t initTouch() {
 // ── LVGL port ─────────────────────────────────────────────────────────────────
 static esp_err_t initLvgl() {
     lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-    lvgl_cfg.task_stack = 8192;
+    lvgl_cfg.task_stack = 32768;
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL port init");
 
     const lvgl_port_display_cfg_t disp_cfg = {

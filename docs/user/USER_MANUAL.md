@@ -100,12 +100,10 @@ The 5" colour touchscreen is the primary operator interface on the factory floor
 | Element | Description |
 |---------|-------------|
 | **LPG FILLING STATION** | Title (left) |
-| **State badge** (centre) | Current fill state: IDLE / READY / FAST FILL / SLOW FILL / SETTLING / COMPLETE / FAULT |
+| **State badge** (centre) | Current fill state: IDLE / READY / FAST / SLOW / SETTLE / DONE / FAULT |
 | **WiFi icon** | Tap to open the WiFi settings screen |
-| **OFFLINE / ONLINE** | RS485 link to controller — green=connected, red=disconnected |
-| **HH:MM** | Current time from controller RTC |
+| **HH:MM** | Current time from controller RTC; shows `--:--` until a valid RTC value is received |
 | **OPERATOR / ADMIN / MANUFACTURER** | Current role badge — tap to change role (PIN required) |
-| **ADMIN button** | Opens the settings/admin screen (PIN required) |
 
 ### 3.2 Live Weight Panel (left)
 

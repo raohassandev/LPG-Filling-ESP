@@ -14,15 +14,15 @@ extern ModbusClient  modbusClient;
 static const char* stateLabel(FillState s) {
   switch (s) {
     case FillState::Idle:        return "IDLE";
-    case FillState::Ready:       return LV_SYMBOL_OK "  READY";
-    case FillState::Validating:  return LV_SYMBOL_REFRESH "  VALIDATING";
-    case FillState::Fast:        return LV_SYMBOL_PLAY "  FAST FILL";
-    case FillState::Slow:        return LV_SYMBOL_PLAY "  SLOW FILL";
-    case FillState::Settling:    return LV_SYMBOL_REFRESH "  SETTLING";
-    case FillState::Complete:    return LV_SYMBOL_OK "  COMPLETE";
-    case FillState::Aborted:     return LV_SYMBOL_STOP "  ABORTED";
-    case FillState::Fault:       return LV_SYMBOL_WARNING "  FAULT";
-    case FillState::Maintenance: return LV_SYMBOL_SETTINGS "  MAINTENANCE";
+    case FillState::Ready:       return "READY";
+    case FillState::Validating:  return "VALIDATE";
+    case FillState::Fast:        return "FAST";
+    case FillState::Slow:        return "SLOW";
+    case FillState::Settling:    return "SETTLE";
+    case FillState::Complete:    return "DONE";
+    case FillState::Aborted:     return "ABORT";
+    case FillState::Fault:       return "FAULT";
+    case FillState::Maintenance: return "SERVICE";
     default:                     return "UNKNOWN";
   }
 }
@@ -90,59 +90,55 @@ void DashboardScreen::build(ModbusClient& mbus) {
   // Title
   Theme::label(bar, "LPG FILLING STATION", TF::lg(), TC::text());
   lv_obj_t* title = lv_obj_get_child(bar, 0);
+  lv_obj_set_width(title, 300);
+  lv_label_set_long_mode(title, LV_LABEL_LONG_CLIP);
   lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
 
-  // State badge (center of status bar)
+  // Fixed-position header controls avoid overlap on the physical 800x480 panel.
   stateBadge_ = lv_obj_create(bar);
-  lv_obj_set_size(stateBadge_, LV_SIZE_CONTENT, 32);
-  lv_obj_set_style_pad_hor(stateBadge_, 14, 0);
+  lv_obj_set_size(stateBadge_, 102, 32);
+  lv_obj_set_style_pad_hor(stateBadge_, 8, 0);
   lv_obj_set_style_pad_ver(stateBadge_, 0, 0);
   lv_obj_set_style_radius(stateBadge_, 16, 0);
   lv_obj_set_style_border_width(stateBadge_, 0, 0);
   lv_obj_set_style_bg_color(stateBadge_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(stateBadge_, LV_OPA_COVER, 0);
-  lv_obj_align(stateBadge_, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_pos(stateBadge_, 324, 13);
   lv_obj_clear_flag(stateBadge_, LV_OBJ_FLAG_SCROLLABLE);
 
   lblState_ = lv_label_create(stateBadge_);
   lv_label_set_text(lblState_, "IDLE");
+  lv_obj_set_width(lblState_, 86);
+  lv_label_set_long_mode(lblState_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblState_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblState_, TF::md(), 0);
   lv_obj_set_style_text_color(lblState_, TC::white(), 0);
   lv_obj_center(lblState_);
 
-  // Right side of status bar: status | wifi | time | role | admin
-  lblConnStatus_ = lv_label_create(bar);
-  lv_label_set_text(lblConnStatus_, LV_SYMBOL_WIFI " OFFLINE");
-  lv_obj_set_style_text_font(lblConnStatus_, TF::sm(), 0);
-  lv_obj_set_style_text_color(lblConnStatus_, TC::danger(), 0);
-  lv_obj_align(lblConnStatus_, LV_ALIGN_RIGHT_MID, -340, 0);
-
-  // WiFi nav button
+  // Right side of status bar: wifi | time | role
   lv_obj_t* btnWifi = Theme::button(bar, LV_SYMBOL_WIFI,
                                     TC::surface2(), TC::textSub(), 42, 34);
-  lv_obj_align(btnWifi, LV_ALIGN_RIGHT_MID, -290, 0);
+  lv_obj_set_pos(btnWifi, 446, 12);
   lv_obj_add_event_cb(btnWifi, onWifiPressed, LV_EVENT_CLICKED, this);
 
   lblTime_ = lv_label_create(bar);
-  lv_label_set_text(lblTime_, "00:00");
+  lv_label_set_text(lblTime_, "--:--");
+  lv_obj_set_size(lblTime_, 76, 28);
+  lv_label_set_long_mode(lblTime_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblTime_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblTime_, TF::lg(), 0);
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
-  lv_obj_align(lblTime_, LV_ALIGN_RIGHT_MID, -218, 0);
+  lv_obj_set_pos(lblTime_, 500, 15);
 
   // Role button (password-protected role selector)
   btnRole_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
-                            TC::surface2(), TC::textSub(), 110, 34);
-  lv_obj_align(btnRole_, LV_ALIGN_RIGHT_MID, -110, 0);
+                            TC::surface2(), TC::textSub(), 174, 34);
+  lv_obj_set_pos(btnRole_, 604, 12);
   lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
   // Update the button label text after creation (child 0 of btn is the label)
   lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
   lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");
   lv_obj_set_style_text_font(lblRoleBtn_, TF::sm(), 0);
-
-  lv_obj_t* btnAdmin = Theme::button(bar, LV_SYMBOL_SETTINGS " ADMIN",
-                                     TC::surface2(), TC::textSub(), 100, 34);
-  lv_obj_align(btnAdmin, LV_ALIGN_RIGHT_MID, 0, 0);
-  lv_obj_add_event_cb(btnAdmin, onAdminPressed, LV_EVENT_CLICKED, this);
 
   // ── Left column: Weight card (x=16, y=68, 460×258) ──────────────────────────
   lv_obj_t* wCard = lv_obj_create(scr_);
@@ -320,17 +316,13 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   // Weight accent border color mirrors state
   lv_obj_set_style_bg_color(weightAccent_, sc, 0);
 
-  // Connectivity
-  if (snap.connected) {
-    lv_label_set_text(lblConnStatus_, LV_SYMBOL_WIFI "  ONLINE");
-    lv_obj_set_style_text_color(lblConnStatus_, TC::ready(), 0);
-  } else {
-    lv_label_set_text(lblConnStatus_, LV_SYMBOL_WIFI "  OFFLINE");
-    lv_obj_set_style_text_color(lblConnStatus_, TC::danger(), 0);
-  }
-
   // Time
-  lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+  if (snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
+      (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
+    lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+  } else {
+    lv_label_set_text(lblTime_, "--:--");
+  }
 
   // Live weight (no "kg" in hero — separate unit label)
   display_label_setf(lblLive_, "%.3f", snap.liveWeightKg);
@@ -525,10 +517,6 @@ void DashboardScreen::onStartCancel(lv_event_t* e) {
   self->closeStartDialog();
 }
 
-
-void DashboardScreen::onAdminPressed(lv_event_t* e) {
-  screenManager.navigateTo(Screen::Pin);
-}
 
 void DashboardScreen::onWifiPressed(lv_event_t* e) {
   screenManager.navigateTo(Screen::Wifi);
