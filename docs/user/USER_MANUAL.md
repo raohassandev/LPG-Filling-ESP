@@ -197,6 +197,8 @@ Connect to this AP and open `http://192.168.4.1` or `http://lpg-controller.local
 | Admin | `admin` | `0000` |
 | Manufacturer | `manufacturer` | `5678` |
 
+The app login screen defaults the controller URL placeholder to `http://lpg-controller.local` and shows a connection indicator: Connected, Connecting, or Offline. The **Sign In** button is disabled while a sign-in attempt is in progress.
+
 ### 3.3 Wi-Fi Setup
 
 1. Log in as **Admin** or **Manufacturer**.
@@ -248,10 +250,16 @@ The Operator screen is available at `http://<board-ip>/` after login.
 | Control | Minimum Role | Action |
 |---------|-------------|--------|
 | **Start Fill** | Operator | Initiates a fill cycle |
-| **Stop Fill** | Operator | Aborts current fill |
+| **STOP FILL** | Operator | Aborts the current fill from the fill-progress screen |
 | **Reset** | Operator | Resets fault/aborted state to Idle |
 | **Zero Net** | Operator | Sets tare to current live weight |
 | **Set Rate** | Operator (with canSetRate) | Changes price per kg |
+
+During an active fill, the progress screen shows the phase, animated progress bar, NET kg, TARGET kg, running PKR amount, and a full-width **STOP FILL** button at the bottom.
+
+When a fill completes, the receipt screen shows Transaction ID, net weight dispensed, rate per kg, final amount, duration, and completion time. Tap **New Fill** to reset the controller and return to the dashboard.
+
+The bottom navigation bar is available on Dashboard, History, and Settings. It shows role-appropriate links and a Sign Out action.
 
 ---
 
@@ -262,6 +270,7 @@ Admins see everything Operators see, plus:
 ### 6.1 Transaction History
 
 - Full list of all transactions from all operators.
+- Transaction rows use a compact single-line format with status dot, transaction ID, kg, final PKR amount, and timestamp.
 - Filter by operator username with `?username=<name>` query parameter.
 - Export as JSON: `GET /api/transactions`
 - Export as CSV: `GET /api/transactions/csv`

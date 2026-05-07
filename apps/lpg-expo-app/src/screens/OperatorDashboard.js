@@ -10,6 +10,7 @@ import { saveSlowFillThreshold, saveRate } from "../services/controllerApi";
 import SafetyBanner from "../components/SafetyBanner";
 import StatusHeader from "../components/StatusHeader";
 import ReadinessCard from "../components/ReadinessCard";
+import BottomNav from "../components/BottomNav";
 import SegmentedControl from "../components/ui/SegmentedControl";
 import Button from "../components/ui/Button";
 import { kg, money, shortDateTime } from "../utils/format";
@@ -108,7 +109,6 @@ export default function OperatorDashboard() {
 
   const ready   = !!status.readyToFill;
   const isAdmin = authRole === "admin" || authRole === "manufacturer";
-  const isMfg   = authRole === "manufacturer";
 
   // Today's transactions (last 5, most recent first)
   const todayTxns = [...transactions].reverse().slice(0, 5);
@@ -286,18 +286,8 @@ export default function OperatorDashboard() {
         )}
 
         {/* ── Navigation row ──────────────────────────────────────── */}
-        <View style={styles.navRow}>
-          {authRole === "operator" && (
-            <NavBtn label="My History" onPress={() => navigate("transactions")} />
-          )}
-          {isAdmin && <NavBtn label="Settings"    onPress={() => navigate("network")} />}
-          {isAdmin && <NavBtn label="Users"       onPress={() => navigate("admin-users")} />}
-          {isMfg   && <NavBtn label="Diagnostics" onPress={() => navigate("diagnostics")} />}
-          {isMfg   && <NavBtn label="Calibration" onPress={() => navigate("calibration")} />}
-          <NavBtn label={`Sign Out (${authUsername})`} onPress={logout} />
-        </View>
-
       </ScrollView>
+      <BottomNav active="dashboard" />
     </KeyboardAvoidingView>
   );
 }
@@ -308,13 +298,13 @@ function WeightCell({ label, value, border, accent, stable }) {
   return (
     <View style={[styles.wCell, border && styles.wCellBorder, accent && styles.wCellAccent]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={[styles.wLabel, accent && { color: "rgba(255,255,255,0.55)" }]}>{label}</Text>
+        <Text style={[styles.wLabel, accent && { color: C.white + "8c" }]}>{label}</Text>
         {accent && (
           <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: stable ? C.ready : C.warning }} />
         )}
       </View>
       <Text style={[styles.wVal, accent && { color: C.white }]}>{value}</Text>
-      <Text style={[styles.wUnit, accent && { color: "rgba(255,255,255,0.45)" }]}>kg</Text>
+      <Text style={[styles.wUnit, accent && { color: C.white + "73" }]}>kg</Text>
     </View>
   );
 }
@@ -334,14 +324,6 @@ function TxnRow({ txn }) {
       <Text style={styles.txnAmt} numberOfLines={1}>PKR {amount}</Text>
       <Text style={styles.txnTime} numberOfLines={1}>{dateStr}</Text>
     </View>
-  );
-}
-
-function NavBtn({ label, onPress }) {
-  return (
-    <Pressable style={styles.navBtn} onPress={onPress}>
-      <Text style={styles.navBtnTxt}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -472,8 +454,4 @@ const styles = StyleSheet.create({
   txnAmt:  { fontSize: T.xs, fontWeight: "700", color: C.ready, fontVariant: ["tabular-nums"], flex: 1 },
   txnTime: { fontSize: T.xs, color: C.muted, fontVariant: ["tabular-nums"] },
 
-  // Navigation
-  navRow:    { flexDirection: "row", flexWrap: "wrap", gap: S.xs },
-  navBtn:    { paddingVertical: S.xs + 2, paddingHorizontal: S.md, borderRadius: R.sm, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  navBtnTxt: { fontSize: T.xs + 1, fontWeight: "700", color: C.textSub },
 });

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { C, R, S, T } from "../theme";
 import { useAppState } from "../state/AppStateProvider";
 import { resetFill } from "../services/controllerApi";
@@ -29,11 +29,6 @@ export default function FillCompleteScreen() {
   const endTime     = Number(last?.endTime || 0);
   const elapsedSec  = endTime && startTime && endTime >= startTime ? endTime - startTime : Number(last?.durationSec || status.fillDurationSec || 0);
 
-  const checkAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.spring(checkAnim, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }).start();
-  }, [checkAnim]);
-
   async function handleNew() {
     setBusy(true);
     try {
@@ -47,12 +42,12 @@ export default function FillCompleteScreen() {
   }
 
   const rows = [
-    { label: "Transaction ID",          value: last?.transactionId || last?.id || "-" },
-    { label: "Net weight dispensed",    value: `${kg(dispensedKg)} kg` },
-    { label: "Rate per kg",             value: `PKR ${money(ratePerKg)}` },
-    { label: "Final amount",            value: `PKR ${money(amountPkr)}`, accent: true },
-    { label: "Duration",                value: duration(elapsedSec) },
-    { label: "Completed at",            value: fullDateTime(endTime) || "-" },
+    { label: "Transaction ID",       value: last?.transactionId || last?.id || "-" },
+    { label: "Net weight dispensed", value: `${kg(dispensedKg)} kg` },
+    { label: "Rate / kg",            value: `PKR ${money(ratePerKg)}` },
+    { label: "Final amount",         value: `PKR ${money(amountPkr)}`, accent: true },
+    { label: "Duration",             value: duration(elapsedSec) },
+    { label: "Completed at",         value: fullDateTime(endTime) || "-" },
   ];
 
   return (
@@ -66,10 +61,10 @@ export default function FillCompleteScreen() {
       />
       <ScrollView style={styles.scroller} contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkAnim }] }]}>
+          <View style={styles.checkCircle}>
             <Text style={styles.checkMark}>✓</Text>
-          </Animated.View>
-          <Text style={styles.heroTitle}>Fill Complete</Text>
+          </View>
+          <Text style={styles.heroTitle}>FILL COMPLETE</Text>
         </View>
 
         <View style={styles.receipt}>
@@ -83,6 +78,10 @@ export default function FillCompleteScreen() {
             </View>
           ))}
         </View>
+
+        <Text style={styles.shareHint}>
+          Screenshot this receipt or tap New Fill to continue.
+        </Text>
 
         <Button label="New Fill" variant="primary" size="full" onPress={handleNew} loading={busy} />
       </ScrollView>
@@ -98,14 +97,15 @@ const styles = StyleSheet.create({
   shell:       { flex: 1, backgroundColor: C.bg },
   scroller:    { flex: 1, backgroundColor: C.bg },
   content:     { padding: S.lg, paddingBottom: 40 },
-  hero:        { backgroundColor: C.ready, borderRadius: R.xl, padding: S.xxl, alignItems: "center", marginBottom: S.lg },
-  checkCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.white + "44", alignItems: "center", justifyContent: "center", marginBottom: S.md },
-  checkMark:   { fontSize: 44, color: C.white },
-  heroTitle:   { color: C.white, fontSize: T.xl, fontWeight: "900" },
+  hero:        { alignItems: "center", paddingVertical: S.xl },
+  checkCircle: { width: 72, height: 72, borderRadius: 999, backgroundColor: C.ready + "22", alignItems: "center", justifyContent: "center", marginBottom: S.md },
+  checkMark:   { fontSize: 36, color: C.ready },
+  heroTitle:   { color: C.text, fontSize: T.xl, fontWeight: "900", letterSpacing: 1 },
   receipt:     { backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, paddingHorizontal: S.lg, paddingVertical: S.sm, marginBottom: S.lg },
   row:         { paddingVertical: S.md },
   rowLabel:    { color: C.textSub, fontSize: T.xs, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 2 },
   rowValue:    { color: C.text, fontSize: T.lg, fontWeight: "800", fontVariant: ["tabular-nums"] },
-  rowAccent:   { color: C.active, fontSize: T.xl, fontWeight: "900" },
+  rowAccent:   { color: C.ready, fontSize: T.xl, fontWeight: "900", fontVariant: ["tabular-nums"] },
   divider:     { height: 1, backgroundColor: C.border },
+  shareHint:   { fontSize: T.xs, color: C.muted, textAlign: "center", marginVertical: S.sm },
 });

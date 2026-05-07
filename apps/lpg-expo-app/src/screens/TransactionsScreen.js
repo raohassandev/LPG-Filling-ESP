@@ -4,6 +4,7 @@ import { C, R, S, T } from "../theme";
 import { useAppState } from "../state/AppStateProvider";
 import { fetchSdMonths, fetchSdTransactions } from "../services/controllerApi";
 import { money, kg, shortDateTime } from "../utils/format";
+import BottomNav from "../components/BottomNav";
 
 const PERIODS = [
   { key: "today", label: "Today" },
@@ -120,6 +121,7 @@ export default function TransactionsScreen() {
           </>
         )}
       </ScrollView>
+      <BottomNav active="transactions" />
     </View>
   );
 }
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: S.xs },
   backTxt: { color: C.primary, fontSize: T.md, fontWeight: "700" },
   title:   { color: C.text, fontSize: T.md, fontWeight: "900" },
-  content: { padding: S.md, paddingBottom: 40 },
+  content: { padding: S.md, paddingBottom: S.xl },
 
   chips:      { flexDirection: "row", gap: S.xs },
   chip:       { paddingVertical: S.xs + 2, paddingHorizontal: S.md, borderRadius: R.pill, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
 
   kpiRow:    { flexDirection: "row", flexWrap: "wrap", gap: S.sm, marginBottom: S.lg },
   kpiCell:   { flex: 1, minWidth: "45%", backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.border, padding: S.sm },
-  kpiWarn:   { backgroundColor: "rgba(239,68,68,0.1)", borderColor: C.danger },
+  kpiWarn:   { backgroundColor: C.danger + "1a", borderColor: C.danger },
   kpiLabel:  { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7 },
   kpiVal:    { fontSize: T.xl, fontWeight: "900", color: C.text, marginTop: S.xs, fontVariant: ["tabular-nums"] },
 

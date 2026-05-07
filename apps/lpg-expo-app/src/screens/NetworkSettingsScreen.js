@@ -12,6 +12,7 @@ import {
 import { Field, Input } from "../components/ui/Field";
 import SegmentedControl from "../components/ui/SegmentedControl";
 import Button from "../components/ui/Button";
+import BottomNav from "../components/BottomNav";
 import { money } from "../utils/format";
 
 const TABS = [
@@ -57,6 +58,7 @@ export default function NetworkSettingsScreen() {
         {tab === "rtc"     && <ClockPanel   activeUrl={activeUrl} authToken={authToken} />}
         {tab === "modbus"  && <ModbusPanel  activeUrl={activeUrl} authToken={authToken} />}
       </ScrollView>
+      <BottomNav active="network" />
     </View>
   );
 }
@@ -403,7 +405,7 @@ const styles = StyleSheet.create({
   tabBtnOn:{ backgroundColor: C.primary + "22", borderColor: C.primary },
   tabTxt:  { fontSize: T.sm, fontWeight: "700", color: C.textSub },
   tabTxtOn:{ color: C.primary },
-  content: { padding: S.md, paddingBottom: 40 },
+  content: { padding: S.md, paddingBottom: S.xl },
 
   sectionTitle: { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.sm, marginTop: S.sm },
   sub:          { fontSize: T.xs, color: C.muted, marginBottom: S.sm },

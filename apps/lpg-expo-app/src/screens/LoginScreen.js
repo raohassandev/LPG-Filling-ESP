@@ -8,7 +8,7 @@ import Button from "../components/ui/Button";
 import { Field, Input } from "../components/ui/Field";
 
 export default function LoginScreen() {
-  const { activeUrl, setActiveUrl, login, streamMode } = useAppState();
+  const { activeUrl, setActiveUrl, login, streamMode, authLoading } = useAppState();
   const [urlDraft, setUrlDraft] = useState(activeUrl);
   const [username, setUsername] = useState(
     DEV_AUTO_LOGIN_ROLE === "admin"        ? "admin"
@@ -56,9 +56,21 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              placeholder="http://192.168.1.x or http://lpg-controller.local"
+              placeholder="http://lpg-controller.local"
+              placeholderTextColor={C.muted}
             />
           </Field>
+
+          {(() => {
+            const dot = streamMode === "offline" ? C.danger : streamMode === "connecting" ? C.warning : C.ready;
+            const lbl = streamMode === "offline" ? "Offline" : streamMode === "connecting" ? "Connecting..." : "Connected";
+            return (
+              <View style={styles.connectionRow}>
+                <View style={[styles.connectionDot, { backgroundColor: dot }]} />
+                <Text style={[styles.connectionText, { color: dot }]}>{lbl}</Text>
+              </View>
+            );
+          })()}
 
           <Field label="Username">
             <Input
@@ -84,12 +96,12 @@ export default function LoginScreen() {
           <View style={{ height: S.md }} />
 
           <Button
-            label={busy ? "Signing in..." : "Sign In"}
+            label={authLoading || busy ? "Signing in..." : "Sign In"}
             variant="primary"
             size="full"
             onPress={handleLogin}
-            disabled={busy || !username || !password}
-            loading={busy}
+            disabled={!!authLoading || busy || !username || !password}
+            loading={busy || !!authLoading}
           />
         </View>
       </ScrollView>
@@ -111,4 +123,7 @@ const styles = StyleSheet.create({
   },
   title:    { fontSize: T.xl, fontWeight: "900", color: C.text, textAlign: "center" },
   subtitle: { fontSize: T.sm, color: C.textSub, textAlign: "center", marginTop: 4, marginBottom: S.lg },
+  connectionRow:  { flexDirection: "row", alignItems: "center", gap: S.xs, marginTop: -S.sm, marginBottom: S.md },
+  connectionDot:  { width: 7, height: 7, borderRadius: 999 },
+  connectionText: { fontSize: T.xs },
 });
