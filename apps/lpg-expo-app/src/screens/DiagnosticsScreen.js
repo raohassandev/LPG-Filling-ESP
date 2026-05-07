@@ -4,6 +4,7 @@ import { C, R, S, T } from "../theme";
 import { useAppState } from "../state/AppStateProvider";
 import { fetchSystem, fetchStats } from "../services/controllerApi";
 import { kg, money, duration } from "../utils/format";
+import BottomNav from "../components/BottomNav";
 
 const STAT_PERIODS = [
   { key: "today", label: "Today" },
@@ -117,6 +118,7 @@ export default function DiagnosticsScreen() {
         {expanded && <StatusDetailTable status={status} />}
 
       </ScrollView>
+      <BottomNav active="diagnostics" />
     </View>
   );
 }
@@ -226,14 +228,14 @@ const styles = StyleSheet.create({
   title:   { flex: 1, color: C.text, fontSize: T.md, fontWeight: "900" },
   calBtn:  { padding: S.xs },
   calTxt:  { color: C.primary, fontSize: T.sm, fontWeight: "700" },
-  content: { padding: S.md, paddingBottom: 40 },
+  content: { padding: S.md, paddingBottom: S.xl },
 
   sectionTitle: { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.sm },
   empty:        { color: C.muted, fontSize: T.sm },
 
   ioGrid:    { flexDirection: "row", flexWrap: "wrap", gap: S.sm },
   ioCell:    { width: 60, height: 60, borderRadius: R.md, alignItems: "center", justifyContent: "center", backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  ioCellOn:  { backgroundColor: "rgba(16,185,129,0.12)", borderColor: C.ready },
+  ioCellOn:  { backgroundColor: C.ready + "1f", borderColor: C.ready },
   ioCellLabel:{ fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase" },
   ioCellVal:  { fontSize: T.sm, fontWeight: "900", color: C.muted, marginTop: 2 },
 
@@ -251,7 +253,7 @@ const styles = StyleSheet.create({
 
   kpiRow:    { flexDirection: "row", flexWrap: "wrap", gap: S.sm, marginBottom: S.lg },
   kpiCell:   { flex: 1, minWidth: "45%", backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.border, padding: S.sm },
-  kpiWarn:   { backgroundColor: "rgba(239,68,68,0.1)", borderColor: C.danger },
+  kpiWarn:   { backgroundColor: C.danger + "1a", borderColor: C.danger },
   kpiLabel:  { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7 },
   kpiVal:    { fontSize: T.xl, fontWeight: "900", color: C.text, marginTop: S.xs, fontVariant: ["tabular-nums"] },
 

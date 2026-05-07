@@ -7,6 +7,7 @@ import { Field, Input } from "../components/ui/Field";
 import SegmentedControl from "../components/ui/SegmentedControl";
 import Button from "../components/ui/Button";
 import StatusChip from "../components/ui/StatusChip";
+import BottomNav from "../components/BottomNav";
 
 const ROLES = [
   { key: "operator",     label: "Operator"     },
@@ -124,6 +125,7 @@ export default function AdminUsersScreen() {
           ))
         )}
       </ScrollView>
+      <BottomNav active="admin-users" />
     </View>
   );
 }
@@ -189,7 +191,7 @@ const styles = StyleSheet.create({
   title:   { flex: 1, color: C.text, fontSize: T.md, fontWeight: "900" },
   addBtn:  { paddingVertical: S.xs, paddingHorizontal: S.sm },
   addTxt:  { color: C.primary, fontSize: T.md, fontWeight: "700" },
-  content: { padding: S.md, paddingBottom: 40 },
+  content: { padding: S.md, paddingBottom: S.xl },
 
   resultMsg: { fontSize: T.sm, textAlign: "center", marginBottom: S.md },
   empty:     { color: C.muted, fontSize: T.sm, textAlign: "center", paddingVertical: S.xl },

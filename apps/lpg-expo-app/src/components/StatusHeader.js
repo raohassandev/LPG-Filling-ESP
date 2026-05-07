@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   // Modal
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: C.bg + "99",
     justifyContent: "flex-start",
     alignItems: "flex-end",
     paddingTop: 72,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     minWidth: 200,
     padding: S.md,
-    shadowColor: "#000",
+    shadowColor: C.bg,
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,

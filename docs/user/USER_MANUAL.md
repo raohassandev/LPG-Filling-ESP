@@ -259,7 +259,7 @@ During an active fill, the progress screen shows the phase, animated progress ba
 
 When a fill completes, the receipt screen shows Transaction ID, net weight dispensed, rate per kg, final amount, duration, and completion time. Tap **New Fill** to reset the controller and return to the dashboard.
 
-The bottom navigation bar is available on Dashboard, History, and Settings. It shows role-appropriate links and a Sign Out action.
+The bottom navigation bar is available on Dashboard, History, Settings, Users, Diagnostics, and Calibration. It shows role-appropriate links and a Sign Out action.
 
 ---
 

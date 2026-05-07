@@ -7,6 +7,7 @@ import { Field, Input } from "../components/ui/Field";
 import SegmentedControl from "../components/ui/SegmentedControl";
 import Button from "../components/ui/Button";
 import { kg } from "../utils/format";
+import BottomNav from "../components/BottomNav";
 
 const METHODS = [
   { key: "twopoint", label: "Two-Point (recommended)" },
@@ -72,6 +73,7 @@ export default function CalibrationScreen() {
           </Text>
         </View>
       </ScrollView>
+      <BottomNav active="calibration" />
     </View>
   );
 }
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: S.xs },
   backTxt: { color: C.primary, fontSize: T.md, fontWeight: "700" },
   title:   { color: C.text, fontSize: T.md, fontWeight: "900" },
-  content: { padding: S.md, paddingBottom: 40 },
+  content: { padding: S.md, paddingBottom: S.xl },
 
   liveCard:  { backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, padding: S.lg, alignItems: "center", marginBottom: S.md },
   liveLabel: { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7 },
@@ -230,7 +232,7 @@ const styles = StyleSheet.create({
 
   resultMsg: { fontSize: T.sm, textAlign: "center", marginTop: S.sm },
 
-  warningBox:   { backgroundColor: "rgba(245,158,11,0.1)", borderRadius: R.md, borderWidth: 1, borderColor: C.warning, padding: S.md, marginTop: S.xl },
+  warningBox:   { backgroundColor: C.warning + "1a", borderRadius: R.md, borderWidth: 1, borderColor: C.warning, padding: S.md, marginTop: S.xl },
   warningTitle: { color: C.warning, fontSize: T.sm, fontWeight: "900", marginBottom: S.xs },
   warningText:  { color: C.textSub, fontSize: T.xs, lineHeight: 18 },
 });
