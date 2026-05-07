@@ -1,5 +1,6 @@
 #pragma once
 #include <lvgl.h>
+#include "esp_wifi.h"
 #include "WifiManager.h"
 
 class WifiScreen {
@@ -20,6 +21,11 @@ private:
     lv_obj_t* taPass_       = nullptr;
     lv_obj_t* kb_           = nullptr;
     lv_obj_t* lblAddErr_    = nullptr;
+    lv_obj_t* scanModal_    = nullptr;
+    lv_obj_t* scanList_     = nullptr;
+    lv_timer_t* scanTimer_  = nullptr;
+    wifi_ap_record_t scanResults_[12] = {};
+    uint16_t scanCount_     = 0;
 
     WifiManager* mgr_ = nullptr;
 
@@ -32,9 +38,15 @@ private:
     void rebuildNetworkList();
     void openAddModal();
     void closeAddModal();
+    void openScanModal();
+    void closeScanModal();
+    void populateScanList();
 
     static void onBack(lv_event_t* e);
     static void onAddNetwork(lv_event_t* e);
+    static void onManualEntry(lv_event_t* e);
+    static void onScanNetwork(lv_event_t* e);
+    static void onScanTimer(lv_timer_t* timer);
     static void onAddConfirm(lv_event_t* e);
     static void onAddCancel(lv_event_t* e);
     static void onRemoveNetwork(lv_event_t* e);

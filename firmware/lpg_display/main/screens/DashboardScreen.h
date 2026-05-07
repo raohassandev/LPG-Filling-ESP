@@ -25,6 +25,7 @@ private:
   lv_obj_t* lblTodayKg_     = nullptr;
   lv_obj_t* lblTodayAmt_    = nullptr;
   lv_obj_t* btnStart_       = nullptr;
+  lv_obj_t* offlineModal_   = nullptr;
 
   // Fill params strip
   lv_obj_t* fpCellTarget_ = nullptr;
@@ -57,6 +58,7 @@ private:
   // Role selector
   enum class Role : uint8_t { Operator = 0, Admin, Manufacturer };
   Role         currentRole_    = Role::Operator;
+  Role         pendingRole_    = Role::Operator;
   lv_obj_t*    btnRole_        = nullptr;
   lv_obj_t*    lblRoleBtn_     = nullptr;
   lv_obj_t*    roleModal_      = nullptr;
@@ -78,8 +80,12 @@ private:
   void updateRoleButton();
   void openRoleModal();
   void closeRoleModal();
+  void buildRoleChooser();
+  void buildRolePinEntry();
   void appendRoleDigit(uint8_t d);
   void submitRolePin();
+  void openOfflineModal();
+  void closeOfflineModal();
 
   static void onStartPressed(lv_event_t* e);
   static void onStartConfirm(lv_event_t* e);
@@ -90,6 +96,7 @@ private:
   static void onRatePlus(lv_event_t* e);
   static void onFpCellTapped(lv_event_t* e);
   static void onNumKbEvent(lv_event_t* e);
+  static void onOfflineOk(lv_event_t* e);
   static void onWifiPressed(lv_event_t* e);
   static void onRolePressed(lv_event_t* e);
   static void onRolePinKey(lv_event_t* e);

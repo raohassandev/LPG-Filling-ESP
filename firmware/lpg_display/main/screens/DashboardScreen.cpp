@@ -302,30 +302,27 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_obj_align(*statLabels[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
   }
 
-  // ── Right column: Readiness card (x=492, y=68, 292×200) ───────────────────
-  // 2×2 grid of large icon-only cells — colour conveys status, no text labels.
+  // ── Right column: compact readiness strip (x=492, y=68, 292×60) ───────────
   lv_obj_t* rCard = lv_obj_create(scr_);
-  lv_obj_set_size(rCard, 292, 200);
+  lv_obj_set_size(rCard, 292, 60);
   lv_obj_set_pos(rCard, 492, 68);
   Theme::applyCard(rCard);
-  lv_obj_set_style_pad_all(rCard, 6, 0);
+  lv_obj_set_style_pad_all(rCard, 4, 0);
 
   Theme::label(rCard, "READINESS", TF::sm(), TC::textSub());
   lv_obj_t* rLabel = lv_obj_get_child(rCard, 0);
   lv_obj_align(rLabel, LV_ALIGN_TOP_LEFT, 0, 0);
 
   // 4 icons: E-STOP (power), CYLINDER (home), NOZZLE (tint), WEIGHT (loop)
-  // Each cell 134×82 px; 2 columns × 2 rows starting y=22
   static const char* kReadySym[4] = {
     LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
   };
   lv_obj_t** readyRefs[4] = { &dotEstop_, &dotCylinder_, &dotNozzle_, &dotStable_ };
 
   for (int i = 0; i < 4; i++) {
-    int col = i % 2, row = i / 2;
     lv_obj_t* cell = lv_obj_create(rCard);
-    lv_obj_set_size(cell, 134, 82);
-    lv_obj_set_pos(cell, col * 140, 22 + row * 88);
+    lv_obj_set_size(cell, 66, 52);
+    lv_obj_set_pos(cell, i * 70, 4);
     lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
     lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(cell, TC::border(), 0);
@@ -336,15 +333,15 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
     *readyRefs[i] = lv_label_create(cell);
     lv_label_set_text(*readyRefs[i], kReadySym[i]);
-    lv_obj_set_style_text_font(*readyRefs[i], TF::xxl(), 0);
+    lv_obj_set_style_text_font(*readyRefs[i], TF::xl(), 0);
     lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
     lv_obj_center(*readyRefs[i]);
   }
 
-  // ── Right column: Start Fill button (x=492, y=276, 292×158) ──────────────
+  // ── Right column: Start Fill button (x=492, y=136, 292×298) ──────────────
   btnStart_ = lv_obj_create(scr_);
-  lv_obj_set_size(btnStart_, 292, 158);
-  lv_obj_set_pos(btnStart_, 492, 276);
+  lv_obj_set_size(btnStart_, 292, 298);
+  lv_obj_set_pos(btnStart_, 492, 136);
   lv_obj_set_style_bg_color(btnStart_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(btnStart_, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(btnStart_, 0, 0);
@@ -353,11 +350,11 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(btnStart_, onStartPressed, LV_EVENT_CLICKED, this);
 
-  lv_obj_t* startIcon = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::xxl(), TC::white());
-  lv_obj_align(startIcon, LV_ALIGN_CENTER, 0, -16);
+  lv_obj_t* startIcon = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::hero(), TC::white());
+  lv_obj_align(startIcon, LV_ALIGN_CENTER, 0, -34);
 
-  lv_obj_t* startLbl = Theme::label(btnStart_, "START FILL", TF::lg(), TC::white());
-  lv_obj_align(startLbl, LV_ALIGN_CENTER, 0, 22);
+  lv_obj_t* startLbl = Theme::label(btnStart_, "START FILL", TF::xxl(), TC::white());
+  lv_obj_align(startLbl, LV_ALIGN_CENTER, 0, 46);
 }
 
 // ── update ────────────────────────────────────────────────────────────────────
@@ -419,9 +416,9 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
                        snap.currentAmount > 0.0f ? snap.currentAmount : snap.todayAmount);
   }
 
-  // Start button — enabled only when idle/ready and safe
+  // Start button — tappable while idle/ready so offline taps can show guidance.
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
-                        && snap.eStopOk && snap.connected;
+                        && (snap.eStopOk || !snap.connected);
   lv_obj_set_style_bg_color(btnStart_, canStart ? TC::active() : TC::muted(), 0);
   if (canStart) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
   else          lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
@@ -607,12 +604,48 @@ void DashboardScreen::closeNumOverlay() {
   numHint_ = nullptr;
 }
 
+void DashboardScreen::openOfflineModal() {
+  if (offlineModal_) return;
+
+  offlineModal_ = lv_obj_create(scr_);
+  lv_obj_set_size(offlineModal_, 430, 190);
+  lv_obj_center(offlineModal_);
+  lv_obj_set_style_bg_color(offlineModal_, TC::surface(), 0);
+  lv_obj_set_style_bg_opa(offlineModal_, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(offlineModal_, TC::danger(), 0);
+  lv_obj_set_style_border_width(offlineModal_, 2, 0);
+  lv_obj_set_style_radius(offlineModal_, 12, 0);
+  lv_obj_set_style_pad_all(offlineModal_, 20, 0);
+  lv_obj_clear_flag(offlineModal_, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t* icon = Theme::label(offlineModal_, LV_SYMBOL_WARNING, TF::xxl(), TC::danger());
+  lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 0);
+
+  lv_obj_t* msg = Theme::label(offlineModal_, "Controller offline\nCheck RS485", TF::lg(), TC::text());
+  lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(msg, LV_ALIGN_CENTER, 0, 8);
+
+  lv_obj_t* ok = Theme::button(offlineModal_, "OK", TC::active(), TC::white(), 120, 42);
+  lv_obj_align(ok, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(ok, onOfflineOk, LV_EVENT_CLICKED, this);
+}
+
+void DashboardScreen::closeOfflineModal() {
+  if (!offlineModal_) return;
+  lv_obj_del(offlineModal_);
+  offlineModal_ = nullptr;
+}
+
 // ── Event callbacks ───────────────────────────────────────────────────────────
 
 void DashboardScreen::onStartPressed(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
   if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
   if (!self->mbus_) return;
+  if (!self->lastSnap_.connected) {
+    self->openOfflineModal();
+    return;
+  }
   self->lastRatePerKg_ = self->dialogRatePerKg_;
   self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
 }
@@ -689,6 +722,11 @@ void DashboardScreen::onNumKbEvent(lv_event_t* e) {
   self->closeNumOverlay();
 }
 
+void DashboardScreen::onOfflineOk(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  self->closeOfflineModal();
+}
+
 void DashboardScreen::onWifiPressed(lv_event_t* e) {
   screenManager.navigateTo(Screen::Wifi);
 }
@@ -751,40 +789,65 @@ void DashboardScreen::openRoleModal() {
   lv_obj_set_style_radius(roleModal_, 12, 0);
   lv_obj_set_style_pad_all(roleModal_, 20, 0);
   lv_obj_clear_flag(roleModal_, LV_OBJ_FLAG_SCROLLABLE);
+  pendingRole_ = currentRole_;
+  buildRoleChooser();
+}
 
-  // If already Admin/Manufacturer, show role-switch buttons
-  if (currentRole_ != Role::Operator) {
-    Theme::label(roleModal_, "Switch Role", TF::xl(), TC::text());
-    lv_obj_t* t = lv_obj_get_child(roleModal_, 0);
-    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+void DashboardScreen::buildRoleChooser() {
+  if (!roleModal_) return;
+  lv_obj_clean(roleModal_);
+  lblRolePinDots_ = nullptr;
+  lblRolePinErr_  = nullptr;
+  roleEntered_    = 0;
+  roleDigits_     = 0;
 
-    lv_obj_t* btnOp = Theme::button(roleModal_, LV_SYMBOL_SETTINGS " OPERATOR",
-                                    TC::surface2(), TC::text(), 280, 52);
-    lv_obj_align(btnOp, LV_ALIGN_CENTER, 0, -30);
-    lv_obj_set_user_data(btnOp, (void*)(uintptr_t)0);
-    lv_obj_add_event_cb(btnOp, onRoleSelect, LV_EVENT_CLICKED, this);
-
-    lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
-                                         TC::danger(), TC::white(), 120, 44);
-    lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
-      DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
-      self->closeRoleModal();
-    }, LV_EVENT_CLICKED, this);
-    return;
-  }
-
-  // Operator → show PIN entry to elevate role
   Theme::label(roleModal_, "Select Role", TF::xl(), TC::text());
   lv_obj_t* title = lv_obj_get_child(roleModal_, 0);
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
 
-  Theme::label(roleModal_, "Enter PIN to access higher role", TF::sm(), TC::textSub());
+  const char* labels[] = {
+    LV_SYMBOL_SETTINGS " OPERATOR",
+    LV_SYMBOL_SETTINGS " ADMIN",
+    LV_SYMBOL_SETTINGS " MANUFACTURER",
+  };
+
+  for (int i = 0; i < 3; i++) {
+    Role role = (Role)i;
+    const bool active = role == currentRole_;
+    lv_obj_t* btn = Theme::button(roleModal_, labels[i],
+                                  active ? TC::active() : TC::surface2(),
+                                  active ? TC::white() : TC::text(), 300, 56);
+    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 70 + i * 70);
+    lv_obj_set_user_data(btn, (void*)(uintptr_t)i);
+    lv_obj_add_event_cb(btn, onRoleSelect, LV_EVENT_CLICKED, this);
+  }
+
+  lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+                                       TC::danger(), TC::white(), 120, 44);
+  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
+    DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+    self->closeRoleModal();
+  }, LV_EVENT_CLICKED, this);
+}
+
+void DashboardScreen::buildRolePinEntry() {
+  if (!roleModal_) return;
+  lv_obj_clean(roleModal_);
+  roleEntered_ = 0;
+  roleDigits_  = 0;
+
+  const char* titleText = pendingRole_ == Role::Admin ? "Admin PIN" : "Manufacturer PIN";
+  Theme::label(roleModal_, titleText, TF::xl(), TC::text());
+  lv_obj_t* title = lv_obj_get_child(roleModal_, 0);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+  Theme::label(roleModal_, "Enter PIN to switch role", TF::sm(), TC::textSub());
   lv_obj_t* sub = lv_obj_get_child(roleModal_, 1);
   lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, 30);
 
   lblRolePinDots_ = lv_label_create(roleModal_);
-  lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  lv_label_set_text(lblRolePinDots_, "- - - -");
   lv_obj_set_style_text_font(lblRolePinDots_, TF::xxl(), 0);
   lv_obj_set_style_text_color(lblRolePinDots_, TC::active(), 0);
   lv_obj_align(lblRolePinDots_, LV_ALIGN_TOP_MID, 0, 60);
@@ -795,7 +858,6 @@ void DashboardScreen::openRoleModal() {
   lv_obj_set_style_text_color(lblRolePinErr_, TC::danger(), 0);
   lv_obj_align(lblRolePinErr_, LV_ALIGN_TOP_MID, 0, 108);
 
-  // Compact numpad
   lv_obj_t* pad = lv_obj_create(roleModal_);
   lv_obj_set_size(pad, 300, 220);
   lv_obj_align(pad, LV_ALIGN_CENTER, 0, 40);
@@ -833,12 +895,12 @@ void DashboardScreen::openRoleModal() {
     }
   }
 
-  lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+  lv_obj_t* btnCancel = Theme::button(roleModal_, "BACK",
                                        TC::surface2(), TC::textSub(), 100, 36);
   lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
     DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
-    self->closeRoleModal();
+    self->buildRoleChooser();
   }, LV_EVENT_CLICKED, this);
 }
 
@@ -859,7 +921,7 @@ void DashboardScreen::appendRoleDigit(uint8_t d) {
 
   char buf[16] = "";
   for (int i = 0; i < (int)kRolePinDigits; i++) {
-    strcat(buf, i < roleDigits_ ? "● " : "○ ");
+    strcat(buf, i < roleDigits_ ? "* " : "- ");
   }
   buf[strlen(buf) - 1] = 0;
   if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, buf);
@@ -869,19 +931,18 @@ void DashboardScreen::appendRoleDigit(uint8_t d) {
 }
 
 void DashboardScreen::submitRolePin() {
-  if (roleEntered_ == kAdminRolePin) {
-    currentRole_ = Role::Admin;
-    updateRoleButton();
-    closeRoleModal();
-  } else if (roleEntered_ == kManufacturerRolePin) {
-    currentRole_ = Role::Manufacturer;
+  const uint32_t requiredPin =
+      pendingRole_ == Role::Admin ? kAdminRolePin : kManufacturerRolePin;
+
+  if (roleEntered_ == requiredPin) {
+    currentRole_ = pendingRole_;
     updateRoleButton();
     closeRoleModal();
   } else {
     if (lblRolePinErr_) lv_label_set_text(lblRolePinErr_, "Incorrect PIN");
     roleEntered_ = 0;
     roleDigits_  = 0;
-    if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+    if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, "- - - -");
   }
 }
 
@@ -904,7 +965,7 @@ void DashboardScreen::onRolePinDel(lv_event_t* e) {
   self->roleDigits_--;
   char buf[16] = "";
   for (int i = 0; i < (int)kRolePinDigits; i++) {
-    strcat(buf, i < self->roleDigits_ ? "● " : "○ ");
+    strcat(buf, i < self->roleDigits_ ? "* " : "- ");
   }
   buf[strlen(buf) - 1] = 0;
   if (self->lblRolePinDots_) lv_label_set_text(self->lblRolePinDots_, buf);
@@ -914,7 +975,13 @@ void DashboardScreen::onRoleSelect(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
   lv_obj_t* btn = lv_event_get_current_target(e);
   uint8_t role = (uint8_t)(uintptr_t)lv_obj_get_user_data(btn);
-  self->currentRole_ = (Role)role;
-  self->updateRoleButton();
-  self->closeRoleModal();
+  if ((Role)role == Role::Operator) {
+    self->currentRole_ = Role::Operator;
+    self->pendingRole_ = Role::Operator;
+    self->updateRoleButton();
+    self->closeRoleModal();
+    return;
+  }
+  self->pendingRole_ = (Role)role;
+  self->buildRolePinEntry();
 }

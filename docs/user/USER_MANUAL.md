@@ -119,6 +119,7 @@ Below the weight panel, the dashboard shows a three-cell fill setup strip:
 | **AMOUNT PKR** | Shows the current fill amount, or today's amount when no fill amount is active |
 
 After entering target and rate, press **START FILL** from the dashboard. The old stepper dialog is not required for normal filling.
+If the display is not receiving RS485 data from the controller, pressing **START FILL** shows **Controller offline - Check RS485** instead of silently doing nothing.
 
 The coloured bar on the left edge changes colour with the fill state:
 - Grey = Idle
@@ -147,27 +148,22 @@ Four status indicators:
 
 ### 3.5 START FILL Button (bottom right)
 
-Tap to open the fill configuration dialog.  
-The button is **blue** when safe to start (E-stop OK + connected), **grey** when locked.
-
-**Fill dialog:**
-1. Tap **–** / **+** to set **Target Weight** (kg) — increments of 1 kg
-2. Tap **–** / **+** to set **Rate per kg** (PKR) — increments of 10 PKR
-3. Tap **START** to send the command to the controller
-4. Tap **CANCEL** to dismiss
+Tap to start filling with the current **TARGET kg** and **RATE PKR/kg** strip values.
+The button is **blue** when E-stop is OK and the state allows a start. If RS485 is offline, the tap opens a clear offline warning.
 
 ### 3.6 WiFi Settings Screen
 
 Accessible from the WiFi button in the status bar:
 - View connection status and current IP address
 - Add up to 5 saved networks (SSID + password)
+- Tap **ADD** to scan nearby WiFi networks first, select an SSID, or use **MANUAL ENTRY**.
 - Toggle **hotspot** on/off (SSID: `LPG-Display`, password: `lpg12345`)
 - Toggle **auto-switch** between saved networks
 - Tap any network row to delete it
 
 ### 3.7 Role / PIN System
 
-The role badge in the status bar controls what the current user can do.
+The role badge in the status bar controls what the current user can do. Tapping it opens a role selector first.
 
 | Role | PIN | Access |
 |------|-----|--------|
@@ -175,8 +171,8 @@ The role badge in the status bar controls what the current user can do.
 | **ADMIN** | `1234` | Settings, admin screen access |
 | **MANUFACTURER** | `9999` | Full hardware access |
 
-To change role: tap the role badge → enter PIN on the numeric keypad that appears.  
-To return to OPERATOR: tap the badge again → tap **OPERATOR**.
+To change role: tap the role badge, choose a role, then enter PIN only for **ADMIN** or **MANUFACTURER**.
+To return to OPERATOR: tap the badge again, then tap **OPERATOR**.
 
 ---
 

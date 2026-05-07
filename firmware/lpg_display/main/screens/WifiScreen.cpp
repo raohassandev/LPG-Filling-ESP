@@ -1,7 +1,9 @@
 #include "screens/WifiScreen.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include "esp_wifi.h"
 #include <cstdio>
+#include <cstring>
 
 extern ScreenManager screenManager;
 
@@ -330,6 +332,95 @@ void WifiScreen::closeAddModal() {
     lblAddErr_= nullptr;
 }
 
+void WifiScreen::openScanModal() {
+    if (scanModal_) return;
+
+    scanModal_ = lv_obj_create(scr_);
+    lv_obj_set_size(scanModal_, 560, 390);
+    lv_obj_center(scanModal_);
+    lv_obj_set_style_bg_color(scanModal_, TC::surface(), 0);
+    lv_obj_set_style_bg_opa(scanModal_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(scanModal_, TC::border(), 0);
+    lv_obj_set_style_border_width(scanModal_, 1, 0);
+    lv_obj_set_style_radius(scanModal_, 12, 0);
+    lv_obj_set_style_pad_all(scanModal_, 18, 0);
+    lv_obj_clear_flag(scanModal_, LV_OBJ_FLAG_SCROLLABLE);
+
+    Theme::label(scanModal_, "Select Network", TF::xl(), TC::text());
+    lv_obj_t* title = lv_obj_get_child(scanModal_, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
+
+    scanList_ = lv_obj_create(scanModal_);
+    lv_obj_set_size(scanList_, LV_PCT(100), 250);
+    lv_obj_align(scanList_, LV_ALIGN_TOP_LEFT, 0, 48);
+    lv_obj_set_style_bg_color(scanList_, TC::surface2(), 0);
+    lv_obj_set_style_bg_opa(scanList_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(scanList_, TC::border(), 0);
+    lv_obj_set_style_border_width(scanList_, 1, 0);
+    lv_obj_set_style_radius(scanList_, 8, 0);
+    lv_obj_set_style_pad_all(scanList_, 8, 0);
+    lv_obj_set_layout(scanList_, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(scanList_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(scanList_, 6, 0);
+    lv_obj_add_flag(scanList_, LV_OBJ_FLAG_SCROLLABLE);
+
+    Theme::label(scanList_, "Scanning...", TF::lg(), TC::textSub());
+
+    lv_obj_t* manual = Theme::button(scanModal_, "MANUAL ENTRY",
+                                     TC::surface2(), TC::text(), 160, 40);
+    lv_obj_align(manual, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_add_event_cb(manual, onManualEntry, LV_EVENT_CLICKED, this);
+
+    lv_obj_t* cancel = Theme::button(scanModal_, "CANCEL",
+                                     TC::danger(), TC::white(), 120, 40);
+    lv_obj_align(cancel, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_add_event_cb(cancel, [](lv_event_t* e){
+        WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+        self->closeScanModal();
+    }, LV_EVENT_CLICKED, this);
+
+    scanCount_ = 0;
+    memset(scanResults_, 0, sizeof(scanResults_));
+    wifi_scan_config_t cfg = {};
+    esp_wifi_scan_start(&cfg, false);
+    scanTimer_ = lv_timer_create(onScanTimer, 2500, this);
+    lv_timer_set_repeat_count(scanTimer_, 1);
+}
+
+void WifiScreen::closeScanModal() {
+    if (scanTimer_) {
+        lv_timer_del(scanTimer_);
+        scanTimer_ = nullptr;
+    }
+    if (scanModal_) {
+        lv_obj_del(scanModal_);
+        scanModal_ = nullptr;
+    }
+    scanList_ = nullptr;
+}
+
+void WifiScreen::populateScanList() {
+    if (!scanList_) return;
+    lv_obj_clean(scanList_);
+
+    scanCount_ = 12;
+    if (esp_wifi_scan_get_ap_records(&scanCount_, scanResults_) != ESP_OK) scanCount_ = 0;
+
+    if (scanCount_ == 0) {
+        Theme::label(scanList_, "No networks found.\nUse MANUAL ENTRY.", TF::md(), TC::muted());
+        return;
+    }
+
+    for (uint16_t i = 0; i < scanCount_; i++) {
+        char rowText[80];
+        snprintf(rowText, sizeof(rowText), "%s  (%d dBm)", scanResults_[i].ssid, scanResults_[i].rssi);
+        lv_obj_t* row = Theme::button(scanList_, rowText,
+                                      TC::surface(), TC::text(), 500, 42);
+        lv_obj_set_user_data(row, (void*)(uintptr_t)i);
+        lv_obj_add_event_cb(row, onScanNetwork, LV_EVENT_CLICKED, this);
+    }
+}
+
 // ── Event callbacks ───────────────────────────────────────────────────────────
 
 void WifiScreen::onBack(lv_event_t* e) {
@@ -338,7 +429,33 @@ void WifiScreen::onBack(lv_event_t* e) {
 
 void WifiScreen::onAddNetwork(lv_event_t* e) {
     WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    self->openScanModal();
+}
+
+void WifiScreen::onManualEntry(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    self->closeScanModal();
     self->openAddModal();
+}
+
+void WifiScreen::onScanNetwork(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    uint16_t idx = (uint16_t)(uintptr_t)lv_obj_get_user_data(lv_event_get_current_target(e));
+    if (idx >= self->scanCount_) return;
+    char ssid[33];
+    strncpy(ssid, (const char*)self->scanResults_[idx].ssid, sizeof(ssid));
+    ssid[32] = 0;
+    self->closeScanModal();
+    self->openAddModal();
+    if (self->taSsid_) lv_textarea_set_text(self->taSsid_, ssid);
+    if (self->kb_ && self->taPass_) lv_keyboard_set_textarea(self->kb_, self->taPass_);
+}
+
+void WifiScreen::onScanTimer(lv_timer_t* timer) {
+    WifiScreen* self = (WifiScreen*)timer->user_data;
+    if (!self) return;
+    self->scanTimer_ = nullptr;
+    self->populateScanList();
 }
 
 void WifiScreen::onAddConfirm(lv_event_t* e) {
