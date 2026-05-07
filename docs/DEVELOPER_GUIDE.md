@@ -78,14 +78,14 @@ scripts/
 | PSRAM | 8 MB OPI |
 | LCD | 800×480 RGB565, 16-bit parallel |
 | Touch | GT911 I²C (addr 0x5D) |
-| RS485 TX | GPIO44 (RS4850TXD on schematic) |
-| RS485 RX | GPIO43 (RS4850RXD on schematic) |
+| RS485 TX | GPIO43 |
+| RS485 RX | GPIO44 |
 | I²C SDA | GPIO8 |
 | I²C SCL | GPIO9 |
 | I/O expander (CH422G) | I²C 0x24 (backlight, reset) |
 
-> **Pin naming trap:** The schematic labels `RS4850RXD` (GPIO43) from the transceiver's perspective
-> — this is the data the ESP32 *receives*. Map: GPIO43 = ESP32 RX, GPIO44 = ESP32 TX.
+> **Pin naming trap:** The board reference is the source of truth for the display UART mapping:
+> GPIO43 = ESP32-S3 TX to the RS485 transmitter, GPIO44 = ESP32-S3 RX from the RS485 receiver.
 
 ---
 
@@ -176,8 +176,8 @@ Auto-transition rules (when not on Pin/Settings/Wifi):
 ```
 Display board                Controller board
 ──────────────────           ──────────────────
-GPIO44 (TX) ──A──────────────A── GPIO27 (TX)
-GPIO43 (RX) ──B──────────────B── GPIO14 (RX)
+GPIO43 (TX) ──A──────────────A── GPIO27 (TX)
+GPIO44 (RX) ──B──────────────B── GPIO14 (RX)
 GND ─────────────────────────GND
 ```
 
@@ -478,6 +478,6 @@ void MyScreen::build() {
 | Screen stuck on self-test / never loads | `snap.valid=false` guard prevented dashboard from ever showing | `ScreenManager::begin()` pre-loads dashboard with empty snapshot before Modbus connects |
 | Dashboard flickering every 200 ms | `lv_label_set_text_fmt` called every poll even when data unchanged | `snapChanged()` guard skips update when nothing changed |
 | RS485 reads own TX echo | Half-duplex RS485 — TX bytes appear in RX buffer | `uart_flush_input()` **after** `uart_wait_tx_done()`, before reading response |
-| RS485 pin swap | Schematic label `RS4850RXD` = transceiver's RX = ESP32 GPIO43 (RX pin), not TX | GPIO43=RX, GPIO44=TX on display board |
+| RS485 pin swap | Display board UART mapping must follow `docs/BOARD_REFERENCE.md` | GPIO43=TX, GPIO44=RX on display board |
 | GT911 touch address | Waveshare board does not pull INT low → GT911 defaults to addr 0x5D, not 0x14 | Use `kTouchAddr = 0x5D` in DisplayConfig.h |
 | LVGL switch `LV_PART_INDICATOR \| LV_STATE_CHECKED` deprecation warning | LVGL 8.4 treats enum combos as deprecated | Expected warning, no functional impact |

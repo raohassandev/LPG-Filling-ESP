@@ -2,12 +2,15 @@
 #include "DisplayFormat.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include "esp_log.h"
 #include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 
 extern ScreenManager screenManager;
 extern ModbusClient  modbusClient;
+
+static const char* TAG = "DASH";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -309,10 +312,6 @@ void DashboardScreen::build(ModbusClient& mbus) {
   Theme::applyCard(rCard);
   lv_obj_set_style_pad_all(rCard, 4, 0);
 
-  Theme::label(rCard, "READINESS", TF::sm(), TC::textSub());
-  lv_obj_t* rLabel = lv_obj_get_child(rCard, 0);
-  lv_obj_align(rLabel, LV_ALIGN_TOP_LEFT, 0, 0);
-
   // 4 icons: E-STOP (power), CYLINDER (home), NOZZLE (tint), WEIGHT (loop)
   static const char* kReadySym[4] = {
     LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
@@ -338,10 +337,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_obj_center(*readyRefs[i]);
   }
 
-  // ── Right column: Start Fill button (x=492, y=136, 292×298) ──────────────
+  // ── Right column: Start Fill button (bottom-right, compact action) ───────
   btnStart_ = lv_obj_create(scr_);
-  lv_obj_set_size(btnStart_, 292, 298);
-  lv_obj_set_pos(btnStart_, 492, 136);
+  lv_obj_set_size(btnStart_, 292, 118);
+  lv_obj_set_pos(btnStart_, 492, 356);
   lv_obj_set_style_bg_color(btnStart_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(btnStart_, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(btnStart_, 0, 0);
@@ -350,11 +349,11 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(btnStart_, onStartPressed, LV_EVENT_CLICKED, this);
 
-  lv_obj_t* startIcon = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::hero(), TC::white());
-  lv_obj_align(startIcon, LV_ALIGN_CENTER, 0, -34);
+  lv_obj_t* startIcon = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::xxl(), TC::white());
+  lv_obj_align(startIcon, LV_ALIGN_CENTER, 0, -22);
 
-  lv_obj_t* startLbl = Theme::label(btnStart_, "START FILL", TF::xxl(), TC::white());
-  lv_obj_align(startLbl, LV_ALIGN_CENTER, 0, 46);
+  lv_obj_t* startLbl = Theme::label(btnStart_, "START FILL", TF::xl(), TC::white());
+  lv_obj_align(startLbl, LV_ALIGN_CENTER, 0, 26);
 }
 
 // ── update ────────────────────────────────────────────────────────────────────
@@ -643,11 +642,15 @@ void DashboardScreen::onStartPressed(lv_event_t* e) {
   if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
   if (!self->mbus_) return;
   if (!self->lastSnap_.connected) {
+    ESP_LOGW(TAG, "START blocked: controller offline");
     self->openOfflineModal();
     return;
   }
   self->lastRatePerKg_ = self->dialogRatePerKg_;
-  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+  const bool ok = self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+  ESP_LOGI(TAG, "START pressed target=%.3f rate=%.2f ok=%d",
+           self->dialogTargetKg_, self->dialogRatePerKg_, ok ? 1 : 0);
+  if (!ok) self->openOfflineModal();
 }
 
 void DashboardScreen::onStartConfirm(lv_event_t* e) {
@@ -664,9 +667,18 @@ void DashboardScreen::onStartConfirm(lv_event_t* e) {
       lv_label_set_text(self->lblStartError_, "Set a rate > 0");
     return;
   }
+  if (!self->lastSnap_.connected) {
+    ESP_LOGW(TAG, "START confirm blocked: controller offline");
+    self->closeStartDialog();
+    self->openOfflineModal();
+    return;
+  }
   self->lastRatePerKg_  = self->dialogRatePerKg_;
-  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+  const bool ok = self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+  ESP_LOGI(TAG, "START confirmed target=%.3f rate=%.2f ok=%d",
+           self->dialogTargetKg_, self->dialogRatePerKg_, ok ? 1 : 0);
   self->closeStartDialog();
+  if (!ok) self->openOfflineModal();
 }
 
 void DashboardScreen::onTargetMinus(lv_event_t* e) {
@@ -854,19 +866,22 @@ void DashboardScreen::buildRolePinEntry() {
 
   lblRolePinErr_ = lv_label_create(roleModal_);
   lv_label_set_text(lblRolePinErr_, "");
+  lv_obj_set_width(lblRolePinErr_, 360);
+  lv_label_set_long_mode(lblRolePinErr_, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(lblRolePinErr_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblRolePinErr_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblRolePinErr_, TC::danger(), 0);
-  lv_obj_align(lblRolePinErr_, LV_ALIGN_TOP_MID, 0, 108);
+  lv_obj_align(lblRolePinErr_, LV_ALIGN_TOP_MID, 0, 104);
 
   lv_obj_t* pad = lv_obj_create(roleModal_);
-  lv_obj_set_size(pad, 300, 220);
-  lv_obj_align(pad, LV_ALIGN_CENTER, 0, 40);
+  lv_obj_set_size(pad, 300, 206);
+  lv_obj_align(pad, LV_ALIGN_TOP_MID, 0, 126);
   lv_obj_set_style_bg_opa(pad, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(pad, 0, 0);
   lv_obj_set_style_pad_all(pad, 0, 0);
   lv_obj_set_layout(pad, LV_LAYOUT_GRID);
   static lv_coord_t cols[] = {88, 88, 88, LV_GRID_TEMPLATE_LAST};
-  static lv_coord_t rows[] = {48, 48, 48, 48, LV_GRID_TEMPLATE_LAST};
+  static lv_coord_t rows[] = {44, 44, 44, 44, LV_GRID_TEMPLATE_LAST};
   lv_obj_set_grid_dsc_array(pad, cols, rows);
 
   for (int i = 0; i < 12; i++) {
@@ -895,9 +910,9 @@ void DashboardScreen::buildRolePinEntry() {
     }
   }
 
-  lv_obj_t* btnCancel = Theme::button(roleModal_, "BACK",
-                                       TC::surface2(), TC::textSub(), 100, 36);
-  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_t* btnCancel = Theme::button(roleModal_, LV_SYMBOL_LEFT " BACK",
+                                       TC::surface2(), TC::textSub(), 110, 36);
+  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_add_event_cb(btnCancel, [](lv_event_t* e){
     DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
     self->buildRoleChooser();

@@ -136,6 +136,8 @@ bool ModbusClient::writeFloat(uint16_t startReg, float value) {
 bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     if (targetWeightKg <= 0.0f || targetWeightKg > 500.0f ||
         ratePerKg <= 0.0f || ratePerKg > 100000.0f) {
+        ESP_LOGW(TAG, "Start fill rejected locally: target=%.3f rate=%.2f",
+                 targetWeightKg, ratePerKg);
         return false;
     }
 
@@ -153,7 +155,17 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
         static_cast<uint16_t>(amountBits >> 16),
         static_cast<uint16_t>(amountBits & 0xFFFF),
     };
-    return writeRegisters(0x0006, regs, 6) && cmdStart();
+    if (!writeRegisters(0x0006, regs, 6)) {
+        ESP_LOGW(TAG, "Start fill failed: target/rate write did not get RTU response");
+        return false;
+    }
+    if (!cmdStart()) {
+        ESP_LOGW(TAG, "Start fill failed: command write did not get RTU response");
+        return false;
+    }
+    ESP_LOGI(TAG, "Start fill command accepted: target=%.3fkg rate=%.2f amount=%.2f",
+             targetWeightKg, ratePerKg, targetAmount);
+    return true;
 }
 
 bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
@@ -175,20 +187,55 @@ bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
 
 bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
                               uint8_t* resp, int expectLen) {
+    static int64_t lastDiagUs = 0;
+    auto diag = [&](const char* reason, int rx) {
+        const int64_t now = now_us();
+        if (now - lastDiagUs < 2000000) return;
+        lastDiagUs = now;
+        ESP_LOGW(TAG, "RTU %s rx=%d expect=%d req=%02X %02X %02X %02X %02X %02X %02X %02X",
+                 reason, rx, expectLen,
+                 reqLen > 0 ? req[0] : 0, reqLen > 1 ? req[1] : 0,
+                 reqLen > 2 ? req[2] : 0, reqLen > 3 ? req[3] : 0,
+                 reqLen > 4 ? req[4] : 0, reqLen > 5 ? req[5] : 0,
+                 reqLen > 6 ? req[6] : 0, reqLen > 7 ? req[7] : 0);
+        if (rx > 0) {
+            ESP_LOGW(TAG, "RTU bytes %02X %02X %02X %02X %02X %02X %02X %02X",
+                     rx > 0 ? resp[0] : 0, rx > 1 ? resp[1] : 0,
+                     rx > 2 ? resp[2] : 0, rx > 3 ? resp[3] : 0,
+                     rx > 4 ? resp[4] : 0, rx > 5 ? resp[5] : 0,
+                     rx > 6 ? resp[6] : 0, rx > 7 ? resp[7] : 0);
+        }
+    };
+
     uart_flush_input(kRtuUart);
     uart_write_bytes(kRtuUart, req, reqLen);
     uart_wait_tx_done(kRtuUart, pdMS_TO_TICKS(50));
     uart_flush_input(kRtuUart);  // discard any self-echo on the RS485 bus
 
     int rx = uart_read_bytes(kRtuUart, resp, expectLen, pdMS_TO_TICKS(kTimeoutMs));
-    if (rx < expectLen) return false;
+    if (rx < expectLen) {
+        diag(rx == 0 ? "timeout/no-rx" : "short-frame", rx);
+        return false;
+    }
 
     uint16_t rxCrc   = (uint16_t)resp[rx-2] | ((uint16_t)resp[rx-1] << 8);
     uint16_t calcCrc = crc16(resp, rx - 2);
-    if (rxCrc != calcCrc) return false;
-    if (resp[0] != kRtuAddr) return false;
-    if (resp[1] & 0x80) return false;
-    if (resp[1] != req[1]) return false;
+    if (rxCrc != calcCrc) {
+        diag("crc-error", rx);
+        return false;
+    }
+    if (resp[0] != kRtuAddr) {
+        diag("wrong-slave", rx);
+        return false;
+    }
+    if (resp[1] & 0x80) {
+        diag("exception", rx);
+        return false;
+    }
+    if (resp[1] != req[1]) {
+        diag("wrong-fc", rx);
+        return false;
+    }
     return true;
 }
 

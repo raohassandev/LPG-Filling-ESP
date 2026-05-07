@@ -157,6 +157,7 @@ Accessible from the WiFi button in the status bar:
 - View connection status and current IP address
 - Add up to 5 saved networks (SSID + password)
 - Tap **ADD** to scan nearby WiFi networks first, select an SSID, or use **MANUAL ENTRY**.
+- In the add-network window, SSID and password fields stay above the keyboard; use **BACK** to return without saving.
 - Toggle **hotspot** on/off (SSID: `LPG-Display`, password: `lpg12345`)
 - Toggle **auto-switch** between saved networks
 - Tap any network row to delete it
@@ -171,7 +172,7 @@ The role badge in the status bar controls what the current user can do. Tapping 
 | **ADMIN** | `1234` | Settings, admin screen access |
 | **MANUFACTURER** | `9999` | Full hardware access |
 
-To change role: tap the role badge, choose a role, then enter PIN only for **ADMIN** or **MANUFACTURER**.
+To change role: tap the role badge, choose a role, then enter PIN only for **ADMIN** or **MANUFACTURER**. During PIN entry, **BACK** returns to the role selector.
 To return to OPERATOR: tap the badge again, then tap **OPERATOR**.
 
 ---

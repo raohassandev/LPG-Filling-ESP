@@ -252,8 +252,8 @@ void WifiScreen::openAddModal() {
     if (addModal_) return;
 
     addModal_ = lv_obj_create(scr_);
-    lv_obj_set_size(addModal_, 560, 380);
-    lv_obj_center(addModal_);
+    lv_obj_set_size(addModal_, 760, 430);
+    lv_obj_set_pos(addModal_, 20, 40);
     lv_obj_set_style_bg_color(addModal_, TC::surface(), 0);
     lv_obj_set_style_bg_opa(addModal_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(addModal_, TC::border(), 0);
@@ -266,14 +266,14 @@ void WifiScreen::openAddModal() {
     lv_obj_t* title = lv_obj_get_child(addModal_, 0);
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
 
-    // SSID field
+    // SSID and password stay above the keyboard so focused fields remain visible.
     Theme::label(addModal_, "Network Name (SSID)", TF::sm(), TC::textSub());
     lv_obj_t* ssidLbl = lv_obj_get_child(addModal_, 1);
-    lv_obj_align(ssidLbl, LV_ALIGN_TOP_LEFT, 0, 40);
+    lv_obj_align(ssidLbl, LV_ALIGN_TOP_LEFT, 0, 44);
 
     taSsid_ = lv_textarea_create(addModal_);
-    lv_obj_set_size(taSsid_, LV_PCT(100), 44);
-    lv_obj_align(taSsid_, LV_ALIGN_TOP_LEFT, 0, 58);
+    lv_obj_set_size(taSsid_, 340, 46);
+    lv_obj_align(taSsid_, LV_ALIGN_TOP_LEFT, 0, 64);
     lv_textarea_set_one_line(taSsid_, true);
     lv_textarea_set_max_length(taSsid_, 32);
     lv_obj_set_style_bg_color(taSsid_, TC::surface2(), 0);
@@ -284,11 +284,11 @@ void WifiScreen::openAddModal() {
 
     // Password field
     lv_obj_t* passLbl = Theme::label(addModal_, "Password", TF::sm(), TC::textSub());
-    lv_obj_align(passLbl, LV_ALIGN_TOP_LEFT, 0, 116);
+    lv_obj_align(passLbl, LV_ALIGN_TOP_LEFT, 376, 44);
 
     taPass_ = lv_textarea_create(addModal_);
-    lv_obj_set_size(taPass_, LV_PCT(100), 44);
-    lv_obj_align(taPass_, LV_ALIGN_TOP_LEFT, 0, 134);
+    lv_obj_set_size(taPass_, 340, 46);
+    lv_obj_align(taPass_, LV_ALIGN_TOP_LEFT, 376, 64);
     lv_textarea_set_one_line(taPass_, true);
     lv_textarea_set_max_length(taPass_, 64);
     lv_textarea_set_password_mode(taPass_, true);
@@ -299,22 +299,24 @@ void WifiScreen::openAddModal() {
     lv_obj_add_event_cb(taPass_, onKeyboard, LV_EVENT_FOCUSED, this);
 
     lblAddErr_ = Theme::label(addModal_, "", TF::sm(), TC::danger());
-    lv_obj_align(lblAddErr_, LV_ALIGN_TOP_LEFT, 0, 190);
+    lv_obj_set_width(lblAddErr_, 430);
+    lv_label_set_long_mode(lblAddErr_, LV_LABEL_LONG_WRAP);
+    lv_obj_align(lblAddErr_, LV_ALIGN_TOP_LEFT, 0, 124);
 
-    // Buttons row
-    lv_obj_t* btnCancel = Theme::button(addModal_, "CANCEL",
+    // Buttons sit above the keyboard and remain reachable.
+    lv_obj_t* btnCancel = Theme::button(addModal_, LV_SYMBOL_LEFT " BACK",
                                         TC::surface2(), TC::textSub(), 120, 40);
-    lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_align(btnCancel, LV_ALIGN_TOP_LEFT, 0, 150);
     lv_obj_add_event_cb(btnCancel, onAddCancel, LV_EVENT_CLICKED, this);
 
     lv_obj_t* btnSave = Theme::button(addModal_, "SAVE",
                                       TC::active(), TC::white(), 120, 40);
-    lv_obj_align(btnSave, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_align(btnSave, LV_ALIGN_TOP_RIGHT, 0, 150);
     lv_obj_add_event_cb(btnSave, onAddConfirm, LV_EVENT_CLICKED, this);
 
     // Keyboard attached to SSID by default
     kb_ = lv_keyboard_create(addModal_);
-    lv_obj_set_size(kb_, LV_PCT(100), 180);
+    lv_obj_set_size(kb_, LV_PCT(100), 210);
     lv_obj_align(kb_, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_keyboard_set_textarea(kb_, taSsid_);
     lv_obj_set_style_bg_color(kb_, TC::surface2(), 0);

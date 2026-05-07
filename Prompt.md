@@ -735,3 +735,1208 @@ git push origin codex/firmware-ui-history
 - Docs updated: `docs/user/USER_MANUAL.md` and `docs/display-firmware-plan.md` now match the dashboard header/role button behavior.
 - Verification: ESP-IDF display build=ok; flash COM=COM9 ok. Serial port opened after reset but produced no boot text in the 8-second read window, so physical screen/touch verification is still required.
 - Remaining check: if the top/left blank space remains after this flash, next step is LCD RGB timing/touch calibration against the exact Waveshare panel values; those timings were not changed in this pass to avoid making touch alignment worse blindly.
+
+---
+
+## TASK — Round 4
+
+### Context — what Claude fixed directly (do not redo, just commit + build)
+
+Two bugs were fixed directly in source files before this round. Commit them and build:
+
+**Fix 1 — `firmware/lpg_display/main/screens/WifiScreen.cpp` line ~285**
+Crash (board restart) when tapping the ADD button in the WiFi screen.
+Root cause: `lv_obj_get_child(addModal_, 4)` returned NULL — child index 4 didn't exist at that point in the creation sequence. It was accessing the password label before `taPass_` was created, so the child count was only 4 (indices 0–3).
+Already fixed: `Theme::label(addModal_, "Password", ...)` return value is now saved directly instead of re-fetching via child index.
+
+**Fix 2 — `firmware/lpg_display/main/screens/DashboardScreen.cpp`**
+Readiness panel still showed icon + text labels (the old `statusDot` approach).
+Already redesigned: 2×2 grid of large icon cells (no text). Each cell contains one `lv_label` with an LVGL symbol at `TF::xxl()` font size. Colors:
+- E-STOP (LV_SYMBOL_POWER): red `TC::danger()` when not OK, green `TC::ready()` when OK
+- CYLINDER (LV_SYMBOL_HOME): green when present, muted when not
+- NOZZLE (LV_SYMBOL_TINT): blue `TC::active()` when engaged, muted when not
+- WEIGHT (LV_SYMBOL_LOOP): green when stable, amber `TC::warning()` when unstable (+ blinks)
+
+`updateDot()` refactored: `dotEstop_/dotCylinder_/dotNozzle_/dotStable_` now point to the icon `lv_label` directly (not a statusDot row). `startStableBlink()`/`stopStableBlink()` animate `dotStable_` directly.
+
+---
+
+### Task A — Commit, clean-build, flash display firmware
+
+**A1. Commit the two fixes:**
+```powershell
+git add firmware/lpg_display/main/screens/WifiScreen.cpp `
+        firmware/lpg_display/main/screens/DashboardScreen.cpp
+git commit -m "fix(display): wifi add-modal NULL crash, readiness icon-only 2x2 grid"
+```
+
+**A2. Clean build** (previous build left a locked `libmbedcrypto.a` on Windows — fullclean first):
+```powershell
+$env:IDF_PATH = "C:\Espressif\frameworks\esp-idf-v5.5.4"
+$env:IDF_PYTHON_ENV_PATH = "C:\Espressif\python_env\idf5.5_py3.11_env"
+$env:PATH = "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts;" +
+            "C:\Espressif\tools\cmake\3.30.2\bin;" +
+            "C:\Espressif\tools\ninja\1.12.1;" +
+            "C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20260121\xtensa-esp-elf\bin;" +
+            $env:PATH
+
+cd firmware/lpg_display
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" fullclean
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" build
+```
+
+Fix any compile errors before proceeding. If none, continue.
+
+**A3. Flash display board:**
+```powershell
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" -p COM9 flash
+```
+Adjust COM port if needed. Report the port used.
+
+**A4. Verify role modal numpad is visible.**
+After flash, the role button should open a PIN entry modal with a 3×4 numpad (12 buttons: 1–9, blank, 0, backspace). If the numpad buttons are invisible (wrong grid layout), read the `openRoleModal()` function and verify `LV_LAYOUT_GRID` is working. The grid template arrays must be `static`. If needed, replace the grid with absolute-position buttons as a fallback.
+
+---
+
+### Task B — Controller firmware: verify and flash
+
+No controller code changes are pending. Just verify the controller is still responsive:
+```powershell
+cd ../..   # back to repo root
+powershell -File scripts/upload_firmware.ps1 -Port COM10
+```
+If the upload fails, report the error. If the controller is not connected, say so — do not proceed with the controller flash.
+
+---
+
+### Commit & push
+```
+git push origin codex/firmware-ui-history
+```
+
+---
+
+### Report (keep brief)
+
+```markdown
+## CODEX REPORT — Round 4
+
+**Date:** YYYY-MM-DD  **Commit:** <sha>
+
+- A1 (commit): done — sha=<sha>
+- A2 (build): ok / compile errors (list them)
+- A3 (flash COM=<port>): ok / failed
+- A4 (numpad visible): yes / issue found — <description>
+- B (controller flash COM=<port>): ok / skipped (not connected) / failed
+- Blockers: <any>
+- Round 5 suggestions: <any>
+```
+
+## CODEX REPORT — Round 4
+
+**Date:** 2026-05-07  **Commit:** 5182e5b
+
+- A1 (commit): done — sha=5182e5b
+- A2 (build): ok. Ran `idf.py fullclean` first, then full `idf.py build`; firmware binary produced and size-checked. ESP-IDF emitted a non-fatal `ESP_ROM_ELF_DIR` gdbinit warning.
+- A3 (flash COM=COM9): ok. Display board flashed and hard-reset through `idf.py -p COM9 flash`.
+- A4 (numpad visible): source verified. `openRoleModal()` builds a 3×4 numpad using `LV_LAYOUT_GRID`, static `cols`/`rows`, and 12 button slots. Physical visibility still needs touchscreen/photo confirmation because Codex cannot press the board remotely.
+- B (controller flash COM10): skipped — COM10 was not connected; only COM3 and COM9 were visible.
+- Blockers: no display build/flash blocker. Controller board absent on COM10.
+- Round 5 suggestions: verify from a fresh display photo/touch test that WiFi ADD no longer restarts, readiness is icon-only, and role button opens the PIN numpad on hardware.
+
+---
+
+## TASK — Round 5
+
+### Why this round (PM context)
+
+The operator has complained repeatedly that:
+1. **Weight, rate, and amount are not visible on the main screen** — they are buried in a dialog that opens only after pressing START.
+2. **Fill cannot be completed from a single screen** — operator must open a dialog, tap +/- steppers, then confirm.
+3. **No proper keyboard input** — steppers are slow for entering values like "14.5 kg" or "275 PKR/kg".
+4. **Keyboard covers the input field** — when keyboard appears, the textarea being edited disappears behind it.
+
+This round rewrites the dashboard fill flow. The result: operator sees target/rate/amount on the main screen at all times, taps a field to type a value using a numeric keyboard that **never** covers the input, and presses START directly — no dialog.
+
+### Rules
+- `firmware/lpg_display/main/` only. No app changes.
+- Do not rewrite working code (readiness icons, role modal, weight display, today stats, blink animation). Modify only what is specified.
+- Build clean (`idf.py fullclean && idf.py build`), flash COM9, push.
+- Report under `## CODEX REPORT — Round 5`.
+
+---
+
+### Current screen layout (800×480) — for reference
+
+```
+y=0–58   Status bar (full width)
+y=68–325 LEFT: Weight card 460×258    RIGHT: Readiness 292×200  (y=68–268)
+y=334–434 LEFT: Today stats 460×100   RIGHT: Start button 292×158 (y=276–434)
+```
+
+---
+
+### Task A — Shrink weight card, add Fill Params strip
+
+**A1. Shrink weight card height from 258 to 198.**
+
+In `DashboardScreen::build()`, find:
+```cpp
+lv_obj_set_size(wCard, 460, 258);
+lv_obj_set_pos(wCard, 16, 68);
+```
+Change to:
+```cpp
+lv_obj_set_size(wCard, 460, 198);
+lv_obj_set_pos(wCard, 16, 68);
+```
+
+**A2. Move Today stats card down by 60px.**
+
+Find:
+```cpp
+lv_obj_set_size(sCard, 460, 100);
+lv_obj_set_pos(sCard, 16, 334);
+```
+Change to:
+```cpp
+lv_obj_set_size(sCard, 460, 100);
+lv_obj_set_pos(sCard, 16, 374);
+```
+
+**A3. Insert Fill Params strip between weight card and today stats.**
+
+After the weight card block and before the today stats block, insert this new card (x=16, y=274, 460×92):
+
+```cpp
+// ── Fill Params strip (x=16, y=274, 460×92) ──────────────────────────────
+lv_obj_t* fpCard = lv_obj_create(scr_);
+lv_obj_set_size(fpCard, 460, 92);
+lv_obj_set_pos(fpCard, 16, 274);
+Theme::applyCard(fpCard);
+lv_obj_set_style_pad_all(fpCard, 0, 0);
+lv_obj_clear_flag(fpCard, LV_OBJ_FLAG_SCROLLABLE);
+
+// Three equal-width cells: TARGET | RATE | AMOUNT
+const char* fpLabels[3] = { "TARGET kg", "RATE PKR/kg", "AMOUNT PKR" };
+lv_obj_t**  fpCells[3]  = { &fpCellTarget_, &fpCellRate_, &fpCellAmount_ };
+lv_obj_t**  fpVals[3]   = { &lblTarget_,    &lblRate_,    &lblAmount_ };
+
+for (int i = 0; i < 3; i++) {
+  *fpCells[i] = lv_obj_create(fpCard);
+  lv_obj_set_size(*fpCells[i], 152, 90);
+  lv_obj_set_pos(*fpCells[i], i * 154, 0);
+  lv_obj_set_style_bg_color(*fpCells[i], i < 2 ? TC::surface2() : TC::bg(), 0);
+  lv_obj_set_style_bg_opa(*fpCells[i], LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(*fpCells[i], TC::border(), 0);
+  lv_obj_set_style_border_width(*fpCells[i], i > 0 ? 1 : 0, 0);
+  lv_obj_set_style_border_side(*fpCells[i], LV_BORDER_SIDE_LEFT, 0);
+  lv_obj_set_style_radius(*fpCells[i], 0, 0);
+  lv_obj_set_style_pad_hor(*fpCells[i], 10, 0);
+  lv_obj_set_style_pad_ver(*fpCells[i], 8, 0);
+  lv_obj_clear_flag(*fpCells[i], LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t* hdr = Theme::label(*fpCells[i], fpLabels[i], TF::xs(), TC::muted());
+  lv_obj_align(hdr, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  *fpVals[i] = lv_label_create(*fpCells[i]);
+  lv_obj_set_style_text_font(*fpVals[i], TF::xl(), 0);
+  lv_obj_set_style_text_color(*fpVals[i], i < 2 ? TC::active() : TC::ready(), 0);
+  lv_label_set_text(*fpVals[i], i == 0 ? "12.0" : i == 1 ? "250" : "0");
+  lv_obj_align(*fpVals[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
+
+  // TARGET and RATE cells are tappable — open numeric input overlay
+  if (i < 2) {
+    lv_obj_add_flag(*fpCells[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(*fpCells[i], (void*)(uintptr_t)i); // 0=target, 1=rate
+    lv_obj_add_event_cb(*fpCells[i], onFpCellTapped, LV_EVENT_CLICKED, this);
+  }
+}
+```
+
+**A4. Add new member variables to `DashboardScreen.h`:**
+
+Inside `private:`, add after the existing fill param members:
+```cpp
+// Fill params strip
+lv_obj_t* fpCellTarget_ = nullptr;
+lv_obj_t* fpCellRate_   = nullptr;
+lv_obj_t* fpCellAmount_ = nullptr;
+lv_obj_t* lblTarget_    = nullptr;
+lv_obj_t* lblRate_      = nullptr;
+lv_obj_t* lblAmount_    = nullptr;
+
+// Numeric input overlay
+lv_obj_t* numOverlay_   = nullptr;
+lv_obj_t* numTa_        = nullptr;
+lv_obj_t* numKb_        = nullptr;
+lv_obj_t* numHint_      = nullptr;
+uint8_t   numField_     = 0;  // 0=target, 1=rate
+```
+
+Also add these static callbacks to the `private:` section:
+```cpp
+static void onFpCellTapped(lv_event_t* e);
+static void onNumKbEvent(lv_event_t* e);
+```
+
+---
+
+### Task B — Numeric input overlay (no keyboard coverage)
+
+The overlay appears at the BOTTOM of the screen. The textarea is ABOVE the keyboard, so it is never covered. Keyboard mode is `LV_KEYBOARD_MODE_NUMBER` (digits + decimal + backspace only).
+
+**B1. Add `openNumOverlay(uint8_t field)` and `closeNumOverlay()` to `.cpp`:**
+
+```cpp
+void DashboardScreen::openNumOverlay(uint8_t field) {
+  if (numOverlay_) return;
+  numField_ = field;
+
+  // Dim overlay covering the full screen
+  numOverlay_ = lv_obj_create(scr_);
+  lv_obj_set_size(numOverlay_, 800, 480);
+  lv_obj_set_pos(numOverlay_, 0, 0);
+  lv_obj_set_style_bg_color(numOverlay_, TC::bg(), 0);
+  lv_obj_set_style_bg_opa(numOverlay_, 180, 0);
+  lv_obj_set_style_border_width(numOverlay_, 0, 0);
+  lv_obj_set_style_radius(numOverlay_, 0, 0);
+  lv_obj_clear_flag(numOverlay_, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Input card: 460×220 centred, anchored to y=130 so keyboard below doesn't cover it
+  lv_obj_t* card = lv_obj_create(numOverlay_);
+  lv_obj_set_size(card, 460, 110);
+  lv_obj_set_pos(card, 170, 100);
+  lv_obj_set_style_bg_color(card, TC::surface(), 0);
+  lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(card, TC::border(), 0);
+  lv_obj_set_style_border_width(card, 1, 0);
+  lv_obj_set_style_radius(card, 12, 0);
+  lv_obj_set_style_pad_all(card, 16, 0);
+  lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+
+  numHint_ = Theme::label(card,
+    field == 0 ? "Enter target weight (kg)" : "Enter rate per kg (PKR)",
+    TF::sm(), TC::textSub());
+  lv_obj_align(numHint_, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  numTa_ = lv_textarea_create(card);
+  lv_obj_set_size(numTa_, LV_PCT(100), 52);
+  lv_obj_align(numTa_, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  lv_textarea_set_one_line(numTa_, true);
+  lv_textarea_set_max_length(numTa_, 8);
+  lv_textarea_set_accepted_chars(numTa_, "0123456789.");
+  lv_obj_set_style_bg_color(numTa_, TC::surface2(), 0);
+  lv_obj_set_style_border_color(numTa_, TC::active(), 0);
+  lv_obj_set_style_text_color(numTa_, TC::text(), 0);
+  lv_obj_set_style_text_font(numTa_, TF::xl(), 0);
+  // Pre-fill current value
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%.1f", field == 0 ? dialogTargetKg_ : dialogRatePerKg_);
+  lv_textarea_set_text(numTa_, buf);
+  lv_textarea_set_cursor_pos(numTa_, LV_TEXTAREA_CURSOR_LAST);
+
+  // Keyboard at bottom of screen — OUTSIDE the card so it never overlaps the textarea
+  numKb_ = lv_keyboard_create(scr_);
+  lv_obj_set_size(numKb_, 800, 230);
+  lv_obj_align(numKb_, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_keyboard_set_mode(numKb_, LV_KEYBOARD_MODE_NUMBER);
+  lv_keyboard_set_textarea(numKb_, numTa_);
+  lv_obj_set_style_bg_color(numKb_, TC::surface(), 0);
+  lv_obj_set_style_text_color(numKb_, TC::text(), 0);
+  lv_obj_add_event_cb(numKb_, onNumKbEvent, LV_EVENT_READY, this);
+  lv_obj_add_event_cb(numKb_, onNumKbEvent, LV_EVENT_CANCEL, this);
+}
+
+void DashboardScreen::closeNumOverlay() {
+  if (numKb_)      { lv_obj_del(numKb_);      numKb_     = nullptr; }
+  if (numOverlay_) { lv_obj_del(numOverlay_); numOverlay_ = nullptr; }
+  numTa_   = nullptr;
+  numHint_ = nullptr;
+}
+```
+
+**B2. Add event callbacks:**
+
+```cpp
+void DashboardScreen::onFpCellTapped(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  uint8_t field = (uint8_t)(uintptr_t)lv_obj_get_user_data(lv_event_get_target(e));
+  self->openNumOverlay(field);
+}
+
+void DashboardScreen::onNumKbEvent(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_READY && self->numTa_) {
+    const char* txt = lv_textarea_get_text(self->numTa_);
+    float val = txt ? atof(txt) : 0.0f;
+    if (self->numField_ == 0) {
+      if (val > 0.0f) {
+        self->dialogTargetKg_ = val;
+        char buf[12];
+        snprintf(buf, sizeof(buf), "%.1f", val);
+        if (self->lblTarget_) lv_label_set_text(self->lblTarget_, buf);
+      }
+    } else {
+      if (val > 0.0f) {
+        self->dialogRatePerKg_ = val;
+        char buf[12];
+        snprintf(buf, sizeof(buf), "%.0f", val);
+        if (self->lblRate_) lv_label_set_text(self->lblRate_, buf);
+      }
+    }
+  }
+  self->closeNumOverlay();
+}
+```
+
+Also add declarations to `DashboardScreen.h`:
+```cpp
+void openNumOverlay(uint8_t field);
+void closeNumOverlay();
+```
+
+---
+
+### Task C — Change START button to use strip values directly
+
+The START button currently opens `openStartDialog()`. Replace its behavior:
+
+**C1. Remove `openStartDialog()` call from `onStartPressed`.**
+
+Find:
+```cpp
+void DashboardScreen::onStartPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  self->openStartDialog();
+}
+```
+
+Replace with:
+```cpp
+void DashboardScreen::onStartPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
+  if (!self->mbus_) return;
+  self->lastRatePerKg_ = self->dialogRatePerKg_;
+  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+}
+```
+
+**C2. Keep `openStartDialog()`, `closeStartDialog()`, `updateDialogLabels()` and their stepper callbacks in the file** — do not delete them. They may be called from other paths. Just don't call `openStartDialog()` from `onStartPressed` anymore.
+
+---
+
+### Task D — Update `update()` to refresh fill params strip
+
+In `DashboardScreen::update()`, after the today stats block, add:
+
+```cpp
+// Refresh fill params strip
+if (lblAmount_) {
+  char amtBuf[16];
+  snprintf(amtBuf, sizeof(amtBuf), "%.0f", snap.currentAmount > 0.0f ? snap.currentAmount : snap.todayAmount);
+  lv_label_set_text(lblAmount_, amtBuf);
+}
+```
+
+Also add `currentAmount` to `ControllerSnapshot` in `ModbusClient.h` if it doesn't exist (grep for it first). If the field is missing, use `todayAmount` as fallback — do not add new Modbus registers in this round.
+
+---
+
+### Task E — Build, flash, push
+
+```powershell
+$env:IDF_PATH = "C:\Espressif\frameworks\esp-idf-v5.5.4"
+$env:IDF_PYTHON_ENV_PATH = "C:\Espressif\python_env\idf5.5_py3.11_env"
+$env:PATH = "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts;" +
+            "C:\Espressif\tools\cmake\3.30.2\bin;" +
+            "C:\Espressif\tools\ninja\1.12.1;" +
+            "C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20260121\xtensa-esp-elf\bin;" +
+            $env:PATH
+
+cd firmware/lpg_display
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" fullclean
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" build
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" -p COM9 flash
+```
+
+Fix any compile errors. Then:
+```
+git add firmware/lpg_display/
+git commit -m "feat(display): fill params strip on dashboard, numeric keyboard input overlay"
+git push origin codex/firmware-ui-history
+```
+
+Update `docs/user/USER_MANUAL.md` — add or update the dashboard section to describe the TARGET/RATE/AMOUNT strip and how to tap to edit.
+
+---
+
+### Report
+
+```markdown
+## CODEX REPORT — Round 5
+
+**Date:** YYYY-MM-DD  **Commit:** <sha>
+
+- A (fill params strip): done / compile errors
+- B (numeric overlay): done / issues
+- C (start button): done
+- D (update loop): currentAmount field found=yes/no, fallback used=yes/no
+- E (build+flash COM=<port>): ok / errors
+- Docs updated: yes/no
+- Blockers: <any>
+- Round 6 suggestions: <any>
+```
+
+## CODEX REPORT — Round 5
+
+**Date:** 2026-05-07  **Commit:** 2d29e3a
+
+- A (fill params strip): done. Dashboard weight card is shorter and the TARGET/RATE/AMOUNT strip is always visible below live weight.
+- B (numeric overlay): done. TARGET/RATE cells open a numeric keyboard overlay with the input card above the keyboard.
+- C (start button): done. START now sends the strip target/rate directly through `ModbusClient::startFill()`.
+- D (update loop): currentAmount field found=yes, fallback used=yes. AMOUNT uses `currentAmount` when active, otherwise `todayAmount`.
+- E (build+flash COM=COM9): ok. Ran `idf.py fullclean`; first build caught missing `TF::xs()`, fixed to `TF::sm()`, rebuild passed, flash COM9 passed.
+- Docs updated: yes — `docs/user/USER_MANUAL.md` describes the TARGET/RATE/AMOUNT strip and tap-to-edit workflow.
+- Blockers: Codex cannot take a physical touchscreen photo remotely; hardware visual confirmation still needs a user photo after the COM9 flash.
+- Round 6 suggestions: verify on the display that the strip appears below live weight, numeric keyboard does not overlap the input card, START begins fill with typed values, and AMOUNT tracks active fill amount.
+
+---
+
+## TASK — Round 6
+
+### Why this round (PM context)
+
+User tested Round 5 on hardware and reported 4 issues, in priority order:
+
+1. **START FILL button does nothing** — the `canStart` condition requires `snap.connected=true`. The controller RS485 cable is not always plugged in during testing. The button is grey/unclickable. Since the filling process is the primary function of the system, this MUST be fixed first.
+2. **Readiness panel takes too much space** — the 2×2 icon grid (292×200 px) dominates the right column. These are status indicators only; they don't need to be large. The space should go to START FILL.
+3. **Role selector UX is wrong** — tapping the role button opens a PIN numpad immediately with no context. User expects to see a list of roles first (OPERATOR / ADMIN / MANUFACTURER), then enter a PIN only for the selected role.
+4. **WiFi ADD is manual entry only** — user must type the SSID by hand. Should show a scan results list so the user taps their network name.
+
+### Rules
+- Tasks A and B: `firmware/lpg_display/main/screens/DashboardScreen.cpp` and `.h` only.
+- Task C: `firmware/lpg_display/main/screens/DashboardScreen.cpp` and `.h` only.
+- Task D: `firmware/lpg_display/main/screens/WifiScreen.cpp` and `.h` only.
+- Do NOT touch working code unless the task explicitly requires it.
+- Build clean (`idf.py fullclean && idf.py build`), flash COM9 after all tasks.
+- Standing Instructions apply: update docs, push.
+- Report under `## CODEX REPORT — Round 6`.
+
+---
+
+### Task A — Fix START FILL button (CRITICAL — do first)
+
+**Root cause:** In `DashboardScreen::update()`, the `canStart` condition includes `snap.connected`:
+```cpp
+const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
+                      && snap.eStopOk && snap.connected;  // ← snap.connected blocks the button
+```
+When the controller RS485 cable is unplugged, `snap.connected=false` forever → button stays grey.
+
+**Fix 1 — Remove `snap.connected` from `canStart`.**
+
+In `DashboardScreen::update()`, find and replace:
+```cpp
+  const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
+                        && snap.eStopOk && snap.connected;
+```
+Replace with:
+```cpp
+  const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
+                        && snap.eStopOk;
+```
+
+**Fix 2 — Show an error overlay when button tapped and controller is offline.**
+
+Find the current `onStartPressed`:
+```cpp
+void DashboardScreen::onStartPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
+  if (!self->mbus_) return;
+  self->lastRatePerKg_ = self->dialogRatePerKg_;
+  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+}
+```
+
+Replace with:
+```cpp
+void DashboardScreen::onStartPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (!self->mbus_) return;
+  if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
+
+  // If controller not connected, show error overlay instead of sending fill command.
+  if (!self->lastSnap_.connected) {
+    lv_obj_t* msg = lv_obj_create(self->scr_);
+    lv_obj_set_size(msg, 440, 148);
+    lv_obj_center(msg);
+    lv_obj_set_style_bg_color(msg, TC::surface(), 0);
+    lv_obj_set_style_bg_opa(msg, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(msg, TC::danger(), 0);
+    lv_obj_set_style_border_width(msg, 2, 0);
+    lv_obj_set_style_radius(msg, 12, 0);
+    lv_obj_set_style_pad_all(msg, 20, 0);
+    lv_obj_clear_flag(msg, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t* lbl = Theme::label(msg,
+      LV_SYMBOL_WARNING "  Controller offline\n"
+      "Check RS485 cable and controller power.",
+      TF::md(), TC::danger());
+    lv_obj_align(lbl, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_t* btnOk = Theme::button(msg, "OK", TC::active(), TC::white(), 88, 36);
+    lv_obj_align(btnOk, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_event_cb(btnOk, [](lv_event_t* ev) {
+      lv_obj_del(lv_obj_get_parent(lv_event_get_target(ev)));
+    }, LV_EVENT_CLICKED, nullptr);
+    return;
+  }
+
+  self->lastRatePerKg_ = self->dialogRatePerKg_;
+  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
+}
+```
+
+No header changes needed for Task A.
+
+---
+
+### Task B — Compact readiness strip (free space for START button)
+
+The current readiness panel is a 2×2 grid, 292×200 px. Replace it with a compact horizontal strip (292×60 px, 4 side-by-side icon cells). Move the START button up to use the freed space.
+
+**B1. Find the readiness card block in `DashboardScreen::build()`.**
+
+Find this block (starts with the comment `// ── Right column: Readiness card`):
+```cpp
+  // ── Right column: Readiness card (x=492, y=68, 292×200) ───────────────────
+  // 2×2 grid of large icon-only cells — colour conveys status, no text labels.
+  lv_obj_t* rCard = lv_obj_create(scr_);
+  lv_obj_set_size(rCard, 292, 200);
+  lv_obj_set_pos(rCard, 492, 68);
+  Theme::applyCard(rCard);
+  lv_obj_set_style_pad_all(rCard, 6, 0);
+
+  Theme::label(rCard, "READINESS", TF::sm(), TC::textSub());
+  lv_obj_t* rLabel = lv_obj_get_child(rCard, 0);
+  lv_obj_align(rLabel, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  // 4 icons: E-STOP (power), CYLINDER (home), NOZZLE (tint), WEIGHT (loop)
+  // Each cell 134×82 px; 2 columns × 2 rows starting y=22
+  static const char* kReadySym[4] = {
+    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
+  };
+  lv_obj_t** readyRefs[4] = { &dotEstop_, &dotCylinder_, &dotNozzle_, &dotStable_ };
+
+  for (int i = 0; i < 4; i++) {
+    int col = i % 2, row = i / 2;
+    lv_obj_t* cell = lv_obj_create(rCard);
+    lv_obj_set_size(cell, 134, 82);
+    lv_obj_set_pos(cell, col * 140, 22 + row * 88);
+    lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
+    lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(cell, TC::border(), 0);
+    lv_obj_set_style_border_width(cell, 1, 0);
+    lv_obj_set_style_radius(cell, 8, 0);
+    lv_obj_set_style_pad_all(cell, 0, 0);
+    lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+
+    *readyRefs[i] = lv_label_create(cell);
+    lv_label_set_text(*readyRefs[i], kReadySym[i]);
+    lv_obj_set_style_text_font(*readyRefs[i], TF::xxl(), 0);
+    lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
+    lv_obj_center(*readyRefs[i]);
+  }
+```
+
+Replace the entire block with:
+```cpp
+  // ── Right column: Readiness strip (x=492, y=68, 292×60) ──────────────────
+  // Compact horizontal row of 4 icon indicators — colour conveys status only.
+  lv_obj_t* rCard = lv_obj_create(scr_);
+  lv_obj_set_size(rCard, 292, 60);
+  lv_obj_set_pos(rCard, 492, 68);
+  Theme::applyCard(rCard);
+  lv_obj_set_style_pad_all(rCard, 4, 0);
+  lv_obj_clear_flag(rCard, LV_OBJ_FLAG_SCROLLABLE);
+
+  static const char* kReadySym[4] = {
+    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
+  };
+  lv_obj_t** readyRefs[4] = { &dotEstop_, &dotCylinder_, &dotNozzle_, &dotStable_ };
+
+  for (int i = 0; i < 4; i++) {
+    lv_obj_t* cell = lv_obj_create(rCard);
+    lv_obj_set_size(cell, 66, 52);
+    lv_obj_set_pos(cell, 4 + i * 70, 4);
+    lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
+    lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(cell, TC::border(), 0);
+    lv_obj_set_style_border_width(cell, 1, 0);
+    lv_obj_set_style_radius(cell, 8, 0);
+    lv_obj_set_style_pad_all(cell, 0, 0);
+    lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+
+    *readyRefs[i] = lv_label_create(cell);
+    lv_label_set_text(*readyRefs[i], kReadySym[i]);
+    lv_obj_set_style_text_font(*readyRefs[i], TF::xl(), 0);
+    lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
+    lv_obj_center(*readyRefs[i]);
+  }
+```
+
+**B2. Make the START button larger — it now has 238 more px of height to use.**
+
+Find:
+```cpp
+  // ── Right column: Start Fill button (x=492, y=276, 292×158) ──────────────
+  btnStart_ = lv_obj_create(scr_);
+  lv_obj_set_size(btnStart_, 292, 158);
+  lv_obj_set_pos(btnStart_, 492, 276);
+```
+
+Replace with:
+```cpp
+  // ── Right column: Start Fill button — enlarged now readiness strip is compact
+  btnStart_ = lv_obj_create(scr_);
+  lv_obj_set_size(btnStart_, 292, 366);
+  lv_obj_set_pos(btnStart_, 492, 136);
+```
+
+No header changes needed for Task B.
+
+---
+
+### Task C — Role selector UX: dropdown first, then PIN
+
+**Current behavior:** tap role button → PIN numpad appears immediately (no role selection step).  
+**New behavior:** tap role button → show 3-role dropdown → tap Admin/Manufacturer → PIN entry appears in same modal.
+
+**C1. Add `pendingRole_` and `openRolePinEntry()` to `DashboardScreen.h`.**
+
+In the `private:` section, after `roleDigits_`:
+```cpp
+  Role         pendingRole_    = Role::Operator;  // role selected in dropdown, awaiting PIN
+```
+
+After the `closeRoleModal()` declaration, add:
+```cpp
+  void openRolePinEntry();
+```
+
+**C2. Rewrite `openRoleModal()` in `DashboardScreen.cpp`.**
+
+Find the entire `openRoleModal()` function (from `void DashboardScreen::openRoleModal()` to the matching closing `}`) and replace it completely with:
+
+```cpp
+void DashboardScreen::openRoleModal() {
+  if (roleModal_) return;
+  roleEntered_ = 0;
+  roleDigits_  = 0;
+
+  roleModal_ = lv_obj_create(scr_);
+  lv_obj_set_size(roleModal_, 380, 310);
+  lv_obj_center(roleModal_);
+  lv_obj_set_style_bg_color(roleModal_, TC::surface(), 0);
+  lv_obj_set_style_bg_opa(roleModal_, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(roleModal_, TC::border(), 0);
+  lv_obj_set_style_border_width(roleModal_, 1, 0);
+  lv_obj_set_style_radius(roleModal_, 12, 0);
+  lv_obj_set_style_pad_all(roleModal_, 20, 0);
+  lv_obj_clear_flag(roleModal_, LV_OBJ_FLAG_SCROLLABLE);
+
+  Theme::label(roleModal_, "Select Role", TF::xl(), TC::text());
+  lv_obj_t* title = lv_obj_get_child(roleModal_, 0);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+  // 3 role buttons — current role is highlighted
+  struct RoleEntry { const char* lbl; Role role; } entries[3] = {
+    { LV_SYMBOL_SETTINGS "  OPERATOR",     Role::Operator     },
+    { LV_SYMBOL_SETTINGS "  ADMIN",        Role::Admin        },
+    { LV_SYMBOL_SETTINGS "  MANUFACTURER", Role::Manufacturer },
+  };
+  for (int i = 0; i < 3; i++) {
+    bool isCurrent = (currentRole_ == entries[i].role);
+    lv_color_t bg = isCurrent ? TC::active()   : TC::surface2();
+    lv_color_t fg = isCurrent ? TC::white()    : TC::text();
+    lv_obj_t* btn = Theme::button(roleModal_, entries[i].lbl, bg, fg, 300, 52);
+    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 38 + i * 62);
+    lv_obj_set_user_data(btn, (void*)(uintptr_t)(uint8_t)entries[i].role);
+    lv_obj_add_event_cb(btn, onRoleSelect, LV_EVENT_CLICKED, this);
+  }
+
+  lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+                                       TC::surface2(), TC::textSub(), 100, 36);
+  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(btnCancel, [](lv_event_t* e) {
+    DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+    self->closeRoleModal();
+  }, LV_EVENT_CLICKED, this);
+}
+```
+
+**C3. Add `openRolePinEntry()` in `DashboardScreen.cpp`.**
+
+Insert this new function after `openRoleModal()`:
+
+```cpp
+void DashboardScreen::openRolePinEntry() {
+  // Rebuild the existing roleModal_ in-place with PIN numpad for pendingRole_.
+  if (!roleModal_) return;
+  lv_obj_clean(roleModal_);   // remove dropdown buttons
+  roleEntered_ = 0;
+  roleDigits_  = 0;
+
+  const char* roleName = (pendingRole_ == Role::Admin) ? "ADMIN" : "MANUFACTURER";
+  char titleBuf[40];
+  snprintf(titleBuf, sizeof(titleBuf), "Enter %s PIN", roleName);
+
+  Theme::label(roleModal_, titleBuf, TF::xl(), TC::text());
+  lv_obj_t* title = lv_obj_get_child(roleModal_, 0);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+  Theme::label(roleModal_, "Enter 4-digit PIN", TF::sm(), TC::textSub());
+  lv_obj_t* sub = lv_obj_get_child(roleModal_, 1);
+  lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, 30);
+
+  lblRolePinDots_ = lv_label_create(roleModal_);
+  lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  lv_obj_set_style_text_font(lblRolePinDots_, TF::xxl(), 0);
+  lv_obj_set_style_text_color(lblRolePinDots_, TC::active(), 0);
+  lv_obj_align(lblRolePinDots_, LV_ALIGN_TOP_MID, 0, 60);
+
+  lblRolePinErr_ = lv_label_create(roleModal_);
+  lv_label_set_text(lblRolePinErr_, "");
+  lv_obj_set_style_text_font(lblRolePinErr_, TF::sm(), 0);
+  lv_obj_set_style_text_color(lblRolePinErr_, TC::danger(), 0);
+  lv_obj_align(lblRolePinErr_, LV_ALIGN_TOP_MID, 0, 108);
+
+  // Compact numpad
+  lv_obj_t* pad = lv_obj_create(roleModal_);
+  lv_obj_set_size(pad, 300, 220);
+  lv_obj_align(pad, LV_ALIGN_CENTER, 0, 40);
+  lv_obj_set_style_bg_opa(pad, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(pad, 0, 0);
+  lv_obj_set_style_pad_all(pad, 0, 0);
+  lv_obj_set_layout(pad, LV_LAYOUT_GRID);
+  static lv_coord_t cols[] = {88, 88, 88, LV_GRID_TEMPLATE_LAST};
+  static lv_coord_t rows[] = {48, 48, 48, 48, LV_GRID_TEMPLATE_LAST};
+  lv_obj_set_grid_dsc_array(pad, cols, rows);
+
+  for (int i = 0; i < 12; i++) {
+    lv_obj_t* btn = lv_btn_create(pad);
+    lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, i % 3, 1,
+                              LV_GRID_ALIGN_STRETCH, i / 3, 1);
+    lv_obj_set_style_bg_color(btn, TC::surface2(), 0);
+    lv_obj_set_style_radius(btn, 8, 0);
+    lv_obj_set_style_shadow_width(btn, 0, 0);
+    lv_obj_set_style_pad_all(btn, 2, 0);
+    lv_obj_t* lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, kRoleNumLabels[i]);
+    lv_obj_set_style_text_font(lbl, TF::lg(), 0);
+    lv_obj_set_style_text_color(lbl, TC::text(), 0);
+    lv_obj_center(lbl);
+    if (i == 9) {
+      lv_obj_clear_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    } else if (i == 11) {
+      lv_obj_add_event_cb(btn, onRolePinDel, LV_EVENT_CLICKED, this);
+    } else {
+      lv_obj_set_user_data(btn, (void*)(uintptr_t)((i == 10) ? 0 : i + 1));
+      lv_obj_add_event_cb(btn, onRolePinKey, LV_EVENT_CLICKED, this);
+    }
+  }
+
+  lv_obj_t* btnCancel = Theme::button(roleModal_, "CANCEL",
+                                       TC::surface2(), TC::textSub(), 100, 36);
+  lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(btnCancel, [](lv_event_t* e) {
+    DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+    self->closeRoleModal();
+  }, LV_EVENT_CLICKED, this);
+}
+```
+
+**C4. Rewrite `onRoleSelect()` in `DashboardScreen.cpp`.**
+
+Find:
+```cpp
+void DashboardScreen::onRoleSelect(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_obj_t* btn = lv_event_get_current_target(e);
+  uint8_t role = (uint8_t)(uintptr_t)lv_obj_get_user_data(btn);
+  self->currentRole_ = (Role)role;
+  self->updateRoleButton();
+  self->closeRoleModal();
+}
+```
+
+Replace with:
+```cpp
+void DashboardScreen::onRoleSelect(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_obj_t* btn = lv_event_get_current_target(e);
+  Role selected = (Role)(uint8_t)(uintptr_t)lv_obj_get_user_data(btn);
+
+  // If already this role — just close.
+  if (selected == self->currentRole_) {
+    self->closeRoleModal();
+    return;
+  }
+  // OPERATOR needs no PIN — apply immediately.
+  if (selected == Role::Operator) {
+    self->currentRole_ = Role::Operator;
+    self->updateRoleButton();
+    self->closeRoleModal();
+    return;
+  }
+  // ADMIN / MANUFACTURER — show PIN entry in the same modal.
+  self->pendingRole_ = selected;
+  self->openRolePinEntry();
+}
+```
+
+**C5. Update `submitRolePin()` to use `pendingRole_`.**
+
+Find:
+```cpp
+void DashboardScreen::submitRolePin() {
+  if (roleEntered_ == kAdminRolePin) {
+    currentRole_ = Role::Admin;
+    updateRoleButton();
+    closeRoleModal();
+  } else if (roleEntered_ == kManufacturerRolePin) {
+    currentRole_ = Role::Manufacturer;
+    updateRoleButton();
+    closeRoleModal();
+  } else {
+    if (lblRolePinErr_) lv_label_set_text(lblRolePinErr_, "Incorrect PIN");
+    roleEntered_ = 0;
+    roleDigits_  = 0;
+    if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  }
+}
+```
+
+Replace with:
+```cpp
+void DashboardScreen::submitRolePin() {
+  uint32_t expected = (pendingRole_ == Role::Admin) ? kAdminRolePin : kManufacturerRolePin;
+  if (roleEntered_ == expected) {
+    currentRole_ = pendingRole_;
+    updateRoleButton();
+    closeRoleModal();
+  } else {
+    if (lblRolePinErr_) lv_label_set_text(lblRolePinErr_, "Incorrect PIN");
+    roleEntered_ = 0;
+    roleDigits_  = 0;
+    if (lblRolePinDots_) lv_label_set_text(lblRolePinDots_, "○ ○ ○ ○");
+  }
+}
+```
+
+---
+
+### Task D — WiFi auto-scan (ADD button scans first, shows list)
+
+**D1. Add scan members and methods to `WifiScreen.h`.**
+
+Inside `private:`, after the existing members, add:
+```cpp
+    // WiFi scan
+    lv_obj_t*   scanModal_  = nullptr;
+    lv_obj_t*   scanList_   = nullptr;
+    lv_obj_t*   scanStatus_ = nullptr;
+    lv_timer_t* scanTimer_  = nullptr;
+    char scanSsids_[10][33] = {};
+    uint8_t scanCount_      = 0;
+```
+
+After `closeAddModal()` declaration, add:
+```cpp
+    void openScanModal();
+    void closeScanModal();
+    void populateScanResults();
+    void openAddModalWithSsid(const char* ssid);
+```
+
+After the existing static callbacks, add:
+```cpp
+    static void onScanCancel(lv_event_t* e);
+    static void onScanResultTapped(lv_event_t* e);
+    static void onScanManualEntry(lv_event_t* e);
+    static void onScanTimerTick(lv_timer_t* t);
+```
+
+**D2. Change ADD button callback in `WifiScreen::build()`.**
+
+Find in `WifiScreen::build()`:
+```cpp
+    lv_obj_add_event_cb(btnAdd, onAddNetwork, LV_EVENT_CLICKED, this);
+```
+
+Replace with:
+```cpp
+    lv_obj_add_event_cb(btnAdd, onScanNetwork, LV_EVENT_CLICKED, this);
+```
+
+Also add `static void onScanNetwork(lv_event_t* e);` to `WifiScreen.h` in the static callbacks section.
+
+**D3. Add `#include "esp_wifi.h"` to the top of `WifiScreen.cpp`**, after the existing includes.
+
+**D4. Add scan methods to `WifiScreen.cpp`.**
+
+Add these functions before the `// ── Event callbacks` section:
+
+```cpp
+// ── WiFi scan modal ───────────────────────────────────────────────────────────
+
+void WifiScreen::openScanModal() {
+    if (scanModal_) return;
+    scanCount_ = 0;
+    memset(scanSsids_, 0, sizeof(scanSsids_));
+
+    scanModal_ = lv_obj_create(scr_);
+    lv_obj_set_size(scanModal_, 560, 420);
+    lv_obj_center(scanModal_);
+    lv_obj_set_style_bg_color(scanModal_, TC::surface(), 0);
+    lv_obj_set_style_bg_opa(scanModal_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(scanModal_, TC::border(), 0);
+    lv_obj_set_style_border_width(scanModal_, 1, 0);
+    lv_obj_set_style_radius(scanModal_, 12, 0);
+    lv_obj_set_style_pad_all(scanModal_, 16, 0);
+    lv_obj_clear_flag(scanModal_, LV_OBJ_FLAG_SCROLLABLE);
+
+    Theme::label(scanModal_, LV_SYMBOL_WIFI "  Available Networks", TF::xl(), TC::text());
+    lv_obj_t* title = lv_obj_get_child(scanModal_, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
+
+    scanStatus_ = Theme::label(scanModal_, "Scanning...", TF::md(), TC::muted());
+    lv_obj_align(scanStatus_, LV_ALIGN_TOP_LEFT, 0, 36);
+
+    scanList_ = lv_obj_create(scanModal_);
+    lv_obj_set_size(scanList_, LV_PCT(100), 270);
+    lv_obj_align(scanList_, LV_ALIGN_TOP_LEFT, 0, 62);
+    lv_obj_set_style_bg_opa(scanList_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(scanList_, 0, 0);
+    lv_obj_set_style_pad_all(scanList_, 0, 0);
+    lv_obj_set_layout(scanList_, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(scanList_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(scanList_, 4, 0);
+    lv_obj_add_flag(scanList_, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* btnCancel = Theme::button(scanModal_, "CANCEL",
+                                         TC::surface2(), TC::textSub(), 120, 40);
+    lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_add_event_cb(btnCancel, onScanCancel, LV_EVENT_CLICKED, this);
+
+    lv_obj_t* btnManual = Theme::button(scanModal_, "MANUAL ENTRY",
+                                         TC::surface2(), TC::text(), 170, 40);
+    lv_obj_align(btnManual, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_add_event_cb(btnManual, onScanManualEntry, LV_EVENT_CLICKED, this);
+
+    // Start async WiFi scan — results available in ~2-3 seconds
+    wifi_scan_config_t cfg = {};
+    esp_wifi_scan_start(&cfg, false);
+
+    // Collect results after 2.5 s
+    scanTimer_ = lv_timer_create(onScanTimerTick, 2500, this);
+    lv_timer_set_repeat_count(scanTimer_, 1);
+}
+
+void WifiScreen::closeScanModal() {
+    if (scanTimer_) { lv_timer_del(scanTimer_); scanTimer_ = nullptr; }
+    if (scanModal_) { lv_obj_del(scanModal_);   scanModal_ = nullptr; }
+    scanList_   = nullptr;
+    scanStatus_ = nullptr;
+}
+
+void WifiScreen::populateScanResults() {
+    if (!scanModal_ || !scanList_) return;
+
+    uint16_t count = 0;
+    esp_wifi_scan_get_ap_num(&count);
+    if (count == 0) {
+        if (scanStatus_) lv_label_set_text(scanStatus_, "No networks found. Use MANUAL ENTRY.");
+        return;
+    }
+
+    wifi_ap_record_t* records = new wifi_ap_record_t[count];
+    esp_wifi_scan_get_ap_records(&count, records);
+
+    // Store SSIDs before freeing records
+    scanCount_ = 0;
+    for (uint16_t i = 0; i < count && scanCount_ < 10; i++) {
+        const char* ssid = (const char*)records[i].ssid;
+        if (ssid[0] == '\0') continue;   // skip hidden
+        strncpy(scanSsids_[scanCount_], ssid, 32);
+        scanSsids_[scanCount_][32] = '\0';
+        scanCount_++;
+    }
+    delete[] records;
+
+    if (scanStatus_) {
+        char buf[40];
+        snprintf(buf, sizeof(buf), "%d network(s) found — tap to select", (int)scanCount_);
+        lv_label_set_text(scanStatus_, buf);
+    }
+
+    lv_obj_clean(scanList_);
+
+    for (uint8_t i = 0; i < scanCount_; i++) {
+        lv_obj_t* row = lv_obj_create(scanList_);
+        lv_obj_set_size(row, LV_PCT(100), 44);
+        lv_obj_set_style_bg_color(row, TC::surface2(), 0);
+        lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(row, TC::border(), 0);
+        lv_obj_set_style_border_width(row, 1, 0);
+        lv_obj_set_style_radius(row, 8, 0);
+        lv_obj_set_style_pad_hor(row, 10, 0);
+        lv_obj_set_style_pad_ver(row, 0, 0);
+        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+        Theme::label(row, LV_SYMBOL_WIFI, TF::md(), TC::muted());
+        lv_obj_t* wifiIcon = lv_obj_get_child(row, 0);
+        lv_obj_align(wifiIcon, LV_ALIGN_LEFT_MID, 0, 0);
+
+        lv_obj_t* ssidLbl = Theme::label(row, scanSsids_[i], TF::md(), TC::text());
+        lv_obj_align(ssidLbl, LV_ALIGN_LEFT_MID, 26, 0);
+
+        lv_obj_set_user_data(row, (void*)(uintptr_t)i);
+        lv_obj_add_event_cb(row, onScanResultTapped, LV_EVENT_CLICKED, this);
+    }
+}
+
+void WifiScreen::openAddModalWithSsid(const char* ssid) {
+    openAddModal();
+    if (taSsid_ && ssid && ssid[0] != '\0') {
+        lv_textarea_set_text(taSsid_, ssid);
+        // Move focus to password field
+        if (kb_ && taPass_) lv_keyboard_set_textarea(kb_, taPass_);
+    }
+}
+```
+
+**D5. Add event callbacks to `WifiScreen.cpp`.**
+
+Add before the closing of the file:
+
+```cpp
+void WifiScreen::onScanNetwork(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    self->openScanModal();
+}
+
+void WifiScreen::onScanCancel(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    esp_wifi_scan_stop();   // stop any in-progress scan
+    self->closeScanModal();
+}
+
+void WifiScreen::onScanManualEntry(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    self->closeScanModal();
+    self->openAddModal();
+}
+
+void WifiScreen::onScanResultTapped(lv_event_t* e) {
+    WifiScreen* self = (WifiScreen*)lv_event_get_user_data(e);
+    lv_obj_t* row = lv_event_get_target(e);
+    uint8_t idx = (uint8_t)(uintptr_t)lv_obj_get_user_data(row);
+    if (idx >= self->scanCount_) return;
+    char ssid[33];
+    strncpy(ssid, self->scanSsids_[idx], 32);
+    ssid[32] = '\0';
+    self->closeScanModal();
+    self->openAddModalWithSsid(ssid);
+}
+
+void WifiScreen::onScanTimerTick(lv_timer_t* t) {
+    WifiScreen* self = (WifiScreen*)lv_timer_get_user_data(t);
+    self->scanTimer_ = nullptr;  // timer auto-deletes (repeat_count=1)
+    self->populateScanResults();
+}
+```
+
+Also, the existing `onAddNetwork` callback is no longer wired to the ADD button (it now calls `onScanNetwork`). **Keep the `onAddNetwork` static function** — it's still declared in the header. Just leave it in place; it is now unused.
+
+---
+
+### Task E — Build, flash, push
+
+```powershell
+$env:IDF_PATH = "C:\Espressif\frameworks\esp-idf-v5.5.4"
+$env:IDF_PYTHON_ENV_PATH = "C:\Espressif\python_env\idf5.5_py3.11_env"
+$env:PATH = "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts;" +
+            "C:\Espressif\tools\cmake\3.30.2\bin;" +
+            "C:\Espressif\tools\ninja\1.12.1;" +
+            "C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20260121\xtensa-esp-elf\bin;" +
+            $env:PATH
+
+cd firmware/lpg_display
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" fullclean
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" build
+& "C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" `
+  "C:\Espressif\frameworks\esp-idf-v5.5.4\tools\idf.py" -p COM9 flash
+```
+
+Fix any compile errors before reporting. Common pitfalls:
+- `lv_timer_get_user_data(t)` — available in LVGL 8.4; if missing, use `t->user_data` directly.
+- `esp_wifi_scan_stop()` — include `"esp_wifi.h"` at the top of WifiScreen.cpp.
+- Lambda in `lv_obj_add_event_cb` without capture → OK in C++11. If capture is needed, use a static function instead.
+
+After successful build and flash:
+```
+cd ../..
+git add firmware/lpg_display/
+git commit -m "fix(display): START fill works offline, compact readiness strip, role dropdown UX, wifi scan"
+git push origin codex/firmware-ui-history
+```
+
+Update `docs/user/USER_MANUAL.md`:
+- Dashboard section: note that START button shows "Controller offline" message when RS485 is disconnected.
+- Role section: update to describe 2-step flow (select role, then PIN if required).
+- WiFi section: describe scan-then-select flow, mention MANUAL ENTRY fallback.
+
+---
+
+### Report
+
+```markdown
+## CODEX REPORT — Round 6
+
+**Date:** YYYY-MM-DD  **Commit:** <sha>
+
+- A (START fix): canStart no longer requires snap.connected — done/issues
+- B (compact readiness): 2×2 grid → horizontal 4-icon strip, START enlarged — done/issues
+- C (role dropdown): dropdown first then PIN — done/issues
+- D (WiFi scan): scan modal with results list — done/issues
+- E (build+flash COM=<port>): ok / compile errors (list them)
+- Docs updated: yes/no
+- Blockers: <any>
+- Round 7 suggestions: <any>
+```
+
+## CODEX REPORT - Round 6 Follow-up
+
+**Date:** 2026-05-07  **Commit:** not committed
+
+- A (START fix): existing Round 6 logic keeps START tappable while idle/ready so offline taps show guidance; no additional logic change made in this follow-up.
+- B (compact readiness): removed the overlapping readiness label was already present in the in-progress change; START is now a compact bottom-right action instead of a large right-column tile.
+- C (role dropdown): retained dropdown-first flow; PIN error text is now a wrapped, centered label above the numpad, and BACK is a compact bottom-left control.
+- D (WiFi scan): retained scan modal; add-network modal now places SSID and password side by side above the keyboard, with visible BACK and SAVE buttons above the keyboard.
+- E (build+flash COM=COM9): build OK. Flash failed twice on COM9 with pySerial `Write timeout`, including retry at 115200 baud.
+- Docs updated: yes, `docs/user/USER_MANUAL.md` notes the add-network BACK path and keyboard-safe fields.
+- Blockers: physical flashing blocked by COM9 write timeout/hardware serial connection.
+- Round 7 suggestions: verify the display on hardware after COM9 flashing is restored, then tune the empty right-column space left by shrinking START if a secondary action or status tile is desired.
