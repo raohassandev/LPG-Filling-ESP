@@ -54,6 +54,7 @@ static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b
       || fne(a.liveWeightKg, b.liveWeightKg)
       || fne(a.tareWeightKg, b.tareWeightKg)
       || fne(a.netWeightKg,  b.netWeightKg)
+      || fne(a.currentAmount, b.currentAmount, 0.5f)
       || a.rtcHour         != b.rtcHour
       || a.rtcMinute       != b.rtcMinute
       || a.todayFills      != b.todayFills
@@ -144,7 +145,7 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // ── Left column: Weight card (x=16, y=68, 460×258) ──────────────────────────
   lv_obj_t* wCard = lv_obj_create(scr_);
-  lv_obj_set_size(wCard, 460, 258);
+  lv_obj_set_size(wCard, 460, 198);
   lv_obj_set_pos(wCard, 16, 68);
   Theme::applyCard(wCard);
   lv_obj_set_style_pad_all(wCard, 0, 0);
@@ -220,10 +221,54 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_set_style_text_color(lblNet_, TC::active(), 0);
   lv_obj_align(lblNet_, LV_ALIGN_RIGHT_MID, 0, 0);
 
+  // ── Fill Params strip (x=16, y=274, 460×92) ──────────────────────────────
+  lv_obj_t* fpCard = lv_obj_create(scr_);
+  lv_obj_set_size(fpCard, 460, 92);
+  lv_obj_set_pos(fpCard, 16, 274);
+  Theme::applyCard(fpCard);
+  lv_obj_set_style_pad_all(fpCard, 0, 0);
+  lv_obj_clear_flag(fpCard, LV_OBJ_FLAG_SCROLLABLE);
+
+  const char* fpLabels[3] = { "TARGET kg", "RATE PKR/kg", "AMOUNT PKR" };
+  lv_obj_t**  fpCells[3]  = { &fpCellTarget_, &fpCellRate_, &fpCellAmount_ };
+  lv_obj_t**  fpVals[3]   = { &lblTarget_,    &lblRate_,    &lblAmount_ };
+
+  for (int i = 0; i < 3; i++) {
+    *fpCells[i] = lv_obj_create(fpCard);
+    lv_obj_set_size(*fpCells[i], 152, 90);
+    lv_obj_set_pos(*fpCells[i], i * 154, 0);
+    lv_obj_set_style_bg_color(*fpCells[i], i < 2 ? TC::surface2() : TC::bg(), 0);
+    lv_obj_set_style_bg_opa(*fpCells[i], LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(*fpCells[i], TC::border(), 0);
+    lv_obj_set_style_border_width(*fpCells[i], i > 0 ? 1 : 0, 0);
+    lv_obj_set_style_border_side(*fpCells[i], LV_BORDER_SIDE_LEFT, 0);
+    lv_obj_set_style_radius(*fpCells[i], 0, 0);
+    lv_obj_set_style_pad_hor(*fpCells[i], 10, 0);
+    lv_obj_set_style_pad_ver(*fpCells[i], 8, 0);
+    lv_obj_clear_flag(*fpCells[i], LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* hdr = Theme::label(*fpCells[i], fpLabels[i], TF::sm(), TC::muted());
+    lv_obj_align(hdr, LV_ALIGN_TOP_LEFT, 0, 0);
+
+    *fpVals[i] = lv_label_create(*fpCells[i]);
+    lv_obj_set_width(*fpVals[i], 132);
+    lv_label_set_long_mode(*fpVals[i], LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_text_font(*fpVals[i], TF::xl(), 0);
+    lv_obj_set_style_text_color(*fpVals[i], i < 2 ? TC::active() : TC::ready(), 0);
+    lv_label_set_text(*fpVals[i], i == 0 ? "12.0" : i == 1 ? "250" : "0");
+    lv_obj_align(*fpVals[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
+
+    if (i < 2) {
+      lv_obj_add_flag(*fpCells[i], LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_user_data(*fpCells[i], (void*)(uintptr_t)i);
+      lv_obj_add_event_cb(*fpCells[i], onFpCellTapped, LV_EVENT_CLICKED, this);
+    }
+  }
+
   // ── Left column: Today stats card (x=16, y=334) ───────────────────────────
   lv_obj_t* sCard = lv_obj_create(scr_);
   lv_obj_set_size(sCard, 460, 100);
-  lv_obj_set_pos(sCard, 16, 334);
+  lv_obj_set_pos(sCard, 16, 374);
   Theme::applyCard(sCard);
 
   Theme::label(sCard, "TODAY", TF::sm(), TC::textSub());
@@ -369,6 +414,11 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   display_label_setf(lblTodayAmt_,  "%.0f",    snap.todayAmount);
   if (snap.ratePerKg > 0.0f) lastRatePerKg_ = snap.ratePerKg;
 
+  if (lblAmount_) {
+    display_label_setf(lblAmount_, "%.0f",
+                       snap.currentAmount > 0.0f ? snap.currentAmount : snap.todayAmount);
+  }
+
   // Start button — enabled only when idle/ready and safe
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
                         && snap.eStopOk && snap.connected;
@@ -479,6 +529,10 @@ void DashboardScreen::updateDialogLabels() {
     display_label_setf(lblDialogTarget_, "%.0f kg", dialogTargetKg_);
   if (lblDialogRate_)
     display_label_setf(lblDialogRate_, "%.0f PKR", dialogRatePerKg_);
+  if (lblTarget_)
+    display_label_setf(lblTarget_, "%.1f", dialogTargetKg_);
+  if (lblRate_)
+    display_label_setf(lblRate_, "%.0f", dialogRatePerKg_);
 }
 
 void DashboardScreen::closeStartDialog() {
@@ -490,11 +544,77 @@ void DashboardScreen::closeStartDialog() {
   lblStartError_   = nullptr;
 }
 
+void DashboardScreen::openNumOverlay(uint8_t field) {
+  if (numOverlay_) return;
+  numField_ = field;
+
+  numOverlay_ = lv_obj_create(scr_);
+  lv_obj_set_size(numOverlay_, 800, 480);
+  lv_obj_set_pos(numOverlay_, 0, 0);
+  lv_obj_set_style_bg_color(numOverlay_, TC::bg(), 0);
+  lv_obj_set_style_bg_opa(numOverlay_, 180, 0);
+  lv_obj_set_style_border_width(numOverlay_, 0, 0);
+  lv_obj_set_style_radius(numOverlay_, 0, 0);
+  lv_obj_clear_flag(numOverlay_, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t* card = lv_obj_create(numOverlay_);
+  lv_obj_set_size(card, 460, 110);
+  lv_obj_set_pos(card, 170, 100);
+  lv_obj_set_style_bg_color(card, TC::surface(), 0);
+  lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(card, TC::border(), 0);
+  lv_obj_set_style_border_width(card, 1, 0);
+  lv_obj_set_style_radius(card, 12, 0);
+  lv_obj_set_style_pad_all(card, 16, 0);
+  lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+
+  numHint_ = Theme::label(card,
+    field == 0 ? "Enter target weight (kg)" : "Enter rate per kg (PKR)",
+    TF::sm(), TC::textSub());
+  lv_obj_align(numHint_, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  numTa_ = lv_textarea_create(card);
+  lv_obj_set_size(numTa_, LV_PCT(100), 52);
+  lv_obj_align(numTa_, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  lv_textarea_set_one_line(numTa_, true);
+  lv_textarea_set_max_length(numTa_, 8);
+  lv_textarea_set_accepted_chars(numTa_, "0123456789.");
+  lv_obj_set_style_bg_color(numTa_, TC::surface2(), 0);
+  lv_obj_set_style_border_color(numTa_, TC::active(), 0);
+  lv_obj_set_style_text_color(numTa_, TC::text(), 0);
+  lv_obj_set_style_text_font(numTa_, TF::xl(), 0);
+
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%.1f", field == 0 ? dialogTargetKg_ : dialogRatePerKg_);
+  lv_textarea_set_text(numTa_, buf);
+  lv_textarea_set_cursor_pos(numTa_, LV_TEXTAREA_CURSOR_LAST);
+
+  numKb_ = lv_keyboard_create(scr_);
+  lv_obj_set_size(numKb_, 800, 230);
+  lv_obj_align(numKb_, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_keyboard_set_mode(numKb_, LV_KEYBOARD_MODE_NUMBER);
+  lv_keyboard_set_textarea(numKb_, numTa_);
+  lv_obj_set_style_bg_color(numKb_, TC::surface(), 0);
+  lv_obj_set_style_text_color(numKb_, TC::text(), 0);
+  lv_obj_add_event_cb(numKb_, onNumKbEvent, LV_EVENT_READY, this);
+  lv_obj_add_event_cb(numKb_, onNumKbEvent, LV_EVENT_CANCEL, this);
+}
+
+void DashboardScreen::closeNumOverlay() {
+  if (numKb_)      { lv_obj_del(numKb_);      numKb_      = nullptr; }
+  if (numOverlay_) { lv_obj_del(numOverlay_); numOverlay_ = nullptr; }
+  numTa_   = nullptr;
+  numHint_ = nullptr;
+}
+
 // ── Event callbacks ───────────────────────────────────────────────────────────
 
 void DashboardScreen::onStartPressed(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
-  self->openStartDialog();
+  if (self->dialogTargetKg_ <= 0.0f || self->dialogRatePerKg_ <= 0.0f) return;
+  if (!self->mbus_) return;
+  self->lastRatePerKg_ = self->dialogRatePerKg_;
+  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
 }
 
 void DashboardScreen::onStartConfirm(lv_event_t* e) {
@@ -542,6 +662,32 @@ void DashboardScreen::onStartCancel(lv_event_t* e) {
   self->closeStartDialog();
 }
 
+void DashboardScreen::onFpCellTapped(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  uint8_t field = (uint8_t)(uintptr_t)lv_obj_get_user_data(lv_event_get_target(e));
+  self->openNumOverlay(field);
+}
+
+void DashboardScreen::onNumKbEvent(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_READY && self->numTa_) {
+    const char* txt = lv_textarea_get_text(self->numTa_);
+    float val = txt ? atof(txt) : 0.0f;
+    if (self->numField_ == 0) {
+      if (val > 0.0f) {
+        self->dialogTargetKg_ = val;
+        if (self->lblTarget_) display_label_setf(self->lblTarget_, "%.1f", val);
+      }
+    } else {
+      if (val > 0.0f) {
+        self->dialogRatePerKg_ = val;
+        if (self->lblRate_) display_label_setf(self->lblRate_, "%.0f", val);
+      }
+    }
+  }
+  self->closeNumOverlay();
+}
 
 void DashboardScreen::onWifiPressed(lv_event_t* e) {
   screenManager.navigateTo(Screen::Wifi);

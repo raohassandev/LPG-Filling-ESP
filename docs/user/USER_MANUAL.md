@@ -110,6 +110,16 @@ The 5" colour touchscreen is the primary operator interface on the factory floor
 Shows the **live scale reading** from the load cell connected to the controller.  
 Below the large number: **Tare** (empty cylinder weight) and **Net** (gas filled so far).
 
+Below the weight panel, the dashboard shows a three-cell fill setup strip:
+
+| Cell | Action |
+|------|--------|
+| **TARGET kg** | Tap to enter the target fill weight with the numeric keyboard |
+| **RATE PKR/kg** | Tap to enter the sale rate with the numeric keyboard |
+| **AMOUNT PKR** | Shows the current fill amount, or today's amount when no fill amount is active |
+
+After entering target and rate, press **START FILL** from the dashboard. The old stepper dialog is not required for normal filling.
+
 The coloured bar on the left edge changes colour with the fill state:
 - Grey = Idle
 - Blue = Active fill
