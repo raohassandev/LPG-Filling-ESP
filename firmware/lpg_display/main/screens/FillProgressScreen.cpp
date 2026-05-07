@@ -1,4 +1,5 @@
 #include "screens/FillProgressScreen.h"
+#include "DisplayFormat.h"
 #include "Theme.h"
 #include "ScreenManager.h"
 
@@ -108,7 +109,7 @@ void FillProgressScreen::update(const ControllerSnapshot& snap) {
   lv_obj_set_style_text_color(lblState_, fillStateColor(snap.state), 0);
   lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
 
-  lv_label_set_text_fmt(lblNet_, "%.3f kg", snap.netWeightKg);
+  display_label_setf(lblNet_, "%.3f kg", snap.netWeightKg);
 
   // Progress 0–1000 (mapped from net/target)
   int pct1000 = 0;
@@ -124,11 +125,11 @@ void FillProgressScreen::update(const ControllerSnapshot& snap) {
   lv_color_t barColor = fillStateColor(snap.state);
   lv_obj_set_style_bg_color(bar_, barColor, LV_PART_INDICATOR);
 
-  lv_label_set_text_fmt(lblPct_, "%.1f%%", pct1000 / 10.0f);
-  lv_label_set_text_fmt(lblTarget_, "Target: %.3f kg", snap.targetWeightKg);
-  lv_label_set_text_fmt(lblRate_,   "Rate: %.2f " LV_SYMBOL_CHARGE "/kg", snap.ratePerKg);
-  lv_label_set_text_fmt(lblAmount_, "%.2f / %.2f " LV_SYMBOL_CHARGE,
-                         snap.currentAmount, snap.targetAmount);
+  display_label_setf(lblPct_, "%.1f%%", pct1000 / 10.0f);
+  display_label_setf(lblTarget_, "Target: %.3f kg", snap.targetWeightKg);
+  display_label_setf(lblRate_,   "Rate: %.2f " LV_SYMBOL_CHARGE "/kg", snap.ratePerKg);
+  display_label_setf(lblAmount_, "%.2f / %.2f " LV_SYMBOL_CHARGE,
+                     snap.currentAmount, snap.targetAmount);
 }
 
 void FillProgressScreen::onStopPressed(lv_event_t* e) {

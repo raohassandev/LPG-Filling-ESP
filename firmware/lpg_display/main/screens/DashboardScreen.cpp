@@ -1,4 +1,5 @@
 #include "screens/DashboardScreen.h"
+#include "DisplayFormat.h"
 #include "Theme.h"
 #include "ScreenManager.h"
 #include <cstdio>
@@ -176,6 +177,9 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   lblLive_ = lv_label_create(wInner);
   lv_label_set_text(lblLive_, "0.000");
+  lv_obj_set_width(lblLive_, 280);
+  lv_label_set_long_mode(lblLive_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblLive_, LV_TEXT_ALIGN_LEFT, 0);
   lv_obj_set_style_text_font(lblLive_, TF::hero(), 0);
   lv_obj_set_style_text_color(lblLive_, TC::text(), 0);
   lv_obj_align(lblLive_, LV_ALIGN_LEFT_MID, 0, -14);
@@ -202,12 +206,18 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   lblTare_ = lv_label_create(subRow);
   lv_label_set_text(lblTare_, "Tare: 0.000 kg");
+  lv_obj_set_width(lblTare_, 210);
+  lv_label_set_long_mode(lblTare_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblTare_, LV_TEXT_ALIGN_LEFT, 0);
   lv_obj_set_style_text_font(lblTare_, TF::md(), 0);
   lv_obj_set_style_text_color(lblTare_, TC::textSub(), 0);
   lv_obj_align(lblTare_, LV_ALIGN_LEFT_MID, 0, 0);
 
   lblNet_ = lv_label_create(subRow);
   lv_label_set_text(lblNet_, "Net: 0.000 kg");
+  lv_obj_set_width(lblNet_, 210);
+  lv_label_set_long_mode(lblNet_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblNet_, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_set_style_text_font(lblNet_, TF::md(), 0);
   lv_obj_set_style_text_color(lblNet_, TC::active(), 0);
   lv_obj_align(lblNet_, LV_ALIGN_RIGHT_MID, 0, 0);
@@ -323,9 +333,9 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
 
   // Live weight (no "kg" in hero — separate unit label)
-  lv_label_set_text_fmt(lblLive_, "%.3f", snap.liveWeightKg);
-  lv_label_set_text_fmt(lblTare_, "Tare: %.3f kg", snap.tareWeightKg);
-  lv_label_set_text_fmt(lblNet_,  "Net: %.3f kg",  snap.netWeightKg);
+  display_label_setf(lblLive_, "%.3f", snap.liveWeightKg);
+  display_label_setf(lblTare_, "Tare: %.3f kg", snap.tareWeightKg);
+  display_label_setf(lblNet_,  "Net: %.3f kg",  snap.netWeightKg);
 
   // Readiness dots
   updateDot(dotEstop_,    snap.eStopOk);
@@ -348,8 +358,8 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
 
   // Today stats
   lv_label_set_text_fmt(lblTodayFills_, "%u fills",   snap.todayFills);
-  lv_label_set_text_fmt(lblTodayKg_,   "%.1f kg",    snap.todayKg);
-  lv_label_set_text_fmt(lblTodayAmt_,  "%.0f",       snap.todayAmount);
+  display_label_setf(lblTodayKg_,   "%.1f kg", snap.todayKg);
+  display_label_setf(lblTodayAmt_,  "%.0f",    snap.todayAmount);
   if (snap.ratePerKg > 0.0f) lastRatePerKg_ = snap.ratePerKg;
 
   // Start button — enabled only when idle/ready and safe
@@ -449,9 +459,9 @@ void DashboardScreen::openStartDialog() {
 
 void DashboardScreen::updateDialogLabels() {
   if (lblDialogTarget_)
-    lv_label_set_text_fmt(lblDialogTarget_, "%.0f kg", dialogTargetKg_);
+    display_label_setf(lblDialogTarget_, "%.0f kg", dialogTargetKg_);
   if (lblDialogRate_)
-    lv_label_set_text_fmt(lblDialogRate_, "%.0f PKR", dialogRatePerKg_);
+    display_label_setf(lblDialogRate_, "%.0f PKR", dialogRatePerKg_);
 }
 
 void DashboardScreen::closeStartDialog() {

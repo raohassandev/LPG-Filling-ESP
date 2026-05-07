@@ -378,7 +378,7 @@ Critical settings in `sdkconfig.defaults` and why they exist:
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `CONFIG_LV_SPRINTF_USE_FLOAT=y` | y | Without this, `lv_label_set_text_fmt("%.3f", …)` prints `f` instead of the number. LVGL's internal snprintf has no float support by default. |
+| `CONFIG_LV_SPRINTF_USE_FLOAT=y` | y | Kept enabled, but display screens use `display_label_setf()` for float labels because LVGL float formatting has still produced `f` on hardware. |
 | `CONFIG_LCD_RGB_ISR_IRAM_SAFE=n` | n | The lvgl_port vsync callback is not in IRAM; enabling the ISR IRAM-safe flag crashes on cache misses. |
 | `CONFIG_SPIRAM_USE_MALLOC=y` | y | Allows large LVGL draw buffers to use PSRAM automatically. |
 | `CONFIG_FREERTOS_HZ=1000` | 1000 | 1 ms tick resolution needed for accurate LVGL animation timing. |
@@ -473,7 +473,7 @@ void MyScreen::build() {
 
 | Issue | Root cause | Fix |
 |-------|-----------|-----|
-| Weights show `f` instead of numbers | `CONFIG_LV_SPRINTF_USE_FLOAT=y` not in sdkconfig | Delete `sdkconfig`, rebuild |
+| Weights show `f` instead of numbers | LVGL `lv_label_set_text_fmt("%.3f", …)` float formatting is unreliable on the display build | Use `display_label_setf()` from `DisplayFormat.h`, rebuild, and flash COM9 |
 | Display crashes when START button pressed | `lv_keyboard_create()` inside LVGL event callback causes stack overflow | Use stepper +/- buttons instead of keyboard widget |
 | Screen stuck on self-test / never loads | `snap.valid=false` guard prevented dashboard from ever showing | `ScreenManager::begin()` pre-loads dashboard with empty snapshot before Modbus connects |
 | Dashboard flickering every 200 ms | `lv_label_set_text_fmt` called every poll even when data unchanged | `snapChanged()` guard skips update when nothing changed |

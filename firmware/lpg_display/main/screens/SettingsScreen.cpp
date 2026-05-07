@@ -1,4 +1,5 @@
 #include "screens/SettingsScreen.h"
+#include "DisplayFormat.h"
 #include "Theme.h"
 #include "ScreenManager.h"
 #include <initializer_list>
@@ -127,9 +128,9 @@ void SettingsScreen::update(const ControllerSnapshot& snap) {
 
   // Calibration tab
   if (lblLiveCal_)
-    lv_label_set_text_fmt(lblLiveCal_,  "Live: %.3f kg", snap.liveWeightKg);
+    display_label_setf(lblLiveCal_,  "Live: %.3f kg", snap.liveWeightKg);
   if (lblNetCal_)
-    lv_label_set_text_fmt(lblNetCal_,   "Net: %.3f kg",  snap.netWeightKg);
+    display_label_setf(lblNetCal_,   "Net: %.3f kg",  snap.netWeightKg);
   if (lblStableCal_)
     lv_label_set_text(lblStableCal_, snap.weightStable ? "STABLE" : "SETTLING");
 
@@ -141,11 +142,11 @@ void SettingsScreen::update(const ControllerSnapshot& snap) {
       "Flags:  E-Stop=%u  Cylinder=%u  Nozzle=%u  Stable=%u",
       snap.eStopOk, snap.cylinderPresent, snap.nozzleEngaged, snap.weightStable);
   if (lblDiagWeights_)
-    lv_label_set_text_fmt(lblDiagWeights_,
+    display_label_setf(lblDiagWeights_,
       "Weights:  Live=%.3f  Tare=%.3f  Net=%.3f  Target=%.3f kg",
       snap.liveWeightKg, snap.tareWeightKg, snap.netWeightKg, snap.targetWeightKg);
   if (lblDiagStats_)
-    lv_label_set_text_fmt(lblDiagStats_,
+    display_label_setf(lblDiagStats_,
       "Today:  %u fills  %.2f kg  %.2f " LV_SYMBOL_CHARGE,
       snap.todayFills, snap.todayKg, snap.todayAmount);
 }
