@@ -1,44 +1,46 @@
 // Design tokens — central source of truth for colors, spacing, radii, type sizes.
 // All UI components import from here. Do not introduce ad-hoc colors elsewhere.
+// Color choices: dark base (good for indoor fill stations + night), semantic
+// colors boosted ~15% brightness vs pure Tailwind defaults for outdoor readability.
 
 export const C = {
-  // Base
-  bg:       "#0f1117",
-  surface:  "#1a1d27",
-  surface2: "#222633",
-  border:   "#2a2d3a",
-  muted:    "#6b7280",
-  text:     "#f0f2f5",
-  textSub:  "#9ca3af",
+  // Base — dark industrial palette
+  bg:       "#0d1018",   // near-black background
+  surface:  "#161b26",   // card/panel surface
+  surface2: "#1e2535",   // secondary/input surface
+  border:   "#2b3045",   // subtle borders
+  muted:    "#5c6880",   // muted text / disabled
+  text:     "#f2f5fa",   // primary text (high contrast)
+  textSub:  "#8a95aa",   // secondary text
 
-  // Semantic
-  ready:    "#10b981",
-  warning:  "#f59e0b",
-  danger:   "#ef4444",
-  active:   "#3b82f6",
-  settling: "#8b5cf6",
-  complete: "#10b981",
-  offline:  "#6b7280",
-  sim:      "#dc2626",
-  devBg:    "#1c0a0a",
+  // Semantic — slightly brighter than Tailwind defaults for outdoor screen visibility
+  ready:    "#1ecc94",   // vivid green — good / safe / complete
+  warning:  "#fbbf35",   // vivid amber — caution / slow fill
+  danger:   "#f85252",   // vivid red — fault / e-stop / danger
+  active:   "#4f9eff",   // vivid blue — filling / selected / primary action
+  settling: "#9d70f5",   // purple — settling phase
+  complete: "#1ecc94",   // same as ready
+  offline:  "#5c6880",   // gray — disconnected
+  sim:      "#e52222",   // dark red — simulation mode warning
 
   // UI
   white:    "#ffffff",
   black:    "#000000",
-  primary:  "#3b82f6",
+  primary:  "#4f9eff",
 
-  // Legacy aliases retained so existing screens that still import from theme can work
-  panel:    "#1a1d27",
-  panelAlt: "#222633",
-  line:     "#2a2d3a",
-  ink:      "#f0f2f5",
-  accent:   "#3b82f6",
-  ok:       "#10b981",
-  okBg:     "rgba(16,185,129,0.15)",
-  badBg:    "rgba(239,68,68,0.15)",
-  warnBg:   "rgba(245,158,11,0.15)",
-  dark:     "#222633",
-  soft:     "#222633",
+  // Legacy aliases
+  panel:    "#161b26",
+  panelAlt: "#1e2535",
+  line:     "#2b3045",
+  ink:      "#f2f5fa",
+  accent:   "#4f9eff",
+  ok:       "#1ecc94",
+  okBg:     "rgba(30,204,148,0.12)",
+  badBg:    "rgba(248,82,82,0.12)",
+  warnBg:   "rgba(251,191,53,0.12)",
+  dark:     "#1e2535",
+  soft:     "#1e2535",
+  devBg:    "#1c0a0a",
 };
 
 export const S = {

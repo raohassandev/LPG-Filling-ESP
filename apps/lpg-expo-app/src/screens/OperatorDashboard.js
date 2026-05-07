@@ -10,7 +10,6 @@ import { saveSlowFillThreshold, saveRate } from "../services/controllerApi";
 import SafetyBanner from "../components/SafetyBanner";
 import StatusHeader from "../components/StatusHeader";
 import ReadinessCard from "../components/ReadinessCard";
-import { Field, Input } from "../components/ui/Field";
 import SegmentedControl from "../components/ui/SegmentedControl";
 import Button from "../components/ui/Button";
 import { kg, money, shortDateTime } from "../utils/format";
@@ -31,21 +30,19 @@ export default function OperatorDashboard() {
   const [editTare,     setEditTare]     = useState(false);
   const [slowFillPct,  setSlowFillPct]  = useState("95");
   const [result,       setResult]       = useState(null);
+  const [showAdmin,    setShowAdmin]    = useState(false);
 
   const rateInit     = useRef(false);
   const slowFillInit = useRef(false);
   const shakeAnim    = useRef(new Animated.Value(0)).current;
 
-  // Sync rate from status once
   useEffect(() => {
     if (!rateInit.current && status.ratePerKg) {
-      const r = money(status.ratePerKg);
-      setRate(r);
+      setRate(money(status.ratePerKg));
       rateInit.current = true;
     }
   }, [status.ratePerKg]);
 
-  // Sync slowFillThreshold from status once
   useEffect(() => {
     if (!slowFillInit.current && status.slowFillThreshold) {
       setSlowFillPct(String(Math.round(status.slowFillThreshold * 100)));
@@ -53,7 +50,6 @@ export default function OperatorDashboard() {
     }
   }, [status.slowFillThreshold]);
 
-  // Sync tare from status when not being edited
   useEffect(() => {
     if (!editTare) setTareWeight(money(status.tareWeightKg));
   }, [status.tareWeightKg, editTare]);
@@ -102,55 +98,140 @@ export default function OperatorDashboard() {
   }
 
   async function handleSaveSlowFill() {
-    const v = Number(slowFillPct) / 100;
     try {
-      await saveSlowFillThreshold(activeUrl, v, authToken);
+      await saveSlowFillThreshold(activeUrl, Number(slowFillPct) / 100, authToken);
       setResult({ ok: true, msg: "Threshold saved" });
     } catch (err) {
       setResult({ ok: false, msg: err?.message || "Failed" });
     }
   }
 
-  const ready = !!status.readyToFill;
-  const last  = transactions[transactions.length - 1];
+  const ready   = !!status.readyToFill;
   const isAdmin = authRole === "admin" || authRole === "manufacturer";
+  const isMfg   = authRole === "manufacturer";
+
+  // Today's transactions (last 5, most recent first)
+  const todayTxns = [...transactions].reverse().slice(0, 5);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.shell}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.shell}
+    >
       <SafetyBanner status={status} streamMode={streamMode} />
-      <StatusHeader status={status} streamMode={streamMode} />
+      <StatusHeader
+        status={status}
+        streamMode={streamMode}
+        authRole={authRole}
+        authUsername={authUsername}
+        onSwitchAccount={logout}
+      />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
-        {/* Weight strip */}
+        {/* ── Weight strip ───────────────────────────────────────── */}
         <View style={styles.weightStrip}>
-          <WeightCell label="LIVE" value={kg(status.liveWeightKg ?? status.weightKg)} />
-          <WeightCell label="TARE" value={kg(status.tareWeightKg)} border />
-          <WeightCell label="NET" value={kg(status.netWeightKg)} accent stable={status.weightStable} border />
+          <WeightCell label="LIVE"  value={kg(status.liveWeightKg ?? status.weightKg)} />
+          <WeightCell label="TARE"  value={kg(status.tareWeightKg)} border />
+          <WeightCell label="NET"   value={kg(status.netWeightKg)}  accent stable={status.weightStable} border />
         </View>
 
-        {/* Readiness */}
-        <ReadinessCard status={status} />
+        {/* ── Readiness icons + START FILL ──────────────────────── */}
+        <Animated.View style={[styles.actionRow, { transform: [{ translateX: shakeAnim }] }]}>
+          <ReadinessCard status={status} />
+          <Pressable
+            style={[styles.startBtn, (!ready || busy || !!status.simActive) && styles.startBtnDisabled]}
+            onPress={handleStart}
+            disabled={!ready || busy || !!status.simActive}
+          >
+            <Text style={styles.startBtnIcon}>▶</Text>
+            <Text style={styles.startBtnLabel}>{busy ? "Starting…" : "START\nFILL"}</Text>
+          </Pressable>
+        </Animated.View>
 
-        {/* Fill setup card */}
-        <Animated.View style={[styles.card, { transform: [{ translateX: shakeAnim }] }]}>
-          <Text style={styles.cardTitle}>Fill Setup</Text>
+        {!ready && (
+          <Text style={styles.blockHint}>
+            {status.simActive ? "Simulation active — real fill blocked." : "Resolve interlocks before starting."}
+          </Text>
+        )}
+        {result && (
+          <Text style={[styles.resultMsg, { color: result.ok ? C.ready : C.danger }]}>
+            {result.msg}
+          </Text>
+        )}
 
-          {/* Tare row */}
-          <View style={styles.tareRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Empty cylinder tare (kg)</Text>
-              <TextInput
-                value={tareWeight}
-                onChangeText={setTareWeight}
-                onFocus={() => setEditTare(true)}
-                onBlur={() => setEditTare(false)}
-                keyboardType="decimal-pad"
-                style={styles.input}
-                placeholder="0.000"
-                placeholderTextColor={C.muted}
-              />
+        {/* ── Fill setup card ─────────────────────────────────────── */}
+        <View style={styles.card}>
+          {/* Mode toggle */}
+          <SegmentedControl
+            options={[
+              { key: "weight", label: "Fill by Weight (kg)" },
+              { key: "amount", label: "Fill by Amount (PKR)" },
+            ]}
+            value={inputMode}
+            onChange={(m) => { setInputMode(m); syncTargets(m); }}
+          />
+
+          {/* Target input (large) */}
+          <View style={styles.targetRow}>
+            <View style={styles.targetWrap}>
+              <Text style={styles.fieldLabel}>{inputMode === "weight" ? "TARGET kg" : "TARGET PKR"}</Text>
+              <View style={styles.targetInputRow}>
+                <Text style={styles.targetUnit}>{inputMode === "weight" ? "kg" : "PKR"}</Text>
+                <TextInput
+                  value={inputMode === "weight" ? targetWeight : targetAmount}
+                  onChangeText={(v) => syncTargets(inputMode, inputMode === "weight" ? "weight" : "amount", v)}
+                  keyboardType="decimal-pad"
+                  style={styles.targetInput}
+                  placeholder="0.000"
+                  placeholderTextColor={C.muted}
+                />
+              </View>
             </View>
+            <View style={styles.resultWrap}>
+              <Text style={styles.fieldLabel}>{inputMode === "weight" ? "TOTAL PKR" : "EQUIV. kg"}</Text>
+              <View style={styles.resultBox}>
+                <Text style={styles.resultUnit}>{inputMode === "weight" ? "PKR" : "kg"}</Text>
+                <Text style={styles.resultVal}>{inputMode === "weight" ? targetAmount : targetWeight}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Rate + Tare row */}
+          <View style={styles.secondaryRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>RATE / kg</Text>
+              <View style={styles.miniInputRow}>
+                <Text style={styles.miniUnit}>PKR</Text>
+                <TextInput
+                  value={rate}
+                  onChangeText={authCanSetRate ? (v) => { setRate(v); syncTargets(inputMode); } : undefined}
+                  editable={authCanSetRate}
+                  keyboardType="decimal-pad"
+                  style={[styles.miniInput, !authCanSetRate && { color: C.muted }]}
+                  placeholder="—"
+                  placeholderTextColor={C.muted}
+                />
+              </View>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>TARE (EMPTY)</Text>
+              <View style={styles.miniInputRow}>
+                <Text style={styles.miniUnit}>kg</Text>
+                <TextInput
+                  value={tareWeight}
+                  onChangeText={setTareWeight}
+                  onFocus={() => setEditTare(true)}
+                  onBlur={() => setEditTare(false)}
+                  keyboardType="decimal-pad"
+                  style={styles.miniInput}
+                  placeholder="0.000"
+                  placeholderTextColor={C.muted}
+                />
+              </View>
+            </View>
+
             <View style={styles.tareBtns}>
               <Pressable style={styles.tBtn} onPress={() => applyTare(tareWeight)}>
                 <Text style={styles.tBtnTxt}>Apply</Text>
@@ -161,122 +242,58 @@ export default function OperatorDashboard() {
             </View>
           </View>
 
-          <View style={styles.divider} />
-
-          {/* Input mode toggle */}
-          <SegmentedControl
-            options={[
-              { key: "weight", label: "Fill by Weight (kg)" },
-              { key: "amount", label: "Fill by Amount (PKR)" },
-            ]}
-            value={inputMode}
-            onChange={(m) => { setInputMode(m); syncTargets(m); }}
-          />
-
-          {/* Primary input */}
-          <View style={styles.primaryWrap}>
-            <Text style={styles.fieldLabel}>{inputMode === "weight" ? "Target weight (kg)" : "Target amount (PKR)"}</Text>
-            <View style={styles.primaryRow}>
-              <Text style={styles.primaryUnit}>{inputMode === "weight" ? "kg" : "PKR"}</Text>
-              <TextInput
-                value={inputMode === "weight" ? targetWeight : targetAmount}
-                onChangeText={(v) => syncTargets(inputMode, inputMode === "weight" ? "weight" : "amount", v)}
-                keyboardType="decimal-pad"
-                style={styles.primaryInput}
-                placeholder="0.000"
-                placeholderTextColor={C.muted}
-              />
-            </View>
-          </View>
-
-          {/* Rate + result row */}
-          <View style={styles.rateRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Rate / kg</Text>
-              <View style={styles.rateInputWrap}>
-                <Text style={styles.rateUnit}>PKR</Text>
-                <TextInput
-                  value={rate}
-                  onChangeText={authCanSetRate ? (v) => { setRate(v); syncTargets(inputMode); } : undefined}
-                  editable={authCanSetRate}
-                  keyboardType="decimal-pad"
-                  style={[styles.rateInput, !authCanSetRate && { color: C.muted }]}
-                  placeholder="0.00"
-                  placeholderTextColor={C.muted}
-                />
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>{inputMode === "weight" ? "Total amount" : "Equiv. weight"}</Text>
-              <View style={styles.resultBox}>
-                <Text style={styles.resultUnit}>{inputMode === "weight" ? "PKR" : "kg"}</Text>
-                <Text style={styles.resultVal}>{inputMode === "weight" ? targetAmount : targetWeight}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Slow fill threshold (admin+) */}
-          {authCanSetRate && (
+          {/* Admin settings (collapsible) */}
+          {isAdmin && (
             <>
-              <View style={styles.divider} />
-              <Field label={`Fast→Slow at ${slowFillPct || "—"}% of target`}>
-                <View style={{ flexDirection: "row", gap: S.sm, alignItems: "center", marginTop: S.xs }}>
-                  <TextInput
-                    value={slowFillPct}
-                    onChangeText={setSlowFillPct}
-                    keyboardType="numeric"
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="95"
-                    placeholderTextColor={C.muted}
-                  />
-                  <Text style={{ color: C.muted, fontSize: T.sm }}>%</Text>
-                  <Button label="Set" variant="ghost" size="sm" onPress={handleSaveSlowFill} />
-                  <Button label="Save rate" variant="ghost" size="sm" onPress={handleSaveRate} />
+              <Pressable style={styles.adminToggle} onPress={() => setShowAdmin(v => !v)}>
+                <Text style={styles.adminToggleTxt}>{showAdmin ? "▲ Hide settings" : "▼ Admin settings"}</Text>
+              </Pressable>
+              {showAdmin && (
+                <View style={styles.adminSection}>
+                  <Text style={styles.fieldLabel}>FAST→SLOW AT {slowFillPct || "—"}% OF TARGET</Text>
+                  <View style={styles.adminRow}>
+                    <TextInput
+                      value={slowFillPct}
+                      onChangeText={setSlowFillPct}
+                      keyboardType="numeric"
+                      style={[styles.miniInput, { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.sm, paddingVertical: S.xs + 2 }]}
+                      placeholder="95"
+                      placeholderTextColor={C.muted}
+                    />
+                    <Text style={{ color: C.muted, fontSize: T.sm, marginHorizontal: S.xs }}>%</Text>
+                    <Button label="Set" variant="ghost" size="sm" onPress={handleSaveSlowFill} />
+                    <Button label="Save rate" variant="ghost" size="sm" onPress={handleSaveRate} />
+                  </View>
                 </View>
-              </Field>
+              )}
             </>
           )}
+        </View>
 
-          {result && (
-            <Text style={[styles.resultMsg, { color: result.ok ? C.ready : C.danger }]}>{result.msg}</Text>
-          )}
+        {/* ── Today's transactions ─────────────────────────────────── */}
+        {todayTxns.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.cardTitle}>TODAY</Text>
+              {isAdmin && (
+                <Pressable onPress={() => navigate("transactions")}>
+                  <Text style={styles.historyLink}>All history →</Text>
+                </Pressable>
+              )}
+            </View>
+            {todayTxns.map((txn, i) => <TxnRow key={txn.id || i} txn={txn} />)}
+          </View>
+        )}
 
-          <View style={styles.divider} />
-
-          <Button
-            label={busy ? "Starting…" : "Start Fill"}
-            variant="primary"
-            size="full"
-            disabled={!ready || busy || !!status.simActive}
-            disabledReason={!ready ? "Resolve interlocks before starting." : status.simActive ? "Simulation active — real fill blocked." : undefined}
-            onPress={handleStart}
-            loading={busy}
-          />
-        </Animated.View>
-
-        {/* Last transaction */}
-        {last && <LastTxnCard txn={last} />}
-
-        {/* Navigation row */}
+        {/* ── Navigation row ──────────────────────────────────────── */}
         <View style={styles.navRow}>
-          {isAdmin && (
-            <NavBtn label="History"     onPress={() => navigate("transactions")} />
-          )}
           {authRole === "operator" && (
-            <NavBtn label="My History"  onPress={() => navigate("transactions")} />
+            <NavBtn label="My History" onPress={() => navigate("transactions")} />
           )}
-          {isAdmin && (
-            <NavBtn label="Settings"    onPress={() => navigate("network")} />
-          )}
-          {isAdmin && (
-            <NavBtn label="Users"       onPress={() => navigate("admin-users")} />
-          )}
-          {authRole === "manufacturer" && (
-            <NavBtn label="Diagnostics" onPress={() => navigate("diagnostics")} />
-          )}
-          {authRole === "manufacturer" && (
-            <NavBtn label="Calibration" onPress={() => navigate("calibration")} />
-          )}
+          {isAdmin && <NavBtn label="Settings"    onPress={() => navigate("network")} />}
+          {isAdmin && <NavBtn label="Users"       onPress={() => navigate("admin-users")} />}
+          {isMfg   && <NavBtn label="Diagnostics" onPress={() => navigate("diagnostics")} />}
+          {isMfg   && <NavBtn label="Calibration" onPress={() => navigate("calibration")} />}
           <NavBtn label={`Sign Out (${authUsername})`} onPress={logout} />
         </View>
 
@@ -285,39 +302,37 @@ export default function OperatorDashboard() {
   );
 }
 
+// ── Sub-components ─────────────────────────────────────────────────────────
+
 function WeightCell({ label, value, border, accent, stable }) {
   return (
     <View style={[styles.wCell, border && styles.wCellBorder, accent && styles.wCellAccent]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={[styles.wLabel, accent && { color: "rgba(255,255,255,0.6)" }]}>{label}</Text>
+        <Text style={[styles.wLabel, accent && { color: "rgba(255,255,255,0.55)" }]}>{label}</Text>
         {accent && (
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stable ? C.ready : C.warning }} />
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: stable ? C.ready : C.warning }} />
         )}
       </View>
       <Text style={[styles.wVal, accent && { color: C.white }]}>{value}</Text>
-      <Text style={[styles.wUnit, accent && { color: "rgba(255,255,255,0.5)" }]}>kg</Text>
+      <Text style={[styles.wUnit, accent && { color: "rgba(255,255,255,0.45)" }]}>kg</Text>
     </View>
   );
 }
 
-function LastTxnCard({ txn }) {
+function TxnRow({ txn }) {
   const isOk    = Number(txn.status) === 1;
   const dateStr = shortDateTime(txn.endTime || txn.startTime);
+  const netKg   = kg(txn.netKg ?? txn.finalKg ?? 0);
+  const amount  = money(txn.finalAmount ?? 0);
+  const txnId   = txn.transactionId || `#${txn.id}`;
+
   return (
-    <View style={styles.lastTxn}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: S.xs }}>
-        <Text style={styles.ltLabel}>LAST TRANSACTION</Text>
-        <Text style={[styles.ltStatus, { color: isOk ? C.ready : C.warning }]}>
-          {isOk ? "● Complete" : "✗ Fault"}
-        </Text>
-      </View>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <View>
-          <Text style={styles.ltAmount}>PKR {money(txn.finalAmount)}</Text>
-          <Text style={styles.ltSub}>{money(txn.netKg || txn.finalKg)} kg · {dateStr || "—"}</Text>
-        </View>
-        <Text style={styles.ltId}>{txn.transactionId || txn.id}</Text>
-      </View>
+    <View style={styles.txnRow}>
+      <View style={[styles.txnDot, { backgroundColor: isOk ? C.ready : C.warning }]} />
+      <Text style={styles.txnId} numberOfLines={1}>{txnId}</Text>
+      <Text style={styles.txnKg}  numberOfLines={1}>{netKg} kg</Text>
+      <Text style={styles.txnAmt} numberOfLines={1}>PKR {amount}</Text>
+      <Text style={styles.txnTime} numberOfLines={1}>{dateStr}</Text>
     </View>
   );
 }
@@ -330,54 +345,135 @@ function NavBtn({ label, onPress }) {
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   shell:   { flex: 1, backgroundColor: C.bg },
-  content: { padding: S.md, paddingBottom: 52 },
+  content: { padding: S.md, paddingBottom: 52, gap: S.md },
 
-  weightStrip:  { flexDirection: "row", backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: S.md },
-  wCell:        { flex: 1, alignItems: "center", paddingVertical: S.lg },
-  wCellBorder:  { borderLeftWidth: 1, borderLeftColor: C.border },
-  wCellAccent:  { backgroundColor: C.active + "22", flex: 1.2 },
-  wLabel:       { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.8 },
-  wVal:         { fontSize: 24, fontWeight: "900", color: C.text, fontVariant: ["tabular-nums"], marginTop: 2 },
-  wUnit:        { fontSize: T.xs, color: C.textSub, marginTop: 1 },
+  // Weight strip
+  weightStrip: {
+    flexDirection: "row",
+    backgroundColor: C.surface,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+  },
+  wCell:       { flex: 1, alignItems: "center", paddingVertical: S.lg },
+  wCellBorder: { borderLeftWidth: 1, borderLeftColor: C.border },
+  wCellAccent: { backgroundColor: C.active + "1a", flex: 1.3 },
+  wLabel:      { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.8 },
+  wVal:        { fontSize: 26, fontWeight: "900", color: C.text, fontVariant: ["tabular-nums"], marginTop: 2 },
+  wUnit:       { fontSize: T.xs, color: C.textSub, marginTop: 1 },
 
-  card:      { backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, padding: S.md, marginBottom: S.md },
-  cardTitle: { fontSize: T.lg, fontWeight: "900", color: C.text, marginBottom: S.md },
+  // Readiness + start button row
+  actionRow: {
+    flexDirection: "row",
+    gap: S.md,
+    alignItems: "stretch",
+  },
+  startBtn: {
+    width: 88,
+    backgroundColor: C.active,
+    borderRadius: R.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: S.sm,
+    gap: S.xs,
+  },
+  startBtnDisabled: {
+    backgroundColor: C.muted,
+  },
+  startBtnIcon: {
+    fontSize: 22,
+    color: C.white,
+    fontWeight: "900",
+  },
+  startBtnLabel: {
+    fontSize: T.sm,
+    fontWeight: "900",
+    color: C.white,
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  blockHint: {
+    fontSize: T.xs,
+    color: C.warning,
+    textAlign: "center",
+    marginTop: -S.xs,
+  },
+  resultMsg: {
+    fontSize: T.sm,
+    textAlign: "center",
+    marginTop: -S.xs,
+  },
 
-  tareRow:  { flexDirection: "row", alignItems: "flex-end", gap: S.sm, marginBottom: S.md },
-  tareBtns: { flexDirection: "row", gap: S.xs },
-  tBtn:     { paddingHorizontal: S.md, paddingVertical: S.sm + 2, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
-  tBtnTxt:  { fontSize: T.sm, fontWeight: "700", color: C.textSub },
+  // Fill setup card
+  card: {
+    backgroundColor: C.surface,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: S.md,
+    gap: S.md,
+  },
+  cardTitle: {
+    fontSize: T.sm,
+    fontWeight: "900",
+    color: C.textSub,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
 
-  fieldLabel: { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.xs + 2 },
-  input:      { backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 2, fontSize: T.md, color: C.text, fontVariant: ["tabular-nums"] },
+  // Target row
+  targetRow:      { flexDirection: "row", gap: S.sm, alignItems: "stretch" },
+  targetWrap:     { flex: 1.4 },
+  resultWrap:     { flex: 1 },
+  fieldLabel:     { fontSize: T.xs - 1, fontWeight: "800", color: C.muted, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.xs },
+  targetInputRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface2, borderWidth: 2, borderColor: C.primary, borderRadius: R.md, overflow: "hidden" },
+  targetUnit:     { fontSize: T.sm, fontWeight: "900", color: C.primary, paddingHorizontal: S.sm },
+  targetInput:    { flex: 1, fontSize: 26, fontWeight: "900", color: C.text, paddingVertical: S.sm, paddingRight: S.sm, fontVariant: ["tabular-nums"] },
+  resultBox:      { flexDirection: "row", alignItems: "center", backgroundColor: C.active + "18", borderRadius: R.md, borderWidth: 1, borderColor: C.active + "55", paddingHorizontal: S.sm, paddingVertical: S.sm, gap: S.xs, flex: 1 },
+  resultUnit:     { fontSize: T.xs, fontWeight: "900", color: C.active },
+  resultVal:      { fontSize: T.md, fontWeight: "900", color: C.active, fontVariant: ["tabular-nums"], flex: 1 },
 
-  divider: { height: 1, backgroundColor: C.border, marginVertical: S.md },
+  // Secondary row (rate + tare)
+  secondaryRow:  { flexDirection: "row", gap: S.sm, alignItems: "flex-end" },
+  miniInputRow:  { flexDirection: "row", alignItems: "center", backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, borderRadius: R.md, overflow: "hidden" },
+  miniUnit:      { fontSize: T.xs, fontWeight: "800", color: C.muted, paddingHorizontal: S.sm, paddingVertical: S.sm },
+  miniInput:     { flex: 1, fontSize: T.md, fontWeight: "700", color: C.text, paddingVertical: S.sm, paddingRight: S.sm, fontVariant: ["tabular-nums"] },
 
-  primaryWrap:  { marginTop: S.md },
-  primaryRow:   { flexDirection: "row", alignItems: "center", backgroundColor: C.surface2, borderWidth: 2, borderColor: C.primary, borderRadius: R.md, marginTop: S.xs, overflow: "hidden" },
-  primaryUnit:  { fontSize: T.md, fontWeight: "900", color: C.primary, paddingHorizontal: S.md },
-  primaryInput: { flex: 1, fontSize: 28, fontWeight: "900", color: C.text, paddingVertical: S.md, paddingRight: S.md, fontVariant: ["tabular-nums"] },
+  // Tare buttons
+  tareBtns: { flexDirection: "column", gap: S.xs },
+  tBtn:     { paddingHorizontal: S.sm, paddingVertical: S.xs + 2, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2, alignItems: "center" },
+  tBtnTxt:  { fontSize: T.xs, fontWeight: "700", color: C.textSub },
 
-  rateRow:      { flexDirection: "row", gap: S.sm, marginTop: S.md },
-  rateInputWrap:{ flexDirection: "row", alignItems: "center", backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, borderRadius: R.md, marginTop: S.xs, overflow: "hidden" },
-  rateUnit:     { fontSize: T.xs, fontWeight: "800", color: C.muted, paddingHorizontal: S.sm },
-  rateInput:    { flex: 1, fontSize: T.md, fontWeight: "700", color: C.text, paddingVertical: S.sm + 2, paddingRight: S.sm, fontVariant: ["tabular-nums"] },
-  resultBox:    { flexDirection: "row", alignItems: "center", backgroundColor: C.active + "22", borderRadius: R.md, borderWidth: 1, borderColor: C.active, marginTop: S.xs, paddingHorizontal: S.sm, paddingVertical: S.sm + 2, gap: S.xs },
-  resultUnit:   { fontSize: T.xs, fontWeight: "900", color: C.active },
-  resultVal:    { fontSize: T.md, fontWeight: "900", color: C.active, fontVariant: ["tabular-nums"] },
+  // Admin collapsible
+  adminToggle:    { alignSelf: "flex-start", paddingVertical: 2 },
+  adminToggleTxt: { fontSize: T.xs, fontWeight: "700", color: C.active },
+  adminSection:   { gap: S.xs },
+  adminRow:       { flexDirection: "row", alignItems: "center", gap: S.xs },
 
-  resultMsg: { fontSize: T.sm, textAlign: "center", marginTop: S.sm, marginBottom: S.xs },
+  // Today's transactions
+  historyHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  historyLink:   { fontSize: T.xs, fontWeight: "700", color: C.active },
+  txnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: S.sm,
+    paddingVertical: S.xs + 2,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
+  txnDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  txnId:   { fontSize: T.xs, fontWeight: "700", color: C.textSub, width: 90 },
+  txnKg:   { fontSize: T.xs, fontWeight: "700", color: C.text, fontVariant: ["tabular-nums"], width: 62 },
+  txnAmt:  { fontSize: T.xs, fontWeight: "700", color: C.ready, fontVariant: ["tabular-nums"], flex: 1 },
+  txnTime: { fontSize: T.xs, color: C.muted, fontVariant: ["tabular-nums"] },
 
-  lastTxn:  { backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.border, padding: S.md, marginBottom: S.md },
-  ltLabel:  { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7 },
-  ltStatus: { fontSize: T.xs, fontWeight: "800" },
-  ltAmount: { fontSize: T.xl, fontWeight: "900", color: C.text, fontVariant: ["tabular-nums"] },
-  ltSub:    { fontSize: T.xs, color: C.textSub, marginTop: 2 },
-  ltId:     { fontSize: T.xs, fontWeight: "700", color: C.textSub },
-
-  navRow:    { flexDirection: "row", flexWrap: "wrap", gap: S.xs, marginTop: S.md },
-  navBtn:    { paddingVertical: S.sm - 1, paddingHorizontal: S.md, borderRadius: R.sm, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  // Navigation
+  navRow:    { flexDirection: "row", flexWrap: "wrap", gap: S.xs },
+  navBtn:    { paddingVertical: S.xs + 2, paddingHorizontal: S.md, borderRadius: R.sm, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
   navBtnTxt: { fontSize: T.xs + 1, fontWeight: "700", color: C.textSub },
 });

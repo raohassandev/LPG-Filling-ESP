@@ -1,78 +1,105 @@
-import { StyleSheet, Text, View } from "react-native";
-import { C, R, S, T } from "../theme";
-import { getBlockerUI } from "../utils/faultMessages";
-import StatusChip from "./ui/StatusChip";
+import { useEffect, useRef } from "react";
+import { Animated, StyleSheet, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { C, R, S } from "../theme";
+
+// Four readiness icons in a horizontal strip — color only, no text labels.
+// Icon meanings should be universally recognisable on the factory floor.
+//
+// ⬡ alert-octagon  — Emergency stop (octagonal stop sign shape)
+// ⬤ gas-cylinder   — Cylinder present (literal gas bottle)
+// ⬤ nozzle         — Nozzle engaged (filling nozzle)
+// ⚖ scale-balance  — Weight stable (weighing scale)
+
+const INDICATORS = [
+  {
+    key: "estop",
+    icon: "alert-octagon",
+    activeKey: "emergencyStopOk",
+    activeColor: C.ready,
+    inactiveColor: C.danger,   // e-stop OFF = danger (bad)
+    invertLogic: true,         // icon active when flag is TRUE (safe = green)
+  },
+  {
+    key: "cylinder",
+    icon: "gas-cylinder",
+    activeKey: "cylinderPresent",
+    activeColor: C.ready,
+    inactiveColor: C.muted,
+  },
+  {
+    key: "nozzle",
+    icon: "nozzle",
+    activeKey: "nozzleEngaged",
+    activeColor: C.active,
+    inactiveColor: C.muted,
+  },
+  {
+    key: "weight",
+    icon: "scale-balance",
+    activeKey: "weightStable",
+    activeColor: C.ready,
+    inactiveColor: C.warning,  // unstable = amber (measuring)
+    blinkWhenInactive: true,
+  },
+];
 
 export default function ReadinessCard({ status }) {
-  // Firmware is authority. readyToFill === true is the sole source of truth.
-  // Local flags only used for legacy firmware that doesn't expose blockers[].
-  const ready = !!status?.readyToFill;
-  const blockers = Array.isArray(status?.blockers) ? status.blockers : deriveLegacyBlockers(status);
-
-  if (ready && blockers.length === 0) {
-    return (
-      <View style={[styles.card, styles.cardReady]}>
-        <View style={styles.headerRow}>
-          <StatusChip label="READY" tone="ready" />
-          <Text style={styles.title}>System ready to fill</Text>
-        </View>
-        <Text style={styles.sub}>All interlocks satisfied. You can start a fill.</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.card, styles.cardBlocked]}>
-      <View style={styles.headerRow}>
-        <StatusChip label="NOT READY" tone="warning" />
-        <Text style={styles.title}>Resolve before starting</Text>
-      </View>
-      {blockers.map((code) => {
-        const ui = getBlockerUI(code);
-        return (
-          <View key={code} style={styles.blockerRow}>
-            <View style={styles.dot} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.blockerLabel}>{ui.label}</Text>
-              {!!ui.guidance && <Text style={styles.blockerGuide}>{ui.guidance}</Text>}
-            </View>
-          </View>
-        );
-      })}
+    <View style={styles.strip}>
+      {INDICATORS.map((ind) => (
+        <ReadinessIcon key={ind.key} indicator={ind} status={status} />
+      ))}
     </View>
   );
 }
 
-function deriveLegacyBlockers(status) {
-  const out = [];
-  if (!status) return out;
-  if (status.simActive) out.push("simulation_active");
-  if (!status.emergencyStopOk) out.push("estop_active");
-  if (!status.cylinderPresent) out.push("cylinder_missing");
-  if (!status.nozzleEngaged) out.push("nozzle_not_engaged");
-  if (!status.weightInitialized) out.push("scale_not_initialized");
-  if (status.weightReadError) out.push("scale_read_error");
-  if (!status.weightStable) out.push("scale_unstable");
-  if (!status.calValid) out.push("scale_not_calibrated");
-  return out;
+function ReadinessIcon({ indicator, status }) {
+  const { icon, activeKey, activeColor, inactiveColor, blinkWhenInactive } = indicator;
+  const isActive = !!status?.[activeKey];
+  const color    = isActive ? activeColor : inactiveColor;
+
+  // Blink animation for weight-stable when measuring
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (blinkWhenInactive && !isActive) {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, { toValue: 0.2, duration: 500, useNativeDriver: true }),
+          Animated.timing(blinkAnim, { toValue: 1,   duration: 500, useNativeDriver: true }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    } else {
+      blinkAnim.setValue(1);
+    }
+  }, [isActive, blinkWhenInactive]);
+
+  const iconEl = (
+    <View style={[styles.iconWrap, { borderColor: color + "44", backgroundColor: color + "18" }]}>
+      <MaterialCommunityIcons name={icon} size={32} color={color} />
+    </View>
+  );
+
+  if (blinkWhenInactive && !isActive) {
+    return <Animated.View style={{ opacity: blinkAnim }}>{iconEl}</Animated.View>;
+  }
+  return iconEl;
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: C.surface,
-    borderRadius: R.lg,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: S.md,
-    marginBottom: S.md,
+  strip: {
+    flexDirection: "row",
+    gap: S.sm,
+    flex: 1,
   },
-  cardReady: { borderColor: C.ready, backgroundColor: "rgba(16,185,129,0.08)" },
-  cardBlocked: { borderColor: C.warning },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.sm },
-  title: { color: C.text, fontSize: T.md, fontWeight: "800" },
-  sub:   { color: C.textSub, fontSize: T.sm },
-  blockerRow: { flexDirection: "row", gap: S.sm, alignItems: "flex-start", paddingVertical: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.warning, marginTop: 6 },
-  blockerLabel: { color: C.text, fontSize: T.sm, fontWeight: "700" },
-  blockerGuide: { color: C.textSub, fontSize: T.xs, marginTop: 2 },
+  iconWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: S.md,
+    borderRadius: R.md,
+    borderWidth: 1,
+  },
 });
