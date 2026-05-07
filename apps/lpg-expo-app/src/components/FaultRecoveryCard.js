@@ -3,7 +3,7 @@ import { C, R, S, T } from "../theme";
 import { getFaultMessage } from "../utils/faultMessages";
 import Button from "./ui/Button";
 
-export default function FaultRecoveryCard({ status, onReset, busy }) {
+export default function FaultRecoveryCard({ status, onReset, busy, showReset = true }) {
   const code = status?.reasonCode || "fault";
   const f = getFaultMessage(code) || {};
   const sev = f.severity || "critical";
@@ -11,7 +11,11 @@ export default function FaultRecoveryCard({ status, onReset, busy }) {
 
   // Firmware should expose canReset / readyToReset; fall back to allowing manual reset.
   // The Reset button itself defers to firmware (which may still reject).
-  const canReset = status?.canReset !== undefined ? !!status.canReset : true;
+  const canReset = status?.readyToReset !== undefined
+    ? !!status.readyToReset || sev !== "critical"
+    : status?.canReset !== undefined
+      ? !!status.canReset
+      : true;
 
   return (
     <View style={styles.card}>
@@ -25,19 +29,21 @@ export default function FaultRecoveryCard({ status, onReset, busy }) {
         <Section label="Do now" text={f.action} accent />
         <Section label="Reset when" text={f.resetCondition} />
 
-        <View style={{ marginTop: S.md }}>
-          <Button
-            label={busy ? "Resetting..." : "Reset to Idle"}
-            variant="danger"
-            size="full"
-            disabled={!canReset || busy}
-            disabledReason={!canReset ? "Firmware will allow reset once conditions are met." : undefined}
-            confirmLabel="Reset the controller to idle?"
-            confirmMessage="Only do this after the underlying condition is cleared."
-            onPress={onReset}
-            loading={busy}
-          />
-        </View>
+        {showReset && (
+          <View style={{ marginTop: S.md }}>
+            <Button
+              label={busy ? "Resetting..." : "Reset to Idle"}
+              variant="danger"
+              size="full"
+              disabled={!canReset || busy}
+              disabledReason={!canReset ? "Firmware will allow reset once conditions are met." : undefined}
+              confirmLabel="Reset the controller to idle?"
+              confirmMessage="Only do this after the underlying condition is cleared."
+              onPress={onReset}
+              loading={busy}
+            />
+          </View>
+        )}
       </View>
     </View>
   );

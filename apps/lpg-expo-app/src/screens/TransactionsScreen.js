@@ -4,7 +4,6 @@ import { C, R, S, T } from "../theme";
 import { useAppState } from "../state/AppStateProvider";
 import { fetchSdMonths, fetchSdTransactions } from "../services/controllerApi";
 import { money, kg, shortDateTime } from "../utils/format";
-import StatusChip from "../components/ui/StatusChip";
 
 const PERIODS = [
   { key: "today", label: "Today" },
@@ -15,7 +14,7 @@ const PERIODS = [
 ];
 
 export default function TransactionsScreen() {
-  const { navigate, transactions, status, activeUrl, authToken, authRole } = useAppState();
+  const { navigate, transactions, activeUrl, authToken, authRole } = useAppState();
   const [period,    setPeriod]    = useState("all");
   const [sdMonths,  setSdMonths]  = useState([]);
   const [sdReady,   setSdReady]   = useState(false);
@@ -130,18 +129,11 @@ function TxnRow({ item }) {
   const dateStr = shortDateTime(item.endTime || item.startTime);
   return (
     <View style={styles.txnRow}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: 3 }}>
-        <Text style={styles.txnId}>{item.transactionId || item.id}</Text>
-        <StatusChip label={isOk ? "OK" : "ERR"} tone={isOk ? "ready" : "warning"} />
-        {!!item.operator && <Text style={styles.txnOp}>{item.operator}</Text>}
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: S.md, flexWrap: "wrap" }}>
-        <Text style={styles.txnAmount}>PKR {money(item.finalAmount)}</Text>
-        <Text style={styles.txnSub}>{kg(item.finalKg ?? item.netKg)} kg</Text>
-        <Text style={styles.txnSub}>@ {money(item.ratePerKg)}/kg</Text>
-        {dateStr && <Text style={styles.txnDate}>{dateStr}</Text>}
-        {!isOk && !!item.faultCode && <Text style={styles.txnFault}>{item.faultCode}</Text>}
-      </View>
+      <View style={[styles.dot, { backgroundColor: isOk ? C.ready : C.warning }]} />
+      <Text style={styles.txnId} numberOfLines={1}>{item.transactionId || `#${item.id}`}</Text>
+      <Text style={styles.txnKg} numberOfLines={1}>{kg(item.netKg ?? item.finalKg)} kg</Text>
+      <Text style={styles.txnAmt} numberOfLines={1}>PKR {money(item.finalAmount)}</Text>
+      <Text style={styles.txnTime} numberOfLines={1}>{dateStr || "-"}</Text>
     </View>
   );
 }
@@ -169,11 +161,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: T.xs, fontWeight: "800", color: C.textSub, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.sm },
   empty:        { color: C.muted, fontSize: T.sm, textAlign: "center", paddingVertical: S.lg },
 
-  txnRow:    { paddingVertical: S.sm, borderTopWidth: 1, borderTopColor: C.border },
-  txnId:     { fontSize: T.sm, fontWeight: "800", color: C.text },
-  txnOp:     { fontSize: T.xs, color: C.textSub },
-  txnAmount: { fontSize: T.md, fontWeight: "800", color: C.active, fontVariant: ["tabular-nums"] },
-  txnSub:    { fontSize: T.xs, color: C.textSub },
-  txnDate:   { fontSize: T.xs, color: C.muted },
-  txnFault:  { fontSize: T.xs, color: C.danger, fontWeight: "700" },
+  txnRow:  { flexDirection: "row", alignItems: "center", gap: S.sm, paddingVertical: S.sm, borderTopWidth: 1, borderTopColor: C.border },
+  dot:     { width: 8, height: 8, borderRadius: 4 },
+  txnId:   { flex: 1.3, fontSize: T.sm, fontWeight: "900", color: C.text },
+  txnKg:   { flex: 0.9, fontSize: T.xs, color: C.textSub, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  txnAmt:  { flex: 1.2, fontSize: T.xs, color: C.active, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  txnTime: { flex: 1.4, fontSize: T.xs, color: C.muted, textAlign: "right" },
 });

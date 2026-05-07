@@ -6,10 +6,14 @@ import { resetFill } from "../services/controllerApi";
 import FaultRecoveryCard from "../components/FaultRecoveryCard";
 import SafetyBanner from "../components/SafetyBanner";
 import StatusHeader from "../components/StatusHeader";
+import { getFaultMessage } from "../utils/faultMessages";
 
 export default function FaultScreen() {
-  const { status, streamMode, activeUrl, authToken } = useAppState();
+  const { status, streamMode, activeUrl, authToken, authRole, authUsername, logout } = useAppState();
   const [busy, setBusy] = useState(false);
+  const fault = getFaultMessage(status?.reasonCode || status?.faultCode);
+  const hasReadyToReset = status?.readyToReset !== undefined;
+  const showReset = !hasReadyToReset || !!status.readyToReset || fault?.severity !== "critical";
 
   async function handleReset() {
     setBusy(true);
@@ -21,9 +25,15 @@ export default function FaultScreen() {
   return (
     <View style={styles.shell}>
       <SafetyBanner status={status} streamMode={streamMode} />
-      <StatusHeader status={status} streamMode={streamMode} />
+      <StatusHeader
+        status={status}
+        streamMode={streamMode}
+        authRole={authRole}
+        authUsername={authUsername}
+        onSwitchAccount={logout}
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <FaultRecoveryCard status={status} onReset={handleReset} busy={busy} />
+        <FaultRecoveryCard status={status} onReset={handleReset} busy={busy} showReset={showReset} />
       </ScrollView>
     </View>
   );

@@ -8,7 +8,7 @@ import { C, R, S } from "../theme";
 //
 // ⬡ alert-octagon  — Emergency stop (octagonal stop sign shape)
 // ⬤ gas-cylinder   — Cylinder present (literal gas bottle)
-// ⬤ nozzle         — Nozzle engaged (filling nozzle)
+// ⬤ fuel           — Nozzle engaged (filling nozzle / dispenser)
 // ⚖ scale-balance  — Weight stable (weighing scale)
 
 const INDICATORS = [
@@ -29,7 +29,7 @@ const INDICATORS = [
   },
   {
     key: "nozzle",
-    icon: "nozzle",
+    icon: "fuel",
     activeKey: "nozzleEngaged",
     activeColor: C.active,
     inactiveColor: C.muted,
