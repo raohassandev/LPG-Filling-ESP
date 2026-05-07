@@ -25,8 +25,6 @@
 | esp-lvgl-port | https://components.espressif.com/components/espressif/esp_lvgl_port |
 | GT911 driver | https://components.espressif.com/components/espressif/esp_lcd_touch_gt911 |
 
----
-
 ## Pin Map (verified against schematic)
 
 ### I²C — shared bus (GT911 touch + CH422G expander)
@@ -95,13 +93,47 @@ Data bus ordering: D[0:4] = B[4:0], D[5:10] = G[5:0], D[11:15] = R[4:0]
 
 | Signal | GPIO | Note |
 |--------|------|------|
-| UART TX | GPIO43 | MCU → RS485 transmitter |
-| UART RX | GPIO44 | RS485 receiver → MCU |
-| UART port | UART_NUM_1 | UART0 (GPIO43/44) is available for debug if RS485 is idle |
+| UART TX | GPIO44 | MCU -> RS485 transmitter (`RS4850TXD`) |
+| UART RX | GPIO43 | RS485 receiver -> MCU (`RS4850RXD`) |
+| UART port | UART_NUM_1 | ESP-IDF UART1 in display firmware |
 | Baud | 9600 (project default) | |
 | Slave address | 1 (KC868-A6) | |
 
 Auto-direction: the SP3485 DE/RE pins are wired to auto-switch on data activity — no GPIO control needed.
+
+### Working RS485 Configuration (do not reinterpret)
+
+The table above has caused confusion in past debugging because schematic net names and UART direction are easy to read backwards. The working display firmware configuration is:
+
+```cpp
+static constexpr uart_port_t kRtuUart  = UART_NUM_1;
+static constexpr gpio_num_t  kRtuTxPin = GPIO_NUM_44;
+static constexpr gpio_num_t  kRtuRxPin = GPIO_NUM_43;
+static constexpr int         kRtuBaud  = 9600;
+static constexpr uint8_t     kRtuAddr  = 1;
+```
+
+Use `firmware/lpg_display/main/DisplayConfig.h` as the source of truth. Do not swap GPIO43/GPIO44 based only on schematic net naming. A previous wrong pin interpretation caused RTU timeouts, CRC errors, and intermittent "Controller offline Check RS485" messages.
+
+Controller working RS485/serial configuration:
+
+| Item | Value |
+|------|-------|
+| Board USB serial | CH340, usually `COM4` |
+| Console baud | 115200 |
+| RTU UART | `Serial2` |
+| RTU RX | GPIO14 |
+| RTU TX | GPIO27 |
+| RTU DE/RE | none, auto-direction, `kRtuDePin = 255` |
+| RTU settings | slave 1, 9600 baud, 8N1 |
+
+Controller serial commands useful for delivery debugging: `status`, `hx`, `rtu`, `start 12 250`, `stop`, `reset`.
+
+Expected controller `rtu` output:
+
+```text
+[SERIAL] rtu: enabled=1 slave=1 baud=9600 data=8 parity=0 stop=1 rx=14 tx=27 de=255
+```
 
 ### USB
 
@@ -205,6 +237,16 @@ CONFIG_LV_USE_FLEX=y
 | GT911 I²C flood | `tp_io` handle leaked on failed init | Call `esp_lcd_panel_io_del(tp_io)` on failure |
 | `lvgl_port_lock` crash | `trans_sem` NULL with `full_refresh=true, avoid_tearing=0` | Use partial render (full_refresh=false) or avoid_tearing=1 |
 | IRAM assertion on boot | `CONFIG_LCD_RGB_ISR_IRAM_SAFE=y` with flash callbacks | Set `CONFIG_LCD_RGB_ISR_IRAM_SAFE=n` |
+
+Additional delivery-era pitfalls:
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Blank screen after flash | Wrong ESP32-S3 image, flash args, LCD pin map, PSRAM mode, or sdkconfig | Flash only `firmware/lpg_display` with ESP-IDF; keep OPI PSRAM, 16 MB flash, and LCD timing above |
+| Board missing from serial | Wrong cable/port, boot/reset state, or looking for the wrong board | Display is native USB VID:PID `303A:0009`; controller is CH340, usually `COM4` |
+| RTU reads work but START says offline | Controller rejected START or display write sequence collided with polling | Check controller serial `start 12 250`; display must serialize the full START transaction |
+| Controller rejects START after update | Old NVS had calibration factor but no `cal_valid` flag | Current firmware migrates saved calibration; verify with `hx` and `start 12 250` |
+| Controller RTU CRC error | A/B wiring, swapped UART pins, baud/parity mismatch, or frame overlap | Use display TX44/RX43, controller TX27/RX14, 9600 8N1 slave 1 |
 
 ---
 
