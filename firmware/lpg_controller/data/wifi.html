@@ -3,100 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WiFi Settings – LPG Controller</title>
+<title>WiFi Manager - LPG Controller</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",Arial,sans-serif;background:#edf1f5;color:#17212b;padding:16px}
-a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:16px}
-h1{font-size:1.4rem;font-weight:900;margin-bottom:16px}
-.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:18px;max-width:480px}
-.card+.card{margin-top:12px}
-h2{font-size:1rem;font-weight:800;margin-bottom:12px}
-label{display:block;font-size:.85rem;font-weight:700;color:#647282;margin:10px 0 4px}
-input{width:100%;border:1px solid #d7dee8;border-radius:8px;padding:10px 12px;font-size:1rem;color:#17212b}
-input:focus{outline:2px solid #0f766e;border-color:#0f766e}
-button{margin-top:14px;width:100%;background:#0f766e;color:#fff;border:none;border-radius:8px;padding:11px;font-size:1rem;font-weight:800;cursor:pointer}
-button:active{opacity:.8}
-.msg{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:.9rem;font-weight:700;display:none}
-.ok{background:#e8f6ee;color:#14823f}
-.err{background:#fdebea;color:#b42318}
-.status{background:#f7f9fc;border-radius:8px;padding:12px;font-size:.85rem;line-height:1.7}
-.status .label{color:#647282;font-weight:700}
-.conn{color:#14823f;font-weight:700}
-.disc{color:#b42318;font-weight:700}
+body{font-family:Segoe UI,Arial,sans-serif;background:#eef2f6;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:14px}
+h1{font-size:1.35rem;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:16px}
+h2{font-size:1rem;margin-bottom:10px}
+label{display:block;font-size:.82rem;font-weight:700;color:#647282;margin:10px 0 4px}
+input,select{width:100%;border:1px solid #d7dee8;border-radius:8px;padding:10px;font-size:.95rem}
+button{border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:10px 12px;cursor:pointer}
+button.secondary{background:#334155}
+button.danger{background:#b42318}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row button{flex:1}
+.status{font-size:.88rem;line-height:1.7;background:#f7f9fc;border-radius:8px;padding:12px}
+.ok{color:#14823f;font-weight:800}.err{color:#b42318;font-weight:800}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #edf1f5}
+th{color:#647282}
+.msg{display:none;margin-top:10px;padding:10px;border-radius:8px;font-weight:700;font-size:.86rem}
+.msg.ok{background:#e8f6ee}.msg.err{background:#fdebea}
 </style>
 </head>
 <body>
-<a href="/">← Back</a>
-<h1>WiFi Settings</h1>
-
-<div class="card">
-  <h2>Current Network Status</h2>
-  <div class="status" id="status">Loading...</div>
-</div>
-
-<div class="card">
-  <h2>Station (STA) Credentials</h2>
-  <p style="font-size:.85rem;color:#647282;margin-bottom:4px">The network the controller joins to reach your LAN / internet.</p>
-  <label>SSID (Network Name)</label>
-  <input id="ssid" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Your WiFi network name">
-  <label>Password</label>
-  <input id="pass" type="password" autocomplete="current-password" placeholder="Minimum 8 characters">
-  <div style="font-size:.8rem;color:#647282;margin-top:8px">
-    Admin password required. The controller will reconnect immediately after saving.
+<a href="/">Back</a>
+<h1>WiFi Manager</h1>
+<div class="grid">
+  <div class="card">
+    <h2>Session</h2>
+    <label>Access token</label>
+    <input id="token" placeholder="Login token from /api/login">
+    <div class="row"><button onclick="saveToken()">Use Token</button><button class="secondary" onclick="loadAll()">Refresh</button></div>
+    <div class="msg" id="msg"></div>
   </div>
-  <label>Admin Password</label>
-  <input id="token" type="password" autocomplete="current-password" placeholder="Admin session token">
-  <button onclick="save()">Save &amp; Reconnect</button>
-  <div class="msg" id="msg"></div>
+  <div class="card">
+    <h2>Current State</h2>
+    <div class="status" id="state">Loading...</div>
+  </div>
+  <div class="card">
+    <h2>Modes</h2>
+    <label><input id="staEnabled" type="checkbox" style="width:auto"> Station mode</label>
+    <label><input id="apEnabled" type="checkbox" style="width:auto"> Hotspot / AP mode</label>
+    <label><input id="autoSwitch" type="checkbox" style="width:auto"> Auto-switch saved networks</label>
+    <button onclick="saveModes()">Save Modes</button>
+  </div>
+  <div class="card">
+    <h2>Add Network</h2>
+    <label>SSID</label><input id="ssid">
+    <label>Password</label><input id="pass" type="password">
+    <label><input id="enabled" type="checkbox" style="width:auto" checked> Enabled</label>
+    <button onclick="addNetwork()">Save and Connect</button>
+  </div>
+  <div class="card">
+    <h2>Saved Networks</h2>
+    <table><thead><tr><th>#</th><th>SSID</th><th>State</th><th></th></tr></thead><tbody id="saved"></tbody></table>
+  </div>
+  <div class="card">
+    <h2>Available Networks</h2>
+    <button class="secondary" onclick="scan()">Scan</button>
+    <table><thead><tr><th>SSID</th><th>RSSI</th><th>Security</th></tr></thead><tbody id="scan"></tbody></table>
+  </div>
 </div>
-
 <script>
-async function loadStatus(){
-  try{
-    const n=await fetch('/api/network').then(r=>r.json());
-    document.getElementById('status').innerHTML=
-      '<span class="label">AP SSID:</span> '+n.apSSID+' &nbsp; <span class="label">AP IP:</span> '+n.apIP+'<br>'+
-      '<span class="label">STA:</span> <span class="'+(n.staConnected?'conn':'disc')+'">'+(n.staConnected?n.staSSID+' &nbsp; '+n.staIP:'disconnected')+'</span>';
-    if(n.staConnected) document.getElementById('ssid').value=n.staSSID;
-  }catch(e){
-    document.getElementById('status').textContent='Could not fetch network status.';
-  }
+let token=localStorage.getItem('lpgToken')||'';
+document.getElementById('token').value=token;
+function auth(){return token?{'Authorization':'Bearer '+token}:{}}
+function show(t,c='ok'){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+c;m.style.display='block'}
+function saveToken(){token=document.getElementById('token').value.trim();localStorage.setItem('lpgToken',token);loadAll()}
+async function api(url,opt={}){opt.headers={...(opt.headers||{}),...auth()};const r=await fetch(url,opt);const j=await r.json();if(!r.ok)throw new Error(j.message||r.status);return j}
+async function loadAll(){
+ try{
+  const w=await api('/api/wifi');
+  document.getElementById('staEnabled').checked=w.staEnabled;
+  document.getElementById('apEnabled').checked=w.apEnabled;
+  document.getElementById('autoSwitch').checked=w.autoSwitch;
+  document.getElementById('state').innerHTML=
+   'STA: <span class="'+(w.connected?'ok':'err')+'">'+(w.connected?w.staSSID+' @ '+w.staIP:'disconnected')+'</span><br>'+
+   'AP: <b>'+w.apSSID+'</b> @ '+w.apIP+'<br>Auto-switch: <b>'+(w.autoSwitch?'on':'off')+'</b>';
+  document.getElementById('saved').innerHTML=w.networks.map(n=>
+   '<tr><td>'+n.priority+'</td><td>'+n.ssid+'</td><td>'+(n.enabled?'enabled':'disabled')+'</td>'+
+   '<td><button class="danger" onclick="removeNet('+n.index+')">Remove</button></td></tr>').join('');
+ }catch(e){show(e.message,'err')}
 }
-
-async function save(){
-  const ssid=document.getElementById('ssid').value.trim();
-  const pass=document.getElementById('pass').value;
-  const token=document.getElementById('token').value.trim();
-  const msg=document.getElementById('msg');
-  msg.style.display='none';
-
-  if(!ssid){showMsg('SSID cannot be empty.','err');return;}
-  if(pass.length<8){showMsg('Password must be at least 8 characters.','err');return;}
-  if(!token){showMsg('Admin token required.','err');return;}
-
-  try{
-    const r=await fetch('/api/wifi?staSsid='+encodeURIComponent(ssid)+'&staPassword='+encodeURIComponent(pass)+'&token='+encodeURIComponent(token),{method:'POST'});
-    const j=await r.json();
-    if(j.ok){
-      showMsg('Saved! Controller is reconnecting to "'+ssid+'". This page will reload in 5s.','ok');
-      setTimeout(()=>location.reload(),5000);
-    }else{
-      showMsg(j.message||'Error saving settings.','err');
-    }
-  }catch(e){
-    showMsg('Request failed: '+e.message,'err');
-  }
+async function saveModes(){
+ const q='?staEnabled='+(staEnabled.checked?1:0)+'&apEnabled='+(apEnabled.checked?1:0)+'&autoSwitch='+(autoSwitch.checked?1:0);
+ try{await api('/api/wifi'+q,{method:'POST'});show('Modes saved');loadAll()}catch(e){show(e.message,'err')}
 }
-
-function showMsg(text,cls){
-  const el=document.getElementById('msg');
-  el.textContent=text;
-  el.className='msg '+cls;
-  el.style.display='block';
+async function addNetwork(){
+ const q='?ssid='+encodeURIComponent(ssid.value.trim())+'&password='+encodeURIComponent(pass.value)+'&enabled='+(enabled.checked?1:0);
+ try{await api('/api/wifi'+q,{method:'POST'});show('Network saved');pass.value='';loadAll()}catch(e){show(e.message,'err')}
 }
-
-loadStatus();
+async function removeNet(i){try{await api('/api/wifi?remove='+i,{method:'POST'});show('Removed');loadAll()}catch(e){show(e.message,'err')}}
+async function scan(){
+ try{const s=await api('/api/wifi/scan');document.getElementById('scan').innerHTML=s.networks.map(n=>'<tr><td>'+n.ssid+'</td><td>'+n.rssi+'</td><td>'+(n.secure?'locked':'open')+'</td></tr>').join('')}catch(e){show(e.message,'err')}
+}
+loadAll();
 </script>
 </body>
 </html>

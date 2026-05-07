@@ -161,7 +161,7 @@ void ModbusTcpService::dispatchPdu(WiFiClient& client, const uint8_t* mbap, uint
         case kFC_WriteMultiHR:
             // FC16 PDU: FC(1)+addr(2)+qty(2)+byteCount(1)+data(qty*2) — need ≥8 bytes for 1 register
             if (pduLen < 8) { sendException(client, mbap, fc, kEx_IllegalFunc); return; }
-            handleFC16(client, mbap, startAddr, word2, &pdu[6]); // pdu[5]=byteCount, data starts at pdu[6]
+            handleFC16(client, mbap, startAddr, word2, &pdu[5]); // pdu[5]=byteCount, data starts at pdu[6]
             break;
         default:
             sendException(client, mbap, fc, kEx_IllegalFunc);
@@ -298,16 +298,18 @@ void ModbusTcpService::handleFC06(WiFiClient& client, const uint8_t* mbap,
 void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
                                    uint16_t startAddr, uint16_t qty, const uint8_t* data) {
     using namespace ModbusRegisterMap;
+    const uint8_t byteCount = data[0];
     if (qty == 0 || qty > 123 ||
+        byteCount != qty * 2 ||
         startAddr < kHR_Base || startAddr + qty - 1 >= kHR_Base + kHR_Count) {
-        sendException(client, mbap, kFC_WriteMultiHR, kEx_IllegalAddr);
+        sendException(client, mbap, kFC_WriteMultiHR,
+                      (qty == 0 || qty > 123 || byteCount != qty * 2) ? kEx_IllegalValue : kEx_IllegalAddr);
         return;
     }
 
     for (uint16_t i = 0; i < qty; ++i) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
-        const uint16_t val  = readU16(&data[i * 2]);
-        // Silently skip read-only — a paired FLOAT32 write must not abort mid-pair.
+        const uint16_t val  = readU16(&data[1 + i * 2]);
         writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_);
     }
 

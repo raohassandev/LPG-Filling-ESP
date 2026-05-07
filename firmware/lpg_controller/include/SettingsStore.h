@@ -3,10 +3,19 @@
 #include <Arduino.h>
 
 struct SettingsSnapshot {
+  static constexpr uint8_t kMaxWifiNetworks = 5;
+
   String staSsid;
   String staPassword;
   String apSsid;
   String apPassword;
+  bool   staEnabled        = true;
+  bool   apEnabled         = true;
+  bool   wifiAutoSwitch    = true;
+  uint8_t wifiCount        = 0;
+  String wifiSsid[kMaxWifiNetworks];
+  String wifiPassword[kMaxWifiNetworks];
+  bool   wifiEnabled[kMaxWifiNetworks] = {true, true, true, true, true};
   float   slowFillThreshold = 0.95f;
   float   ratePerKg         = 250.0f;
   uint8_t storageMode       = 0;  // 0=SPIFFS only  1=SD only  2=Both
@@ -42,6 +51,9 @@ class SettingsStore {
   bool setSlowFillThreshold(float value);
   bool setStorageMode(uint8_t mode);
   bool setWifi(const String& staSsid, const String& staPassword);
+  bool setWifiFlags(bool staEnabled, bool apEnabled, bool autoSwitch);
+  bool upsertWifiNetwork(const String& ssid, const String& password, bool enabled);
+  bool removeWifiNetwork(uint8_t index);
   bool setMqtt(const MqttSettingsSnapshot& cfg);
   bool setModbusRtu(const ModbusRtuSettings& cfg);
 

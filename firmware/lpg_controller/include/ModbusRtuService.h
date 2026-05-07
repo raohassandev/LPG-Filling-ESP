@@ -12,10 +12,10 @@
 // Modbus RTU server — RS-485 half-duplex via UART2.
 // Supports FC01/02/03/05/06/16 with the same register map as ModbusTcpService.
 //
-// Wiring (verify KC868-A6 PCB traces before connecting RS-485 transceiver):
-//   UART2 RX  → GPIO 16  (kRtuRxPin in BoardConfig)
-//   UART2 TX  → GPIO 17  (kRtuTxPin)
-//   DE/RE pin → GPIO  5  (kRtuDePin, HIGH=transmit LOW=receive)
+// KC868-A6 RS485 wiring:
+//   UART2 RX  -> GPIO14  (kRtuRxPin in BoardConfig)
+//   UART2 TX  -> GPIO27  (kRtuTxPin)
+//   DE/RE pin -> not used; onboard transceiver is auto-direction.
 
 class ModbusRtuService {
  public:

@@ -1,6 +1,6 @@
 param(
   [string]$Port = $(if ($env:PORT) { $env:PORT } else { "COM5" }),
-  [string]$SketchDir = $(Join-Path $PSScriptRoot "..\firmware\kc868_a6_lpg_controller"),
+  [string]$SketchDir = $(Join-Path $PSScriptRoot "..\firmware\lpg_controller"),
   [string]$Offset = "0x290000",
   [string]$Size = "0x160000"
 )

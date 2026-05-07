@@ -1,10 +1,10 @@
 #include "ModbusRegisterMap.h"
 
-// Define LPG_MODBUS_WRITES_ENABLED in your build flags to allow Modbus HR writes
-// to control the fill process (start/stop/reset/tare via kHR_Command).
-// Disabled by default to prevent unintentional remote actuation in production.
+// Define LPG_MODBUS_WRITES_ENABLED=0 in build flags to disable Modbus HR writes.
+// This integration firmware keeps writes enabled so Modbus Poll / HMI clients can
+// write targets, rate, RTC/RTU settings, and the command register.
 #ifndef LPG_MODBUS_WRITES_ENABLED
-#define LPG_MODBUS_WRITES_ENABLED 0
+#define LPG_MODBUS_WRITES_ENABLED 1
 #endif
 
 namespace {

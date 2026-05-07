@@ -3,81 +3,119 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Modbus TCP – LPG Controller</title>
+<title>Manufacturer Modbus - LPG Controller</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",Arial,sans-serif;background:#edf1f5;color:#17212b;padding:16px}
-a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:16px}
-h1{font-size:1.4rem;font-weight:900;margin-bottom:16px}
-.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:18px;max-width:560px;margin-bottom:12px}
-h2{font-size:1rem;font-weight:800;margin-bottom:12px}
-.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f3f7;font-size:.9rem}
-.row:last-child{border:none}
-.label{color:#647282;font-weight:700}
-.val{font-weight:800;font-family:monospace}
-table{width:100%;border-collapse:collapse;font-size:.85rem}
-th{text-align:left;padding:8px 6px;color:#647282;font-weight:700;border-bottom:2px solid #d7dee8}
-td{padding:8px 6px;border-bottom:1px solid #f0f3f7}
-td:first-child{font-family:monospace;font-weight:800;color:#0f766e}
-.unit{color:#647282;font-size:.8rem}
-.live{font-weight:800}
+body{font-family:Segoe UI,Arial,sans-serif;background:#eef2f6;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:14px}
+h1{font-size:1.35rem;margin-bottom:12px}.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:16px;margin-bottom:12px}
+h2{font-size:1rem;margin-bottom:10px}.row{display:flex;gap:8px;flex-wrap:wrap}
+input,select{border:1px solid #d7dee8;border-radius:8px;padding:10px;min-width:160px}
+button{border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:10px 12px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:.82rem}th,td{text-align:left;padding:7px 5px;border-bottom:1px solid #edf1f5;vertical-align:top}
+th{color:#647282}.mono{font-family:Consolas,monospace;font-weight:800}.live{font-family:Consolas,monospace;color:#0f766e;font-weight:800}
+.msg{display:none;margin-top:10px;padding:10px;border-radius:8px;font-weight:700}.err{background:#fdebea;color:#b42318}.ok{background:#e8f6ee;color:#14823f}
 </style>
 </head>
 <body>
-<a href="/">← Back</a>
-<h1>Modbus TCP</h1>
-
+<a href="/">Back</a>
+<h1>Manufacturer Modbus Definition</h1>
 <div class="card">
-  <h2>Server Configuration</h2>
-  <div class="row"><span class="label">Protocol</span><span class="val">Modbus TCP</span></div>
-  <div class="row"><span class="label">Port</span><span class="val">502</span></div>
-  <div class="row"><span class="label">Unit ID</span><span class="val">1</span></div>
-  <div class="row"><span class="label">Function Code</span><span class="val">03 — Read Holding Registers</span></div>
-  <div class="row"><span class="label">Value Scale</span><span class="val">kg × 100 (integer)</span></div>
+  <h2>Access</h2>
+  <div class="row"><input id="token" placeholder="Manufacturer/Admin token"><button onclick="saveToken()">Use Token</button><button onclick="refresh()">Refresh Live Data</button></div>
+  <div id="msg" class="msg"></div>
 </div>
-
 <div class="card">
-  <h2>Holding Registers — Live Values</h2>
-  <table>
-    <tr><th>Register</th><th>Name</th><th>Value</th><th>Unit</th></tr>
-    <tr><td>0x1001</td><td>Live Weight</td><td class="live" id="r1001">—</td><td class="unit">kg × 100</td></tr>
-    <tr><td>0x1002</td><td>Tare Weight</td><td class="live" id="r1002">—</td><td class="unit">kg × 100</td></tr>
-    <tr><td>0x1003</td><td>Net Weight</td><td class="live" id="r1003">—</td><td class="unit">kg × 100</td></tr>
-    <tr><td>0x1004</td><td>Filling Status</td><td class="live" id="r1004">—</td><td class="unit">0=idle 1=filling 2=complete</td></tr>
-    <tr><td>0x1005</td><td>Target Weight</td><td class="live" id="r1005">—</td><td class="unit">kg × 100</td></tr>
-    <tr><td>0x1006</td><td>E-Stop Status</td><td class="live" id="r1006">—</td><td class="unit">1=OK 0=tripped</td></tr>
-  </table>
+  <h2>Connection</h2>
+  <table><tbody id="conn">
+    <tr><td>TCP</td><td class="mono">Port 502, Unit ID 1 recommended, FC01/02/03/04/05/06/16</td></tr>
+    <tr><td>RTU</td><td class="mono">Loading...</td></tr>
+    <tr><td>Word order</td><td class="mono">FLOAT32/UINT32: high word first, big-endian Modbus registers</td></tr>
+  </tbody></table>
 </div>
-
 <div class="card">
-  <h2>Connection Example (Python)</h2>
-  <pre style="background:#f7f9fc;padding:12px;border-radius:8px;font-size:.8rem;overflow-x:auto;line-height:1.6">from pymodbus.client import ModbusTcpClient
-c = ModbusTcpClient('<span id="devip">192.168.x.x</span>', port=502)
-c.connect()
-r = c.read_holding_registers(0x1001, count=6, slave=1)
-live_kg = r.registers[0] / 100.0</pre>
+  <h2>Protocol Settings</h2>
+  <div class="row">
+    <select id="rtuEnabled"><option value="1">RTU Enabled</option><option value="0">RTU Disabled</option></select>
+    <input id="slaveAddress" type="number" min="1" max="247" placeholder="Slave ID">
+    <select id="baudRate">
+      <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option>
+      <option>1200</option><option>2400</option><option>4800</option>
+    </select>
+    <select id="parity"><option value="0">None</option><option value="1">Even</option><option value="2">Odd</option></select>
+    <select id="stopBits"><option value="1">1 stop bit</option><option value="2">2 stop bits</option></select>
+    <button onclick="saveRtu()">Save RTU Settings</button>
+  </div>
+  <div class="mono" style="margin-top:8px;color:#647282">Data bits are fixed at 8 for Modbus RTU. TCP port is fixed at 502.</div>
 </div>
-
+<div class="card">
+  <h2>Holding Registers</h2>
+  <table id="hr"><thead><tr><th>MP</th><th>PDU</th><th>Name</th><th>Type</th><th>R/W</th><th>Live</th><th>Description</th></tr></thead><tbody></tbody></table>
+</div>
+<div class="card">
+  <h2>Coils</h2>
+  <table id="coils"><thead><tr><th>MP</th><th>PDU</th><th>Name</th><th>R/W</th><th>Live</th><th>Description</th></tr></thead><tbody></tbody></table>
+</div>
+<div class="card">
+  <h2>Discrete Inputs</h2>
+  <table id="di"><thead><tr><th>MP</th><th>PDU</th><th>Name</th><th>Live</th><th>Description</th></tr></thead><tbody></tbody></table>
+</div>
 <script>
-async function refresh(){
-  try{
-    const d=await fetch('/api/modbus').then(r=>r.json());
-    const regs=d.registers;
-    document.getElementById('r1001').textContent=regs['0x1001'].value;
-    document.getElementById('r1002').textContent=regs['0x1002'].value;
-    document.getElementById('r1003').textContent=regs['0x1003'].value;
-    document.getElementById('r1004').textContent=regs['0x1004'].value;
-    document.getElementById('r1005').textContent=regs['0x1005'].value;
-    document.getElementById('r1006').textContent=regs['0x1006'].value;
-  }catch{}
-  try{
-    const n=await fetch('/api/network').then(r=>r.json());
-    if(n.staConnected) document.getElementById('devip').textContent=n.staIP;
-    else document.getElementById('devip').textContent=n.apIP;
-  }catch{}
+let token=localStorage.getItem('lpgToken')||'';document.getElementById('token').value=token;
+const HR=[
+['40001','0x0000','Live Weight Hi','F32 Hi','R','kg live weight'],['40002','0x0001','Live Weight Lo','F32 Lo','R',''],
+['40003','0x0002','Tare Weight Hi','F32 Hi','R/W','empty cylinder tare'],['40004','0x0003','Tare Weight Lo','F32 Lo','R/W',''],
+['40005','0x0004','Net Weight Hi','F32 Hi','R','live minus tare'],['40006','0x0005','Net Weight Lo','F32 Lo','R',''],
+['40007','0x0006','Target Weight Hi','F32 Hi','R/W','fill target kg'],['40008','0x0007','Target Weight Lo','F32 Lo','R/W',''],
+['40009','0x0008','Rate/kg Hi','F32 Hi','R/W','price per kg'],['40010','0x0009','Rate/kg Lo','F32 Lo','R/W',''],
+['40011','0x000A','Target Amount Hi','F32 Hi','R/W','expected amount'],['40012','0x000B','Target Amount Lo','F32 Lo','R/W',''],
+['40013','0x000C','Current Amount Hi','F32 Hi','R','net * rate'],['40014','0x000D','Current Amount Lo','F32 Lo','R',''],
+['40015','0x000E','Fill State','U16','R','0 idle, 1 ready, 2 validating, 3 fast, 4 slow, 5 settling, 6 complete, 7 aborted, 8 fault, 9 maintenance'],
+['40016','0x000F','E-Stop OK','U16','R','1 OK'],['40017','0x0010','Cylinder Present','U16','R','1 present'],['40018','0x0011','Nozzle Engaged','U16','R','1 engaged'],['40019','0x0012','Weight Stable','U16','R','1 stable'],
+['40020','0x0013','Transaction Count Hi','U32 Hi','R',''],['40021','0x0014','Transaction Count Lo','U32 Lo','R',''],['40022','0x0015','Uptime Hi','U32 Hi','R','seconds'],['40023','0x0016','Uptime Lo','U32 Lo','R',''],
+['40024','0x0017','Command','U16','W','1 start, 2 stop, 3 reset, 4 zero net'],['40025','0x0018','Device ID','U16','R','0xA601'],
+['40026','0x0019','RTU Slave Address','U16','R/W','1-247'],['40027','0x001A','RTU Baud Hi','U32 Hi','R/W','1200..115200'],['40028','0x001B','RTU Baud Lo','U32 Lo','R/W',''],['40029','0x001C','RTU Parity','U16','R/W','0 none, 1 even, 2 odd'],['40030','0x001D','RTU Stop Bits','U16','R/W','1 or 2'],['40031','0x001E','TCP Port','U16','R','502'],['40032','0x001F','MQTT Connected','U16','R',''],
+['40033','0x0020','RTC Year','U16','R/W',''],['40034','0x0021','RTC Month','U16','R/W',''],['40035','0x0022','RTC Day','U16','R/W',''],['40036','0x0023','RTC Hour','U16','R/W',''],['40037','0x0024','RTC Minute','U16','R/W',''],['40038','0x0025','RTC Second','U16','R/W','write commits date/time'],['40039','0x0026','Unix Timestamp Hi','U32 Hi','R/W',''],['40040','0x0027','Unix Timestamp Lo','U32 Lo','R/W','write commits timestamp'],
+['40041','0x0028','All Completed Hi','U32 Hi','R',''],['40042','0x0029','All Completed Lo','U32 Lo','R',''],['40043','0x002A','All Failed Hi','U32 Hi','R',''],['40044','0x002B','All Failed Lo','U32 Lo','R',''],['40045','0x002C','All Kg Hi','F32 Hi','R',''],['40046','0x002D','All Kg Lo','F32 Lo','R',''],['40047','0x002E','All Amount Hi','F32 Hi','R',''],['40048','0x002F','All Amount Lo','F32 Lo','R',''],
+['40049','0x0030','Today Completed','U16','R',''],['40050','0x0031','Today Failed','U16','R',''],['40051','0x0032','Today Kg Hi','F32 Hi','R',''],['40052','0x0033','Today Kg Lo','F32 Lo','R',''],['40053','0x0034','Today Amount Hi','F32 Hi','R',''],['40054','0x0035','Today Amount Lo','F32 Lo','R',''],
+['40055','0x0036','Week Completed','U16','R',''],['40056','0x0037','Week Failed','U16','R',''],['40057','0x0038','Week Kg Hi','F32 Hi','R',''],['40058','0x0039','Week Kg Lo','F32 Lo','R',''],['40059','0x003A','Week Amount Hi','F32 Hi','R',''],['40060','0x003B','Week Amount Lo','F32 Lo','R',''],
+['40061','0x003C','Month Completed','U16','R',''],['40062','0x003D','Month Failed','U16','R',''],['40063','0x003E','Month Kg Hi','F32 Hi','R',''],['40064','0x003F','Month Kg Lo','F32 Lo','R',''],['40065','0x0040','Month Amount Hi','F32 Hi','R',''],['40066','0x0041','Month Amount Lo','F32 Lo','R',''],
+['40067','0x0042','Year Completed','U16','R',''],['40068','0x0043','Year Failed','U16','R',''],['40069','0x0044','Year Kg Hi','F32 Hi','R',''],['40070','0x0045','Year Kg Lo','F32 Lo','R',''],['40071','0x0046','Year Amount Hi','F32 Hi','R',''],['40072','0x0047','Year Amount Lo','F32 Lo','R','']
+];
+const COILS=[['00001','0x0000','E-Stop OK','R','1 OK'],['00002','0x0001','Cylinder Present','R',''],['00003','0x0002','Nozzle Engaged','R',''],['00004','0x0003','Weight Stable','R',''],['00005','0x0004','Fill Active','R',''],['00006','0x0005','Relay 1','R/W','fast valve'],['00007','0x0006','Relay 2','R/W','slow valve'],['00008','0x0007','Relay 3','R/W','main valve'],['00009','0x0008','Relay 4','R/W','pump'],['00010','0x0009','Relay 5','R/W','alarm'],['00011','0x000A','Relay 6','R/W','status']];
+const DI=[['10001','0x0000','Input 1','nozzle sensor'],['10002','0x0001','Input 2','cylinder present'],['10003','0x0002','Input 3','E-stop'],['10004','0x0003','Input 4','spare'],['10005','0x0004','Input 5','spare'],['10006','0x0005','Input 6','spare']];
+function saveToken(){token=document.getElementById('token').value.trim();localStorage.setItem('lpgToken',token);refresh()}
+function msg(t,c='ok'){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+c;m.style.display='block'}
+function live(map,key){return map&&map[key]!==undefined?map[key]:'-'}
+function render(d){
+ d=d||{};
+ document.querySelector('#hr tbody').innerHTML=HR.map(function(r){return '<tr><td class="mono">'+r[0]+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td class="live">'+live(d.registers,r[1])+'</td><td>'+r[5]+'</td></tr>'}).join('');
+ document.querySelector('#coils tbody').innerHTML=COILS.map(function(r){return '<tr><td class="mono">'+r[0]+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td class="live">'+live(d.coils,r[1])+'</td><td>'+r[4]+'</td></tr>'}).join('');
+ document.querySelector('#di tbody').innerHTML=DI.map(function(r){return '<tr><td class="mono">'+r[0]+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td class="live">'+live(d.discreteInputs,r[1])+'</td><td>'+r[3]+'</td></tr>'}).join('');
 }
-refresh();
-setInterval(refresh,2000);
+async function loadRtu(){
+ try{
+  const r=await fetch('/api/modbus-rtu',{headers:{Authorization:'Bearer '+token}});
+  const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);
+  document.getElementById('rtuEnabled').value=d.enabled?'1':'0';
+  document.getElementById('slaveAddress').value=d.slaveAddress;
+  document.getElementById('baudRate').value=d.baudRate;
+  document.getElementById('parity').value=d.parity;
+  document.getElementById('stopBits').value=d.stopBits;
+  document.querySelector('#conn tr:nth-child(2) td:nth-child(2)').textContent='RS485 RX GPIO'+d.rxPin+', TX GPIO'+d.txPin+', slave '+d.slaveAddress+', '+d.baudRate+' 8'+(['N','E','O'][d.parity]||'N')+d.stopBits+', '+(d.enabled?'enabled':'disabled');
+ }catch(e){msg(e.message,'err')}
+}
+async function saveRtu(){
+ const q='?enabled='+document.getElementById('rtuEnabled').value+
+ '&slaveAddress='+document.getElementById('slaveAddress').value+
+ '&baudRate='+document.getElementById('baudRate').value+
+ '&dataBits=8&parity='+document.getElementById('parity').value+
+ '&stopBits='+document.getElementById('stopBits').value;
+ try{const r=await fetch('/api/modbus-rtu'+q,{method:'POST',headers:{Authorization:'Bearer '+token}});const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);msg('RTU settings saved. Restart controller to apply serial-port changes.');loadRtu()}catch(e){msg(e.message,'err')}
+}
+async function refresh(){try{const r=await fetch('/api/modbus',{headers:{Authorization:'Bearer '+token}});const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);render(d);msg('Live Modbus data loaded');loadRtu()}catch(e){render();msg(e.message,'err');loadRtu()}}
+render();
+if(token) refresh();
 </script>
 </body>
 </html>

@@ -16,8 +16,8 @@ struct BoardConfig {
   static constexpr uint8_t kInputCount = 6;
 
   static constexpr const char* kDeviceName = "kc868-a6-lpg";
-  static constexpr const char* kDefaultStaSsid     = "";   // Set via first-boot provisioning
-  static constexpr const char* kDefaultStaPassword = "";   // Set via first-boot provisioning
+  static constexpr const char* kDefaultStaSsid     = "Rao";
+  static constexpr const char* kDefaultStaPassword = "password123";
   static constexpr const char* kFallbackApSsid     = "LPG-Controller-Setup";
   static constexpr const char* kFallbackApPassword = "";   // Generated per-device in SettingsStore
   static constexpr const char* kFirmwareVersion = "0.1.0";

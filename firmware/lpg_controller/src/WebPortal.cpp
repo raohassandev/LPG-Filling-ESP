@@ -110,6 +110,16 @@ void WebPortal::registerRoutes() {
     }
   });
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
+  server_.on("/wifi.html", HTTP_GET, [this]() {
+    File file = SPIFFS.open("/wifi.html", "r");
+    if (!file) { sendJson(404, "{\"ok\":false,\"message\":\"wifi.html not found\"}"); return; }
+    sendCorsHeaders(); server_.streamFile(file, "text/html"); file.close();
+  });
+  server_.on("/modbus.html", HTTP_GET, [this]() {
+    File file = SPIFFS.open("/modbus.html", "r");
+    if (!file) { sendJson(404, "{\"ok\":false,\"message\":\"modbus.html not found\"}"); return; }
+    sendCorsHeaders(); server_.streamFile(file, "text/html"); file.close();
+  });
   server_.on("/api/health", HTTP_GET, [this]() { handleHealth(); });
   server_.on("/api/version", HTTP_GET, [this]() { handleVersion(); });
   server_.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
@@ -138,6 +148,7 @@ void WebPortal::registerRoutes() {
   server_.on("/api/logout",  HTTP_POST, [this]() { handleLogout(); });
   server_.on("/api/wifi",    HTTP_GET,  [this]() { handleGetWifi(); });
   server_.on("/api/wifi",    HTTP_POST, [this]() { handleSetWifi(); });
+  server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
   server_.on("/api/network", HTTP_GET,  [this]() { handleGetNetwork(); });
   server_.on("/api/users",         HTTP_GET,    [this]() { handleListUsers(); });
   server_.on("/api/users",         HTTP_POST,   [this]() { handleCreateUser(); });
@@ -580,31 +591,87 @@ void WebPortal::handleLogin() {
 }
 
 void WebPortal::handleGetWifi() {
-  if (!requireAuth(UserRole::Admin)) return;
+  if (!requireAuth(UserRole::Operator)) return;
   const SettingsSnapshot s = settingsStore_.snapshot();
   const bool connected = networkManager_.isSTAConnected();
   const String staIP   = connected ? networkManager_.staIP() : "";
-  String body = "{\"ssid\":\"" + s.staSsid + "\",\"apSsid\":\"" + s.apSsid
-              + "\",\"connected\":" + (connected ? "true" : "false")
-              + ",\"staIP\":\"" + staIP + "\"}";
+  String body = "{";
+  body += "\"staEnabled\":" + jsonBool(s.staEnabled) + ",";
+  body += "\"apEnabled\":" + jsonBool(s.apEnabled) + ",";
+  body += "\"autoSwitch\":" + jsonBool(s.wifiAutoSwitch) + ",";
+  body += "\"connected\":" + jsonBool(connected) + ",";
+  body += "\"staSSID\":" + jsonStr(networkManager_.staSSID()) + ",";
+  body += "\"staIP\":" + jsonStr(staIP) + ",";
+  body += "\"apSSID\":" + jsonStr(networkManager_.apSSID()) + ",";
+  body += "\"apIP\":" + jsonStr(networkManager_.apIP()) + ",";
+  body += "\"networks\":[";
+  for (uint8_t i = 0; i < s.wifiCount; i++) {
+    if (i) body += ",";
+    body += "{\"index\":" + String(i) + ",";
+    body += "\"ssid\":" + jsonStr(s.wifiSsid[i]) + ",";
+    body += "\"enabled\":" + jsonBool(s.wifiEnabled[i]) + ",";
+    body += "\"priority\":" + String(i + 1) + "}";
+  }
+  body += "]}";
   sendJson(200, body);
 }
 
 void WebPortal::handleSetWifi() {
-  if (!requireAuth(UserRole::Admin)) return;
-  const String ssid = server_.arg("ssid");
-  const String pass = server_.arg("password");
-  if (!settingsStore_.setWifi(ssid, pass)) {
+  if (!requireAuth(UserRole::Operator)) return;
+  if (server_.hasArg("staEnabled") || server_.hasArg("apEnabled") || server_.hasArg("autoSwitch")) {
+    const SettingsSnapshot s = settingsStore_.snapshot();
+    const bool staEnabled = server_.hasArg("staEnabled") ? server_.arg("staEnabled") == "1" : s.staEnabled;
+    const bool apEnabled = server_.hasArg("apEnabled") ? server_.arg("apEnabled") == "1" : s.apEnabled;
+    const bool autoSwitch = server_.hasArg("autoSwitch") ? server_.arg("autoSwitch") == "1" : s.wifiAutoSwitch;
+    if (!settingsStore_.setWifiFlags(staEnabled, apEnabled, autoSwitch)) {
+      sendJson(500, "{\"ok\":false,\"message\":\"WiFi mode save failed\"}");
+      return;
+    }
+    networkManager_.configureWifi(settingsStore_.snapshot());
+  }
+  if (server_.hasArg("remove")) {
+    if (!settingsStore_.removeWifiNetwork(static_cast<uint8_t>(server_.arg("remove").toInt()))) {
+      sendJson(400, "{\"ok\":false,\"message\":\"Invalid network index\"}");
+      return;
+    }
+    networkManager_.configureWifi(settingsStore_.snapshot());
+    sendJson(200, "{\"ok\":true,\"message\":\"WiFi network removed\"}");
+    return;
+  }
+  const String ssid = server_.hasArg("ssid") ? server_.arg("ssid") : server_.arg("staSsid");
+  const String pass = server_.hasArg("password") ? server_.arg("password") : server_.arg("staPassword");
+  if (ssid.isEmpty() && pass.isEmpty()) {
+    sendJson(200, "{\"ok\":true,\"message\":\"WiFi settings saved\"}");
+    return;
+  }
+  const bool enabled = !server_.hasArg("enabled") || server_.arg("enabled") == "1";
+  if (!settingsStore_.upsertWifiNetwork(ssid, pass, enabled)) {
     sendJson(400, "{\"ok\":false,\"message\":\"SSID required and password must be 8+ chars\"}");
     return;
   }
   eventLog_.append("INFO", "wifi_update", "WiFi STA credentials updated");
+  networkManager_.configureWifi(settingsStore_.snapshot());
   networkManager_.connectSTA(ssid, pass);
   sendJson(200, "{\"ok\":true,\"message\":\"WiFi credentials saved. Reconnecting...\"}");
 }
 
+void WebPortal::handleWifiScan() {
+  if (!requireAuth(UserRole::Operator)) return;
+  const int found = WiFi.scanNetworks(false, true);
+  String body = "{\"networks\":[";
+  for (int i = 0; i < found; i++) {
+    if (i) body += ",";
+    body += "{\"ssid\":" + jsonStr(WiFi.SSID(i)) + ",";
+    body += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
+    body += "\"secure\":" + jsonBool(WiFi.encryptionType(i) != WIFI_AUTH_OPEN) + "}";
+  }
+  body += "]}";
+  WiFi.scanDelete();
+  sendJson(200, body);
+}
+
 void WebPortal::handleGetNetwork() {
-  if (!requireAuth(UserRole::Admin)) return;
+  if (!requireAuth(UserRole::Operator)) return;
   String body = "{";
   body += "\"staConnected\":" + String(networkManager_.isSTAConnected() ? "true" : "false") + ",";
   body += "\"staSSID\":\""    + networkManager_.staSSID() + "\",";
@@ -956,6 +1023,7 @@ void WebPortal::handleGetModbusRtu() {
   body += "\"enabled\":"      + String(rtu.enabled ? "true" : "false") + ",";
   body += "\"slaveAddress\":" + String(rtu.slaveAddress) + ",";
   body += "\"baudRate\":"     + String(rtu.baudRate)     + ",";
+  body += "\"dataBits\":8,";
   body += "\"parity\":"       + String(rtu.parity)       + ",";
   body += "\"stopBits\":"     + String(rtu.stopBits)     + ",";
   body += "\"rxPin\":"        + String(BoardConfig::kRtuRxPin) + ",";
@@ -972,6 +1040,10 @@ void WebPortal::handleSetModbusRtu() {
   if (server_.hasArg("enabled"))      rtu.enabled      = server_.arg("enabled") == "1";
   if (server_.hasArg("slaveAddress")) rtu.slaveAddress = static_cast<uint8_t>(server_.arg("slaveAddress").toInt());
   if (server_.hasArg("baudRate"))     rtu.baudRate     = static_cast<uint32_t>(server_.arg("baudRate").toInt());
+  if (server_.hasArg("dataBits") && server_.arg("dataBits").toInt() != 8) {
+    sendJson(400, "{\"message\":\"Invalid RTU data bits; Modbus RTU uses 8 data bits\"}");
+    return;
+  }
   if (server_.hasArg("parity"))       rtu.parity       = static_cast<uint8_t>(server_.arg("parity").toInt());
   if (server_.hasArg("stopBits"))     rtu.stopBits     = static_cast<uint8_t>(server_.arg("stopBits").toInt());
   if (!settingsStore_.setModbusRtu(rtu)) {

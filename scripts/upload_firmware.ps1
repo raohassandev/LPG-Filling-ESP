@@ -1,7 +1,7 @@
 param(
   [string]$Port = $(if ($env:PORT) { $env:PORT } else { "COM5" }),
   [string]$Fqbn = $(if ($env:FQBN) { $env:FQBN } else { "esp32:esp32:esp32" }),
-  [string]$SketchDir = $(Join-Path $PSScriptRoot "..\firmware\kc868_a6_lpg_controller")
+  [string]$SketchDir = $(Join-Path $PSScriptRoot "..\firmware\lpg_controller")
 )
 
 $ErrorActionPreference = "Stop"

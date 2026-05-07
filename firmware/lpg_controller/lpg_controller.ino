@@ -61,6 +61,10 @@ void printSerialHelp() {
   Serial.println(F("  tarew <emptyCylinderKg>"));
   Serial.println(F("  zeronet"));
   Serial.println(F("  sim <kg>"));
+  Serial.println(F("  wifi <ssid> <password>"));
+  Serial.println(F("  rtu"));
+  Serial.println(F("  rtu on|off"));
+  Serial.println(F("  rtu set <slaveId> <baud> <parity:0N/1E/2O> <stopBits:1/2>"));
   Serial.println(F("  start <targetKg> <ratePerKg> [targetAmount]"));
   Serial.println(F("  stop"));
   Serial.println(F("  reset"));
@@ -90,6 +94,70 @@ void handleSerialCommand(const String& line) {
                   weightService.sckPin(), weightService.sckLevel());
     Serial.printf("[WEIGHT] raw=%ld tareOffset=%ld calibration=%.2f\n", weightService.lastRawValue(),
                   weightService.tareOffsetRaw(), weightService.calibrationFactor());
+    return;
+  }
+
+  if (command.startsWith("wifi ")) {
+    String payload = command.substring(5);
+    payload.trim();
+    const int split = payload.indexOf(' ');
+    if (split < 1) {
+      Serial.println(F("[SERIAL] usage: wifi <ssid> <password>"));
+      return;
+    }
+    const String ssid = payload.substring(0, split);
+    const String pass = payload.substring(split + 1);
+    if (!settingsStore.setWifi(ssid, pass)) {
+      Serial.println(F("[SERIAL] wifi: rejected (SSID required, password 8+ chars)"));
+      return;
+    }
+    networkManager.configureWifi(settingsStore.snapshot());
+    networkManager.connectSTA(ssid, pass);
+    Serial.printf("[SERIAL] wifi: saved, connecting to %s\n", ssid.c_str());
+    return;
+  }
+
+  if (command == "rtu") {
+    const ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+    Serial.printf("[SERIAL] rtu: enabled=%u slave=%u baud=%lu data=8 parity=%u stop=%u rx=%u tx=%u de=%u\n",
+                  rtu.enabled, rtu.slaveAddress, static_cast<unsigned long>(rtu.baudRate),
+                  rtu.parity, rtu.stopBits, BoardConfig::kRtuRxPin, BoardConfig::kRtuTxPin,
+                  BoardConfig::kRtuDePin);
+    return;
+  }
+
+  if (command == "rtu on" || command == "rtu off") {
+    ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+    rtu.enabled = command.endsWith("on");
+    if (!settingsStore.setModbusRtu(rtu)) {
+      Serial.println(F("[SERIAL] rtu: save failed"));
+      return;
+    }
+    Serial.println(F("[SERIAL] rtu: saved; restart required to apply enable/disable"));
+    return;
+  }
+
+  if (command.startsWith("rtu set ")) {
+    String payload = command.substring(8);
+    payload.trim();
+    const int p1 = payload.indexOf(' ');
+    const int p2 = payload.indexOf(' ', p1 + 1);
+    const int p3 = payload.indexOf(' ', p2 + 1);
+    if (p1 < 1 || p2 < 0 || p3 < 0) {
+      Serial.println(F("[SERIAL] usage: rtu set <slaveId> <baud> <parity:0N/1E/2O> <stopBits:1/2>"));
+      return;
+    }
+    ModbusRtuSettings rtu = settingsStore.rtuSnapshot();
+    rtu.enabled = true;
+    rtu.slaveAddress = static_cast<uint8_t>(payload.substring(0, p1).toInt());
+    rtu.baudRate = static_cast<uint32_t>(payload.substring(p1 + 1, p2).toInt());
+    rtu.parity = static_cast<uint8_t>(payload.substring(p2 + 1, p3).toInt());
+    rtu.stopBits = static_cast<uint8_t>(payload.substring(p3 + 1).toInt());
+    if (!settingsStore.setModbusRtu(rtu)) {
+      Serial.println(F("[SERIAL] rtu: rejected (slave 1-247, baud standard, parity 0-2, stop 1-2)"));
+      return;
+    }
+    Serial.println(F("[SERIAL] rtu: saved; restart required to apply serial settings"));
     return;
   }
 
@@ -263,7 +331,7 @@ void setup() {
   transactionLog.begin();
   authService.begin();
   fillController.begin();
-  networkManager.begin();
+  networkManager.begin(settingsStore.snapshot());
   networkManager.connectSTA(settingsStore.snapshot().staSsid, settingsStore.snapshot().staPassword);
   // mDNS is managed entirely by NetworkManager — started/restarted via poll() on every connection
   sdService.begin();

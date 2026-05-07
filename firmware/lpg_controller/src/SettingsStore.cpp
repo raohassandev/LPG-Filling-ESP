@@ -13,10 +13,24 @@ void SettingsStore::begin() {
   settings_.staPassword       = preferences.getString("sta_pass",  BoardConfig::kDefaultStaPassword);
   settings_.apSsid            = preferences.getString("ap_ssid",   BoardConfig::kFallbackApSsid);
   settings_.apPassword        = preferences.getString("ap_pass",   BoardConfig::kFallbackApPassword);
+  settings_.staEnabled        = preferences.getBool("sta_en",      true);
+  settings_.apEnabled         = preferences.getBool("ap_en",       true);
+  settings_.wifiAutoSwitch    = preferences.getBool("wifi_auto",   true);
   settings_.slowFillThreshold = preferences.getFloat("slow_fill",  0.95f);
   settings_.ratePerKg         = preferences.getFloat("rate_kg",    250.0f);
   settings_.storageMode       = preferences.getUChar("storage",    0);
   preferences.end();
+
+  Preferences wifiPref;
+  wifiPref.begin("lpgwifi", true);
+  settings_.wifiCount = wifiPref.getUChar("count", 0);
+  if (settings_.wifiCount > SettingsSnapshot::kMaxWifiNetworks) settings_.wifiCount = 0;
+  for (uint8_t i = 0; i < settings_.wifiCount; i++) {
+    settings_.wifiSsid[i] = wifiPref.getString(("s" + String(i)).c_str(), "");
+    settings_.wifiPassword[i] = wifiPref.getString(("p" + String(i)).c_str(), "");
+    settings_.wifiEnabled[i] = wifiPref.getBool(("e" + String(i)).c_str(), true);
+  }
+  wifiPref.end();
 
   // MQTT settings stored in a separate NVS namespace to avoid key-count limits
   Preferences mqttPref;
@@ -35,6 +49,13 @@ void SettingsStore::begin() {
   if (settings_.staSsid.isEmpty())       settings_.staSsid      = BoardConfig::kDefaultStaSsid;
   if (settings_.staPassword.length() < 8) settings_.staPassword = BoardConfig::kDefaultStaPassword;
   if (settings_.apSsid.isEmpty())          settings_.apSsid = BoardConfig::kFallbackApSsid;
+
+  if (settings_.wifiCount == 0 && !settings_.staSsid.isEmpty()) {
+    settings_.wifiCount = 1;
+    settings_.wifiSsid[0] = settings_.staSsid;
+    settings_.wifiPassword[0] = settings_.staPassword;
+    settings_.wifiEnabled[0] = true;
+  }
 
   // Generate a unique per-device AP password from MAC if not yet provisioned
   if (settings_.apPassword.isEmpty() || settings_.apPassword == "lpgsetup123") {
@@ -70,6 +91,10 @@ void SettingsStore::begin() {
   rtu_.stopBits     = rtuPref.getUChar("stops",   1);
   rtuPref.end();
   if (rtu_.slaveAddress < 1 || rtu_.slaveAddress > 247) rtu_.slaveAddress = 1;
+  const uint32_t validBaud[] = {1200,2400,4800,9600,19200,38400,57600,115200};
+  bool baudOk = false;
+  for (auto v : validBaud) { if (rtu_.baudRate == v) { baudOk = true; break; } }
+  if (!baudOk)                                             rtu_.baudRate = 9600;
   if (rtu_.parity > 2)                                  rtu_.parity = 0;
   if (rtu_.stopBits != 1 && rtu_.stopBits != 2)         rtu_.stopBits = 1;
 }
@@ -87,6 +112,84 @@ bool SettingsStore::setWifi(const String& staSsid, const String& staPassword) {
   preferences.end();
   settings_.staSsid     = staSsid;
   settings_.staPassword = staPassword;
+  upsertWifiNetwork(staSsid, staPassword, true);
+  return true;
+}
+
+bool SettingsStore::setWifiFlags(bool staEnabled, bool apEnabled, bool autoSwitch) {
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) return false;
+  preferences.putBool("sta_en", staEnabled);
+  preferences.putBool("ap_en", apEnabled);
+  preferences.putBool("wifi_auto", autoSwitch);
+  preferences.end();
+  settings_.staEnabled = staEnabled;
+  settings_.apEnabled = apEnabled;
+  settings_.wifiAutoSwitch = autoSwitch;
+  return true;
+}
+
+bool SettingsStore::upsertWifiNetwork(const String& ssid, const String& password, bool enabled) {
+  if (ssid.isEmpty() || password.length() < 8) return false;
+  int8_t idx = -1;
+  for (uint8_t i = 0; i < settings_.wifiCount; i++) {
+    if (settings_.wifiSsid[i] == ssid) { idx = i; break; }
+  }
+  if (idx < 0) {
+    if (settings_.wifiCount >= SettingsSnapshot::kMaxWifiNetworks) return false;
+    idx = settings_.wifiCount++;
+  }
+  settings_.wifiSsid[idx] = ssid;
+  settings_.wifiPassword[idx] = password;
+  settings_.wifiEnabled[idx] = enabled;
+  settings_.staSsid = settings_.wifiSsid[0];
+  settings_.staPassword = settings_.wifiPassword[0];
+
+  Preferences wifiPref;
+  if (!wifiPref.begin("lpgwifi", false)) return false;
+  wifiPref.putUChar("count", settings_.wifiCount);
+  for (uint8_t i = 0; i < settings_.wifiCount; i++) {
+    wifiPref.putString(("s" + String(i)).c_str(), settings_.wifiSsid[i]);
+    wifiPref.putString(("p" + String(i)).c_str(), settings_.wifiPassword[i]);
+    wifiPref.putBool(("e" + String(i)).c_str(), settings_.wifiEnabled[i]);
+  }
+  wifiPref.end();
+
+  Preferences preferences;
+  if (preferences.begin("lpgctrl", false)) {
+    preferences.putString("sta_ssid", settings_.staSsid);
+    preferences.putString("sta_pass", settings_.staPassword);
+    preferences.end();
+  }
+  return true;
+}
+
+bool SettingsStore::removeWifiNetwork(uint8_t index) {
+  if (index >= settings_.wifiCount) return false;
+  for (uint8_t i = index; i + 1 < settings_.wifiCount; i++) {
+    settings_.wifiSsid[i] = settings_.wifiSsid[i + 1];
+    settings_.wifiPassword[i] = settings_.wifiPassword[i + 1];
+    settings_.wifiEnabled[i] = settings_.wifiEnabled[i + 1];
+  }
+  settings_.wifiCount--;
+  settings_.staSsid = settings_.wifiCount ? settings_.wifiSsid[0] : "";
+  settings_.staPassword = settings_.wifiCount ? settings_.wifiPassword[0] : "";
+
+  Preferences wifiPref;
+  if (!wifiPref.begin("lpgwifi", false)) return false;
+  wifiPref.putUChar("count", settings_.wifiCount);
+  for (uint8_t i = 0; i < SettingsSnapshot::kMaxWifiNetworks; i++) {
+    if (i < settings_.wifiCount) {
+      wifiPref.putString(("s" + String(i)).c_str(), settings_.wifiSsid[i]);
+      wifiPref.putString(("p" + String(i)).c_str(), settings_.wifiPassword[i]);
+      wifiPref.putBool(("e" + String(i)).c_str(), settings_.wifiEnabled[i]);
+    } else {
+      wifiPref.remove(("s" + String(i)).c_str());
+      wifiPref.remove(("p" + String(i)).c_str());
+      wifiPref.remove(("e" + String(i)).c_str());
+    }
+  }
+  wifiPref.end();
   return true;
 }
 
@@ -122,6 +225,10 @@ bool SettingsStore::setStorageMode(uint8_t mode) {
 
 bool SettingsStore::setModbusRtu(const ModbusRtuSettings& cfg) {
   if (cfg.slaveAddress < 1 || cfg.slaveAddress > 247) return false;
+  const uint32_t validBaud[] = {1200,2400,4800,9600,19200,38400,57600,115200};
+  bool baudOk = false;
+  for (auto v : validBaud) { if (cfg.baudRate == v) { baudOk = true; break; } }
+  if (!baudOk)                                          return false;
   if (cfg.parity > 2)                                  return false;
   if (cfg.stopBits != 1 && cfg.stopBits != 2)          return false;
   Preferences rtuPref;

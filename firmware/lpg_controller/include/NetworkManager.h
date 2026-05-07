@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include "SettingsStore.h"
 
 // Network mode
 enum class NetworkMode : uint8_t
@@ -23,7 +24,7 @@ enum class NetworkStatus : uint8_t
 class LpgNetworkManager
 {
 public:
-    void begin();
+    void begin(const SettingsSnapshot& settings);
     void poll();
 
     // Mode control
@@ -32,6 +33,7 @@ public:
 
     // STA mode operations
     bool connectSTA(const String &ssid, const String &password);
+    bool configureWifi(const SettingsSnapshot& settings);
     void disconnectSTA();
     bool isSTAConnected() const;
     String staIP() const;
@@ -57,6 +59,15 @@ private:
 
     String staSsid_;
     String staPassword_;
+    String apSsid_;
+    String apPassword_;
+    bool apEnabled_ = true;
+    bool staEnabled_ = true;
+    bool autoSwitch_ = true;
+    uint8_t wifiCount_ = 0;
+    String wifiSsid_[SettingsSnapshot::kMaxWifiNetworks];
+    String wifiPassword_[SettingsSnapshot::kMaxWifiNetworks];
+    bool wifiEnabled_[SettingsSnapshot::kMaxWifiNetworks] = {true, true, true, true, true};
 
     unsigned long lastStatusChange_      = 0;
     unsigned long lastReconnectAttemptMs_ = 0;
@@ -66,5 +77,6 @@ private:
     void updateStatus(NetworkStatus newStatus);
     void startAP();
     bool startSTA();
+    bool connectBestSTA();
     void startMdns();
 };

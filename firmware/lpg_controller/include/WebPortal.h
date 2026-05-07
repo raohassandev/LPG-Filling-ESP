@@ -66,6 +66,7 @@ class WebPortal {
   void handleLogout();
   void handleGetWifi();
   void handleSetWifi();
+  void handleWifiScan();
   void handleGetNetwork();
   void handleListUsers();
   void handleCreateUser();
