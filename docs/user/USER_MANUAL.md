@@ -1,8 +1,9 @@
-# LPG Filling Station Controller — User Manual
+# LPG Filling Station — User Manual
 
-**Hardware:** KC868-A6 (ESP32)  
+**Controller board:** KC868-A6 (ESP32)  
+**Display board:** Waveshare ESP32-S3-Touch-LCD-5 (5" 800×480 touchscreen)  
 **Firmware:** v0.1.0  
-**Document version:** 1.0  
+**Document version:** 1.1  
 
 ---
 
@@ -10,17 +11,17 @@
 
 1. [System Overview](#1-system-overview)
 2. [Hardware Setup](#2-hardware-setup)
-3. [First-Time Configuration](#3-first-time-configuration)
-4. [User Roles](#4-user-roles)
-5. [Web Interface — Operator](#5-web-interface--operator)
-6. [Web Interface — Admin](#6-web-interface--admin)
-7. [Web Interface — Manufacturer](#7-web-interface--manufacturer)
-8. [Fill Process](#8-fill-process)
-9. [Transaction History](#9-transaction-history)
-10. [Settings](#10-settings)
-11. [User Management](#11-user-management)
-12. [Network & Connectivity](#12-network--connectivity)
-13. [OLED Status Display](#13-oled-status-display)
+3. [Touchscreen Display](#3-touchscreen-display)
+4. [First-Time Configuration](#4-first-time-configuration)
+5. [User Roles & PIN System](#5-user-roles--pin-system)
+6. [Web Interface — Operator](#6-web-interface--operator)
+7. [Web Interface — Admin](#7-web-interface--admin)
+8. [Web Interface — Manufacturer](#8-web-interface--manufacturer)
+9. [Fill Process](#9-fill-process)
+10. [Transaction History](#10-transaction-history)
+11. [Settings](#11-settings)
+12. [User Management](#12-user-management)
+13. [Network & Connectivity](#13-network--connectivity)
 14. [Serial Console](#14-serial-console)
 15. [Modbus TCP Interface](#15-modbus-tcp-interface)
 16. [Troubleshooting](#16-troubleshooting)
@@ -30,21 +31,24 @@
 
 ## 1. System Overview
 
-The LPG Filling Station Controller automates the LPG cylinder filling process. It:
+The LPG Filling Station automates the LPG cylinder filling process. It consists of two boards:
 
-- Controls gas flow via relay-driven solenoid valves
-- Weighs the cylinder in real time using an HX711 load-cell amplifier
-- Provides a Wi-Fi web portal and mobile app for operator control
-- Logs every transaction to onboard flash memory (SPIFFS)
-- Exposes a Modbus TCP interface for SCADA/PLC integration
-- Supports three access roles: Operator, Admin, Manufacturer
+| Board | Role |
+|-------|------|
+| **KC868-A6 (Controller)** | Reads load cell, drives solenoid relays, runs the fill state machine, hosts the web portal and Modbus server |
+| **Waveshare ESP32-S3-Touch-LCD-5 (Display)** | 5" colour touchscreen showing live weight, fill status, and operator controls via RS485 to the controller |
 
-**System diagram (simplified):**
+**System diagram:**
 
 ```
-[Load Cell] → [HX711] → [ESP32 KC868-A6] → [Relay Bank] → [Solenoid Valve]
+[Load Cell] → [HX711] → [KC868-A6 Controller]
+                              │  RS485
+                              ↕
+                        [Display Board] ← Operator touch input
+                              │
+                         [Solenoid Relays] → Gas flow
                               ↕ Wi-Fi
-                        [Web / App / Modbus]
+                        [Web / App / Modbus TCP]
 ```
 
 ---
@@ -87,7 +91,88 @@ The LPG Filling Station Controller automates the LPG cylinder filling process. I
 
 ---
 
-## 3. First-Time Configuration
+## 3. Touchscreen Display
+
+The 5" colour touchscreen is the primary operator interface on the factory floor.
+
+### 3.1 Status Bar (top)
+
+| Element | Description |
+|---------|-------------|
+| **LPG FILLING STATION** | Title (left) |
+| **State badge** (centre) | Current fill state: IDLE / READY / FAST FILL / SLOW FILL / SETTLING / COMPLETE / FAULT |
+| **WiFi icon** | Tap to open the WiFi settings screen |
+| **OFFLINE / ONLINE** | RS485 link to controller — green=connected, red=disconnected |
+| **HH:MM** | Current time from controller RTC |
+| **OPERATOR / ADMIN / MANUFACTURER** | Current role badge — tap to change role (PIN required) |
+| **ADMIN button** | Opens the settings/admin screen (PIN required) |
+
+### 3.2 Live Weight Panel (left)
+
+Shows the **live scale reading** from the load cell connected to the controller.  
+Below the large number: **Tare** (empty cylinder weight) and **Net** (gas filled so far).
+
+The coloured bar on the left edge changes colour with the fill state:
+- Grey = Idle
+- Blue = Active fill
+- Green = Complete
+- Red = Fault/Aborted
+
+### 3.3 Readiness Panel (top right)
+
+Four status indicators:
+
+| Indicator | Meaning |
+|-----------|---------|
+| ⏻ E-STOP OK | Emergency stop circuit is closed (safe). Red dot = e-stop tripped. |
+| 🏠 CYLINDER PRESENT | Sensor confirms a cylinder is on the platform |
+| 💧 NOZZLE ENGAGED | Filling nozzle is locked onto the valve |
+| 🔄 WEIGHT STABLE | Scale reading is steady. **Blinks** while controller is measuring/settling. |
+
+### 3.4 Today's Statistics (bottom left)
+
+| Column | Description |
+|--------|-------------|
+| **Fills** | Number of completed fills today |
+| **kg** | Total kg dispensed today |
+| **PKR** | Total revenue today |
+
+### 3.5 START FILL Button (bottom right)
+
+Tap to open the fill configuration dialog.  
+The button is **blue** when safe to start (E-stop OK + connected), **grey** when locked.
+
+**Fill dialog:**
+1. Tap **–** / **+** to set **Target Weight** (kg) — increments of 1 kg
+2. Tap **–** / **+** to set **Rate per kg** (PKR) — increments of 10 PKR
+3. Tap **START** to send the command to the controller
+4. Tap **CANCEL** to dismiss
+
+### 3.6 WiFi Settings Screen
+
+Accessible from the WiFi button in the status bar:
+- View connection status and current IP address
+- Add up to 5 saved networks (SSID + password)
+- Toggle **hotspot** on/off (SSID: `LPG-Display`, password: `lpg12345`)
+- Toggle **auto-switch** between saved networks
+- Tap any network row to delete it
+
+### 3.7 Role / PIN System
+
+The role badge in the status bar controls what the current user can do.
+
+| Role | PIN | Access |
+|------|-----|--------|
+| **OPERATOR** | None | Standard operation — start/stop fills |
+| **ADMIN** | `1234` | Settings, admin screen access |
+| **MANUFACTURER** | `9999` | Full hardware access |
+
+To change role: tap the role badge → enter PIN on the numeric keypad that appears.  
+To return to OPERATOR: tap the badge again → tap **OPERATOR**.
+
+---
+
+## 4. First-Time Configuration
 
 ### 3.1 Initial Access
 
@@ -121,7 +206,13 @@ Connect to this AP and open `http://192.168.4.1` or `http://lpg-controller.local
 
 ---
 
-## 4. User Roles
+## 5. User Roles & PIN System
+
+### 5.1 Touchscreen Roles (Display Board)
+
+See [§3.7 Role / PIN System](#37-role--pin-system).
+
+### 5.2 Web Portal Roles (Controller Board)
 
 | Role | Level | Capabilities |
 |------|-------|-------------|
@@ -129,13 +220,11 @@ Connect to this AP and open `http://192.168.4.1` or `http://lpg-controller.local
 | **Admin** | 3 | All Operator rights + user management, view all transactions, change Wi-Fi settings |
 | **Manufacturer** | 2 | All Admin rights + calibration, hardware diagnostics, system resources, firmware update |
 
-### Rate Setting Permission
-
-Any role can be granted **canSetRate** permission individually by an Admin. Without this flag, an Operator cannot change the gas price rate.
+**Rate Setting Permission:** Any role can be granted `canSetRate` permission individually by an Admin.
 
 ---
 
-## 5. Web Interface — Operator
+## 6. Web Interface — Operator
 
 The Operator screen is available at `http://<board-ip>/` after login.
 
