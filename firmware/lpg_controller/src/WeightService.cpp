@@ -16,6 +16,17 @@ void WeightService::begin()
         hasTwoPoints_   = (calLow_.rawAbs != calHigh_.rawAbs) && (calLow_.kg != calHigh_.kg);
     }
     prefs.end();
+
+    // Older firmware stored the calibration factor but not the cal_valid flag.
+    // Treat any finite non-zero factor, or a valid two-point calibration, as calibrated.
+    if (!calibrationValid_ && (hasTwoPoints_ || (isfinite(calibrationFactor_) && calibrationFactor_ != 0.0f))) {
+        calibrationValid_ = true;
+        Preferences writePrefs;
+        writePrefs.begin("weight", false);
+        writePrefs.putBool("cal_valid", true);
+        writePrefs.end();
+        Serial.println("[WEIGHT] Calibration validity migrated from saved calibration data");
+    }
     if (hasTwoPoints_) {
         Serial.printf("[WEIGHT] Two-point cal loaded: low=%.3fkg@%ld  high=%.3fkg@%ld\n",
                       calLow_.kg, calLow_.rawAbs, calHigh_.kg, calHigh_.rawAbs);

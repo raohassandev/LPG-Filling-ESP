@@ -208,7 +208,7 @@ void handleSerialCommand(const String& line) {
 
   if (command.startsWith("cal ")) {
     const float factor = command.substring(4).toFloat();
-    if (factor > 0) {
+    if (isfinite(factor) && factor != 0.0f) {
       weightService.setCalibrationFactor(factor);
       Serial.printf("[SERIAL] calibration factor set to %.2f\n", factor);
     } else {
