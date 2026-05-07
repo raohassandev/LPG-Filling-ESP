@@ -85,6 +85,68 @@ static bool fne(float a, float b, float eps = 0.005f) { return (a - b) > eps || 
 
 static void setReadyIcon(lv_obj_t* iconLbl, bool ok, lv_color_t activeColor);
 
+static lv_obj_t* iconRoot(lv_obj_t* parent) {
+  lv_obj_t* root = lv_obj_create(parent);
+  lv_obj_set_size(root, 34, 30);
+  lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(root, 0, 0);
+  lv_obj_set_style_pad_all(root, 0, 0);
+  lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_align(root, LV_ALIGN_TOP_MID, 0, 3);
+  return root;
+}
+
+static lv_obj_t* iconShape(lv_obj_t* parent, int x, int y, int w, int h, int radius = 2) {
+  lv_obj_t* o = lv_obj_create(parent);
+  lv_obj_set_size(o, w, h);
+  lv_obj_set_pos(o, x, y);
+  lv_obj_set_style_bg_color(o, TC::muted(), 0);
+  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(o, 0, 0);
+  lv_obj_set_style_radius(o, radius, 0);
+  lv_obj_set_style_pad_all(o, 0, 0);
+  lv_obj_clear_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+  return o;
+}
+
+static lv_obj_t* makeSymbolIcon(lv_obj_t* parent, const char* sym) {
+  lv_obj_t* root = iconRoot(parent);
+  lv_obj_t* lbl = lv_label_create(root);
+  lv_label_set_text(lbl, sym);
+  lv_obj_set_style_text_font(lbl, TF::lg(), 0);
+  lv_obj_set_style_text_color(lbl, TC::muted(), 0);
+  lv_obj_center(lbl);
+  return root;
+}
+
+static lv_obj_t* makeCylinderIcon(lv_obj_t* parent) {
+  lv_obj_t* root = iconRoot(parent);
+  iconShape(root, 12, 1, 10, 4, 2);
+  iconShape(root, 8, 5, 18, 22, 5);
+  iconShape(root, 11, 8, 12, 3, 2);
+  iconShape(root, 11, 21, 12, 3, 2);
+  return root;
+}
+
+static lv_obj_t* makeNozzleIcon(lv_obj_t* parent) {
+  lv_obj_t* root = iconRoot(parent);
+  iconShape(root, 4, 8, 21, 6, 2);
+  iconShape(root, 24, 6, 6, 10, 2);
+  iconShape(root, 10, 14, 6, 10, 2);
+  iconShape(root, 18, 20, 10, 7, 2);
+  lv_obj_t* shackle = lv_obj_create(root);
+  lv_obj_set_size(shackle, 8, 8);
+  lv_obj_set_pos(shackle, 19, 15);
+  lv_obj_set_style_bg_opa(shackle, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_color(shackle, TC::muted(), 0);
+  lv_obj_set_style_border_width(shackle, 2, 0);
+  lv_obj_set_style_border_side(shackle, LV_BORDER_SIDE_TOP | LV_BORDER_SIDE_LEFT | LV_BORDER_SIDE_RIGHT, 0);
+  lv_obj_set_style_radius(shackle, 4, 0);
+  lv_obj_set_style_pad_all(shackle, 0, 0);
+  lv_obj_clear_flag(shackle, LV_OBJ_FLAG_SCROLLABLE);
+  return root;
+}
+
 static void setLabelTextIfChanged(lv_obj_t* label, const char* text) {
   if (!label || !text) return;
   const char* old = lv_label_get_text(label);
@@ -377,10 +439,7 @@ void DashboardScreen::build(ModbusClient& mbus) {
   Theme::applyCard(rCard);
   lv_obj_set_style_pad_all(rCard, 4, 0);
 
-  // 4 status cells: E-stop, cylinder, nozzle, stable scale.
-  static const char* kReadySym[4] = {
-    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_UPLOAD, LV_SYMBOL_OK
-  };
+  // 4 status cells: E-stop, cylinder, nozzle locked/engaged, stable scale.
   static const char* kReadyText[4] = {
     "E-STOP", "CYL", "NOZZLE", "SCALE"
   };
@@ -398,11 +457,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_obj_set_style_pad_all(cell, 0, 0);
     lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
 
-    *readyRefs[i] = lv_label_create(cell);
-    lv_label_set_text(*readyRefs[i], kReadySym[i]);
-    lv_obj_set_style_text_font(*readyRefs[i], TF::lg(), 0);
-    lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
-    lv_obj_align(*readyRefs[i], LV_ALIGN_TOP_MID, 0, 6);
+    if (i == 0)      *readyRefs[i] = makeSymbolIcon(cell, LV_SYMBOL_POWER);
+    else if (i == 1) *readyRefs[i] = makeCylinderIcon(cell);
+    else if (i == 2) *readyRefs[i] = makeNozzleIcon(cell);
+    else             *readyRefs[i] = makeSymbolIcon(cell, LV_SYMBOL_OK);
 
     lv_obj_t* txt = lv_label_create(cell);
     lv_label_set_text(txt, kReadyText[i]);
@@ -565,11 +623,22 @@ void DashboardScreen::updateAlert(const ControllerSnapshot& snap, bool fullRefre
   lv_obj_set_style_text_color(lblAlertTitle_, c, 0);
 }
 
+static void tintIconTree(lv_obj_t* obj, lv_color_t color) {
+  if (!obj) return;
+  lv_obj_set_style_text_color(obj, color, 0);
+  lv_obj_set_style_bg_color(obj, color, 0);
+  lv_obj_set_style_border_color(obj, color, 0);
+  const uint32_t count = lv_obj_get_child_cnt(obj);
+  for (uint32_t i = 0; i < count; i++) {
+    tintIconTree(lv_obj_get_child(obj, i), color);
+  }
+}
+
 // iconLbl is the lv_label_create()'d symbol inside a readiness cell.
 // activeColor is the colour to use when ok=true.
 static void setReadyIcon(lv_obj_t* iconLbl, bool ok, lv_color_t activeColor) {
   lv_color_t fg = ok ? activeColor : TC::muted();
-  lv_obj_set_style_text_color(iconLbl, fg, 0);
+  tintIconTree(iconLbl, fg);
   lv_obj_t* cell = lv_obj_get_parent(iconLbl);
   lv_obj_set_style_border_color(cell, ok ? activeColor : TC::border(), 0);
   // Subtle tinted background when active
