@@ -9,3 +9,17 @@ tools/local/
 *.partitions.bin
 firmware/kc868_a6_lpg_controller/build/
 apps/lpg-expo-app/node_modules/
+apps/lpg-expo-app/package-lock.json
+apps/lpg-expo-app/.expo/
+
+# ESP-IDF auto-downloaded managed components (tracked via dependencies.lock)
+firmware/lpg_display/managed_components/
+firmware/lpg_display/build/
+
+# IDE / tool artefacts
+.vscode/
+firmware/lpg_display/.vscode/
+.claude/
+
+# Downloaded files
+downloads/
