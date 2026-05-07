@@ -6,6 +6,7 @@
 #include "screens/FaultScreen.h"
 #include "screens/PinScreen.h"
 #include "screens/SettingsScreen.h"
+#include "screens/WifiScreen.h"
 
 static DashboardScreen    dashScr;
 static FillProgressScreen progScr;
@@ -13,8 +14,9 @@ static FillCompleteScreen compScr;
 static FaultScreen        faultScr;
 static PinScreen          pinScr;
 static SettingsScreen     settScr;
+static WifiScreen         wifiScr;
 
-void ScreenManager::begin(ModbusClient& mbus) {
+void ScreenManager::begin(ModbusClient& mbus, WifiManager& wifi) {
     ControllerSnapshot empty{};
     if (Bsp::lock()) {
         dashScr.build(mbus);
@@ -39,28 +41,35 @@ Screen ScreenManager::stateToScreen(FillState s) const {
     }
 }
 
-void ScreenManager::update(const ControllerSnapshot& snap, ModbusClient& mbus) {
-    // Always update dashboard so the connection-status label stays current.
+void ScreenManager::update(const ControllerSnapshot& snap,
+                           ModbusClient& mbus, WifiManager& wifi) {
+    // Always update dashboard so connection-status stays current.
     // For all other screens, bail if we have no valid data.
-    if (!snap.valid && current_ != Screen::Dashboard) return;
+    if (!snap.valid && current_ != Screen::Dashboard
+                    && current_ != Screen::Wifi
+                    && current_ != Screen::Pin
+                    && current_ != Screen::Settings) return;
 
-    // Auto-transition on state change (not for user-driven screens)
-    if (current_ != Screen::Pin && current_ != Screen::Settings) {
+    // Auto-transition on controller state change
+    if (current_ != Screen::Pin    &&
+        current_ != Screen::Settings &&
+        current_ != Screen::Wifi) {
         Screen target = stateToScreen(snap.state);
-        if (target != current_) loadScreen(target, snap, mbus);
+        if (target != current_) loadScreen(target, snap, mbus, wifi);
     }
 
     // Handle deferred navigateTo() calls
-    if (pending_ != current_) loadScreen(pending_, snap, mbus);
+    if (pending_ != current_) loadScreen(pending_, snap, mbus, wifi);
 
-    // Refresh data on current screen (inside LVGL lock)
+    // Refresh data on current screen
     if (Bsp::lock()) {
         switch (current_) {
-            case Screen::Dashboard:    dashScr.update(snap);   break;
-            case Screen::FillProgress: progScr.update(snap);   break;
-            case Screen::FillComplete: compScr.update(snap);   break;
-            case Screen::Fault:        faultScr.update(snap);  break;
-            case Screen::Settings:     settScr.update(snap);   break;
+            case Screen::Dashboard:    dashScr.update(snap);        break;
+            case Screen::FillProgress: progScr.update(snap);        break;
+            case Screen::FillComplete: compScr.update(snap);        break;
+            case Screen::Fault:        faultScr.update(snap);       break;
+            case Screen::Settings:     settScr.update(snap);        break;
+            case Screen::Wifi:         wifiScr.update(wifi);        break;
             default: break;
         }
         Bsp::unlock();
@@ -71,7 +80,8 @@ void ScreenManager::navigateTo(Screen s) {
     pending_ = s;
 }
 
-void ScreenManager::loadScreen(Screen s, const ControllerSnapshot& snap, ModbusClient& mbus) {
+void ScreenManager::loadScreen(Screen s, const ControllerSnapshot& snap,
+                               ModbusClient& mbus, WifiManager& wifi) {
     lv_obj_t* next = nullptr;
 
     if (Bsp::lock()) {
@@ -99,6 +109,10 @@ void ScreenManager::loadScreen(Screen s, const ControllerSnapshot& snap, ModbusC
                 if (!settScr.screen()) settScr.build(mbus);
                 settScr.update(snap);
                 next = settScr.screen(); break;
+            case Screen::Wifi:
+                if (!wifiScr.screen()) wifiScr.build(wifi);
+                wifiScr.update(wifi);
+                next = wifiScr.screen(); break;
         }
         if (next && next != lv_scr_act())
             lv_scr_load_anim(next, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);

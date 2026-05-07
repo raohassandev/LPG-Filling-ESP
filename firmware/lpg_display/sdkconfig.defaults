@@ -41,3 +41,10 @@ CONFIG_LV_FONT_MONTSERRAT_48=y
 
 # LVGL — flex layout used in Theme.h widgets
 CONFIG_LV_USE_FLEX=y
+
+# WiFi
+CONFIG_ESP_WIFI_ENABLED=y
+CONFIG_ESP32_WIFI_NVS_ENABLED=y
+
+# NVS (needed by WifiManager)
+CONFIG_NVS_ASSERT_ERROR_CHECK=n

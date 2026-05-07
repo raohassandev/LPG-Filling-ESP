@@ -12,4 +12,8 @@ idf_component_register(
         esp_lcd_touch_gt911
         esp_lvgl_port
         lvgl
+        esp_wifi
+        esp_event
+        esp_netif
+        nvs_flash
 )
