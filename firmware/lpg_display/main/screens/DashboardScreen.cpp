@@ -39,6 +39,8 @@ static lv_color_t stateColor(FillState s) {
   }
 }
 
+static bool fne(float a, float b, float eps = 0.005f) { return (a - b) > eps || (b - a) > eps; }
+
 static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b) {
   return a.state           != b.state
       || a.connected       != b.connected
@@ -46,15 +48,14 @@ static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b
       || a.cylinderPresent != b.cylinderPresent
       || a.nozzleEngaged   != b.nozzleEngaged
       || a.weightStable    != b.weightStable
-      || a.liveWeightKg    != b.liveWeightKg
-      || a.tareWeightKg    != b.tareWeightKg
-      || a.netWeightKg     != b.netWeightKg
+      || fne(a.liveWeightKg, b.liveWeightKg)
+      || fne(a.tareWeightKg, b.tareWeightKg)
+      || fne(a.netWeightKg,  b.netWeightKg)
       || a.rtcHour         != b.rtcHour
       || a.rtcMinute       != b.rtcMinute
       || a.todayFills      != b.todayFills
-      || a.todayKg         != b.todayKg
-      || a.todayAmount     != b.todayAmount
-      || a.ratePerKg       != b.ratePerKg;
+      || fne(a.todayKg,     b.todayKg, 0.05f)
+      || fne(a.todayAmount, b.todayAmount, 0.5f);
 }
 
 // ── build ─────────────────────────────────────────────────────────────────────
@@ -343,13 +344,49 @@ void DashboardScreen::updateDot(lv_obj_t* row, bool ok) {
   lv_obj_set_style_text_color(lbl, ok ? TC::text() : TC::muted(), 0);
 }
 
-// ── Start Fill dialog ─────────────────────────────────────────────────────────
+// ── Start Fill dialog — stepper-based (no keyboard to avoid crash) ────────────
+
+// Target weight steps: 1 kg per tap, rate steps: 10 PKR per tap.
+// Values stored in dialogTargetKg_ / dialogRatePerKg_ (float members).
+
+static lv_obj_t* makeStepper(lv_obj_t* parent, int y,
+                              const char* label,
+                              lv_event_cb_t onMinus, lv_event_cb_t onPlus,
+                              lv_obj_t** outValLabel,
+                              void* userData) {
+  lv_obj_t* row = lv_obj_create(parent);
+  lv_obj_set_size(row, LV_PCT(100), 70);
+  lv_obj_set_pos(row, 0, y);
+  lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(row, 0, 0);
+  lv_obj_set_style_pad_all(row, 0, 0);
+  lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+  Theme::label(row, label, TF::sm(), TC::textSub());
+  lv_obj_t* lbl = lv_obj_get_child(row, 0);
+  lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  lv_obj_t* btnM = Theme::button(row, " - ", TC::surface2(), TC::text(), 56, 44);
+  lv_obj_align(btnM, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  lv_obj_add_event_cb(btnM, onMinus, LV_EVENT_CLICKED, userData);
+
+  *outValLabel = lv_label_create(row);
+  lv_obj_set_style_text_font(*outValLabel, TF::xxl(), 0);
+  lv_obj_set_style_text_color(*outValLabel, TC::text(), 0);
+  lv_obj_align(*outValLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+  lv_obj_t* btnP = Theme::button(row, " + ", TC::active(), TC::white(), 56, 44);
+  lv_obj_align(btnP, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+  lv_obj_add_event_cb(btnP, onPlus, LV_EVENT_CLICKED, userData);
+
+  return row;
+}
 
 void DashboardScreen::openStartDialog() {
   if (startModal_) return;
 
-  startModal_ = lv_obj_create(lv_scr_act());
-  lv_obj_set_size(startModal_, 520, 390);
+  startModal_ = lv_obj_create(scr_);
+  lv_obj_set_size(startModal_, 500, 340);
   lv_obj_center(startModal_);
   lv_obj_set_style_bg_color(startModal_, TC::surface(), 0);
   lv_obj_set_style_bg_opa(startModal_, LV_OPA_COVER, 0);
@@ -363,70 +400,44 @@ void DashboardScreen::openStartDialog() {
   lv_obj_t* title = lv_obj_get_child(startModal_, 0);
   lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
 
-  Theme::label(startModal_, "Target Weight (kg)", TF::sm(), TC::textSub());
-  lv_obj_t* lTarget = lv_obj_get_child(startModal_, 1);
-  lv_obj_align(lTarget, LV_ALIGN_TOP_LEFT, 0, 44);
+  // Target weight stepper
+  makeStepper(startModal_, 44, "Target Weight (kg)",
+              onTargetMinus, onTargetPlus, &lblDialogTarget_, this);
 
-  taTarget_ = lv_textarea_create(startModal_);
-  lv_obj_set_size(taTarget_, LV_PCT(100), 44);
-  lv_obj_align(taTarget_, LV_ALIGN_TOP_LEFT, 0, 64);
-  lv_textarea_set_one_line(taTarget_, true);
-  lv_textarea_set_accepted_chars(taTarget_, "0123456789.");
-  lv_textarea_set_max_length(taTarget_, 6);
-  lv_obj_set_style_bg_color(taTarget_, TC::surface2(), 0);
-  lv_obj_set_style_border_color(taTarget_, TC::border(), 0);
-  lv_obj_set_style_text_color(taTarget_, TC::text(), 0);
-  lv_obj_set_style_text_font(taTarget_, TF::xl(), 0);
-
-  Theme::label(startModal_, "Rate per kg (PKR)", TF::sm(), TC::textSub());
-  lv_obj_t* lRate = lv_obj_get_child(startModal_, 4);
-  lv_obj_align(lRate, LV_ALIGN_TOP_LEFT, 0, 124);
-
-  taRate_ = lv_textarea_create(startModal_);
-  lv_obj_set_size(taRate_, LV_PCT(100), 44);
-  lv_obj_align(taRate_, LV_ALIGN_TOP_LEFT, 0, 144);
-  lv_textarea_set_one_line(taRate_, true);
-  lv_textarea_set_accepted_chars(taRate_, "0123456789.");
-  lv_textarea_set_max_length(taRate_, 6);
-  char rateStr[16];
-  snprintf(rateStr, sizeof(rateStr), "%.0f", lastRatePerKg_);
-  lv_textarea_set_text(taRate_, rateStr);
-  lv_obj_set_style_bg_color(taRate_, TC::surface2(), 0);
-  lv_obj_set_style_border_color(taRate_, TC::border(), 0);
-  lv_obj_set_style_text_color(taRate_, TC::text(), 0);
-  lv_obj_set_style_text_font(taRate_, TF::xl(), 0);
+  // Rate stepper
+  makeStepper(startModal_, 148, "Rate per kg (PKR)",
+              onRateMinus, onRatePlus, &lblDialogRate_, this);
 
   lblStartError_ = Theme::label(startModal_, "", TF::sm(), TC::danger());
-  lv_obj_align(lblStartError_, LV_ALIGN_TOP_LEFT, 0, 202);
-
-  kbStart_ = lv_keyboard_create(startModal_);
-  lv_keyboard_set_mode(kbStart_, LV_KEYBOARD_MODE_NUMBER);
-  lv_obj_set_size(kbStart_, LV_PCT(100), 160);
-  lv_obj_align(kbStart_, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_keyboard_set_textarea(kbStart_, taTarget_);
-  lv_obj_set_style_bg_color(kbStart_, TC::surface2(), 0);
-  lv_obj_set_style_text_color(kbStart_, TC::text(), 0);
-  lv_obj_add_event_cb(kbStart_, onStartTextarea, LV_EVENT_READY, this);
+  lv_obj_align(lblStartError_, LV_ALIGN_TOP_LEFT, 0, 254);
 
   lv_obj_t* btnCancel = Theme::button(startModal_, "CANCEL",
-                                      TC::surface2(), TC::textSub(), 120, 40);
+                                      TC::surface2(), TC::textSub(), 120, 44);
   lv_obj_align(btnCancel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_add_event_cb(btnCancel, onStartCancel, LV_EVENT_CLICKED, this);
 
   lv_obj_t* btnGo = Theme::button(startModal_, LV_SYMBOL_PLAY " START",
-                                  TC::active(), TC::white(), 140, 40);
+                                  TC::active(), TC::white(), 160, 44);
   lv_obj_align(btnGo, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
   lv_obj_add_event_cb(btnGo, onStartConfirm, LV_EVENT_CLICKED, this);
+
+  updateDialogLabels();
+}
+
+void DashboardScreen::updateDialogLabels() {
+  if (lblDialogTarget_)
+    lv_label_set_text_fmt(lblDialogTarget_, "%.0f kg", dialogTargetKg_);
+  if (lblDialogRate_)
+    lv_label_set_text_fmt(lblDialogRate_, "%.0f PKR", dialogRatePerKg_);
 }
 
 void DashboardScreen::closeStartDialog() {
   if (!startModal_) return;
   lv_obj_del(startModal_);
-  startModal_    = nullptr;
-  taTarget_      = nullptr;
-  taRate_        = nullptr;
-  kbStart_       = nullptr;
-  lblStartError_ = nullptr;
+  startModal_      = nullptr;
+  lblDialogTarget_ = nullptr;
+  lblDialogRate_   = nullptr;
+  lblStartError_   = nullptr;
 }
 
 // ── Event callbacks ───────────────────────────────────────────────────────────
@@ -438,24 +449,42 @@ void DashboardScreen::onStartPressed(lv_event_t* e) {
 
 void DashboardScreen::onStartConfirm(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
-  if (!self->taTarget_ || !self->mbus_) return;
+  if (!self->mbus_) return;
 
-  float targetKg   = atof(lv_textarea_get_text(self->taTarget_));
-  float ratePerKg  = atof(lv_textarea_get_text(self->taRate_));
-
-  if (targetKg <= 0.0f) {
+  if (self->dialogTargetKg_ <= 0.0f) {
     if (self->lblStartError_)
-      lv_label_set_text(self->lblStartError_, "Enter a valid target weight");
+      lv_label_set_text(self->lblStartError_, "Set a target weight > 0 kg");
     return;
   }
-  if (ratePerKg <= 0.0f) {
+  if (self->dialogRatePerKg_ <= 0.0f) {
     if (self->lblStartError_)
-      lv_label_set_text(self->lblStartError_, "Enter a valid rate");
+      lv_label_set_text(self->lblStartError_, "Set a rate > 0");
     return;
   }
-  self->lastRatePerKg_ = ratePerKg;
-  self->mbus_->startFill(targetKg, ratePerKg);
+  self->lastRatePerKg_  = self->dialogRatePerKg_;
+  self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
   self->closeStartDialog();
+}
+
+void DashboardScreen::onTargetMinus(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogTargetKg_ > 1.0f) self->dialogTargetKg_ -= 1.0f;
+  self->updateDialogLabels();
+}
+void DashboardScreen::onTargetPlus(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogTargetKg_ < 500.0f) self->dialogTargetKg_ += 1.0f;
+  self->updateDialogLabels();
+}
+void DashboardScreen::onRateMinus(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogRatePerKg_ > 10.0f) self->dialogRatePerKg_ -= 10.0f;
+  self->updateDialogLabels();
+}
+void DashboardScreen::onRatePlus(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self->dialogRatePerKg_ < 100000.0f) self->dialogRatePerKg_ += 10.0f;
+  self->updateDialogLabels();
 }
 
 void DashboardScreen::onStartCancel(lv_event_t* e) {
@@ -463,13 +492,6 @@ void DashboardScreen::onStartCancel(lv_event_t* e) {
   self->closeStartDialog();
 }
 
-void DashboardScreen::onStartTextarea(lv_event_t* e) {
-  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
-  if (!self->kbStart_ || !self->taTarget_ || !self->taRate_) return;
-  // Cycle target → rate → confirm
-  if (lv_keyboard_get_textarea(self->kbStart_) == self->taTarget_)
-    lv_keyboard_set_textarea(self->kbStart_, self->taRate_);
-}
 
 void DashboardScreen::onAdminPressed(lv_event_t* e) {
   screenManager.navigateTo(Screen::Pin);

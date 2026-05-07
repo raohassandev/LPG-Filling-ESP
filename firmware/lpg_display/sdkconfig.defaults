@@ -42,6 +42,9 @@ CONFIG_LV_FONT_MONTSERRAT_48=y
 # LVGL — flex layout used in Theme.h widgets
 CONFIG_LV_USE_FLEX=y
 
+# LVGL — enable float support in lv_label_set_text_fmt / lv_snprintf
+CONFIG_LV_SPRINTF_USE_FLOAT=y
+
 # WiFi
 CONFIG_ESP_WIFI_ENABLED=y
 CONFIG_ESP32_WIFI_NVS_ENABLED=y

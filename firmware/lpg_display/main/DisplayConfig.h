@@ -8,9 +8,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // RS485 — onboard SP3485 transceiver, auto-direction
+// Schematic net names: IO43=RS4850RXD (ESP32 receives), IO44=RS4850TXD (ESP32 transmits)
 static constexpr uart_port_t kRtuUart   = UART_NUM_1;
-static constexpr gpio_num_t  kRtuTxPin  = GPIO_NUM_43;
-static constexpr gpio_num_t  kRtuRxPin  = GPIO_NUM_44;
+static constexpr gpio_num_t  kRtuTxPin  = GPIO_NUM_44;
+static constexpr gpio_num_t  kRtuRxPin  = GPIO_NUM_43;
 static constexpr int         kRtuBaud   = 9600;
 static constexpr uint8_t     kRtuAddr   = 1;      // KC868-A6 slave address
 

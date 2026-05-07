@@ -178,6 +178,7 @@ bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
     uart_flush_input(kRtuUart);
     uart_write_bytes(kRtuUart, req, reqLen);
     uart_wait_tx_done(kRtuUart, pdMS_TO_TICKS(50));
+    uart_flush_input(kRtuUart);  // discard any self-echo on the RS485 bus
 
     int rx = uart_read_bytes(kRtuUart, resp, expectLen, pdMS_TO_TICKS(kTimeoutMs));
     if (rx < expectLen) return false;
