@@ -228,3 +228,31 @@ Append the following section to this file after completing all tasks:
 ### Next suggestions
 <anything you noticed that should be addressed in Round 2>
 ```
+
+## CODEX REPORT — Round 1
+
+**Date:** 2026-05-07  
+**Commit:** c76382e
+
+### Task 1 — Audit & fix broken references
+- [x] 1a. StatusHeader props updated in: `src/screens/FillProgressScreen.js`, `src/screens/FillCompleteScreen.js`, `src/screens/FaultScreen.js`
+- [x] 1b. logout exported from AppStateProvider: yes; already present, no code change required
+- [x] 1c. Icon names verified: changed invalid MaterialCommunityIcons `nozzle` icon to valid `fuel` in `src/components/ReadinessCard.js`
+
+### Task 2 — FillProgressScreen
+Added StatusHeader with auth role/user and switch-account callback, removed emoji/symbol state labels, kept STOP as a clear `STOP FILL` action, and kept fill colors on theme tokens only.
+
+### Task 3 — FillCompleteScreen
+Added StatusHeader, rebuilt receipt rows in the requested order, wired `New Fill` to reset the controller then navigate to dashboard, and removed hardcoded color literals from the screen.
+
+### Task 4 — TransactionsScreen
+Replaced each transaction item with a compact single-line row using status dot, transaction id, kg, amount, and short timestamp while preserving filters, KPI summary, and SD archive rendering.
+
+### Task 5 — FaultScreen
+Updated StatusHeader props, imported and used `getFaultMessage(code)`, and gated reset visibility through `readyToReset` or non-critical fault severity. The fallback still shows reset when firmware does not expose `readyToReset`.
+
+### Issues encountered
+`npm.cmd run lint` executes but fails because `scripts/check-app.js` still searches for old UI strings inside `App.js`; those strings now live in split screen files such as `OperatorDashboard.js` and `NetworkSettingsScreen.js`. Targeted grep checks for hardcoded fill-screen colors, old StatusHeader props, and the invalid icon name passed. No firmware files or board ports were touched.
+
+### Next suggestions
+Update `apps/lpg-expo-app/scripts/check-app.js` to inspect the split screen files, then add a lightweight render/smoke check for the fill, complete, transaction, and fault routes.
