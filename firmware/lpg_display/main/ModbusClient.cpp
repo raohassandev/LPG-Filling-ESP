@@ -147,16 +147,31 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     memcpy(&rateBits, &ratePerKg, sizeof(rateBits));
     memcpy(&amountBits, &targetAmount, sizeof(amountBits));
 
-    const uint16_t regs[6] = {
+    const uint16_t targetRegs[2] = {
         static_cast<uint16_t>(targetBits >> 16),
         static_cast<uint16_t>(targetBits & 0xFFFF),
+    };
+    const uint16_t rateRegs[2] = {
         static_cast<uint16_t>(rateBits >> 16),
         static_cast<uint16_t>(rateBits & 0xFFFF),
+    };
+    const uint16_t amountRegs[2] = {
         static_cast<uint16_t>(amountBits >> 16),
         static_cast<uint16_t>(amountBits & 0xFFFF),
     };
-    if (!writeRegisters(0x0006, regs, 6)) {
-        ESP_LOGW(TAG, "Start fill failed: target/rate write did not get RTU response");
+
+    // Keep these as separate FC16 writes. The controller applies each float when
+    // its low word arrives, using the latest persisted values for the other fields.
+    if (!writeRegisters(0x0006, targetRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: target write did not get RTU response");
+        return false;
+    }
+    if (!writeRegisters(0x0008, rateRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: rate write did not get RTU response");
+        return false;
+    }
+    if (!writeRegisters(0x000A, amountRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: amount write did not get RTU response");
         return false;
     }
     if (!cmdStart()) {

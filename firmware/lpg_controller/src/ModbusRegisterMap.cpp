@@ -238,9 +238,9 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_Command: {
             String reason;
             switch (value) {
-                case 1: fillController.startFill(snap.targetWeightKg, snap.ratePerKg, snap.targetAmount, reason, "modbus"); return true;
-                case 2: fillController.stopFill("modbus_stop"); return true;
-                case 3: fillController.resetToIdle(reason); return true;
+                case 1: return fillController.startFill(snap.targetWeightKg, snap.ratePerKg, snap.targetAmount, reason, "modbus");
+                case 2: return fillController.stopFill("modbus_stop");
+                case 3: return fillController.resetToIdle(reason);
                 case 4: statusStore.setTareWeight(snap.liveWeightKg); return true;
                 default: return false;
             }
