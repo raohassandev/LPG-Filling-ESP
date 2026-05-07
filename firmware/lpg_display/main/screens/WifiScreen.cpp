@@ -281,8 +281,7 @@ void WifiScreen::openAddModal() {
     lv_obj_add_event_cb(taSsid_, onKeyboard, LV_EVENT_FOCUSED, this);
 
     // Password field
-    Theme::label(addModal_, "Password", TF::sm(), TC::textSub());
-    lv_obj_t* passLbl = lv_obj_get_child(addModal_, 4);
+    lv_obj_t* passLbl = Theme::label(addModal_, "Password", TF::sm(), TC::textSub());
     lv_obj_align(passLbl, LV_ALIGN_TOP_LEFT, 0, 116);
 
     taPass_ = lv_textarea_create(addModal_);

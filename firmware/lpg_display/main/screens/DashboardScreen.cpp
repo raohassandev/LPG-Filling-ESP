@@ -42,6 +42,8 @@ static lv_color_t stateColor(FillState s) {
 
 static bool fne(float a, float b, float eps = 0.005f) { return (a - b) > eps || (b - a) > eps; }
 
+static void setReadyIcon(lv_obj_t* iconLbl, bool ok, lv_color_t activeColor);
+
 static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b) {
   return a.state           != b.state
       || a.connected       != b.connected
@@ -256,30 +258,43 @@ void DashboardScreen::build(ModbusClient& mbus) {
   }
 
   // ── Right column: Readiness card (x=492, y=68, 292×200) ───────────────────
+  // 2×2 grid of large icon-only cells — colour conveys status, no text labels.
   lv_obj_t* rCard = lv_obj_create(scr_);
   lv_obj_set_size(rCard, 292, 200);
   lv_obj_set_pos(rCard, 492, 68);
   Theme::applyCard(rCard);
+  lv_obj_set_style_pad_all(rCard, 6, 0);
 
   Theme::label(rCard, "READINESS", TF::sm(), TC::textSub());
   lv_obj_t* rLabel = lv_obj_get_child(rCard, 0);
   lv_obj_align(rLabel, LV_ALIGN_TOP_LEFT, 0, 0);
 
-  lv_obj_t* dotCol = lv_obj_create(rCard);
-  lv_obj_set_size(dotCol, LV_PCT(100), LV_SIZE_CONTENT);
-  lv_obj_align(dotCol, LV_ALIGN_CENTER, 0, 8);
-  lv_obj_set_style_bg_opa(dotCol, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(dotCol, 0, 0);
-  lv_obj_set_style_pad_all(dotCol, 0, 0);
-  lv_obj_set_layout(dotCol, LV_LAYOUT_FLEX);
-  lv_obj_set_flex_flow(dotCol, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_flex_align(dotCol, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-  lv_obj_set_style_pad_row(dotCol, 14, 0);
+  // 4 icons: E-STOP (power), CYLINDER (home), NOZZLE (tint), WEIGHT (loop)
+  // Each cell 134×82 px; 2 columns × 2 rows starting y=22
+  static const char* kReadySym[4] = {
+    LV_SYMBOL_POWER, LV_SYMBOL_HOME, LV_SYMBOL_TINT, LV_SYMBOL_LOOP
+  };
+  lv_obj_t** readyRefs[4] = { &dotEstop_, &dotCylinder_, &dotNozzle_, &dotStable_ };
 
-  dotEstop_    = Theme::statusDot(dotCol, LV_SYMBOL_POWER   "  E-STOP OK",        false);
-  dotCylinder_ = Theme::statusDot(dotCol, LV_SYMBOL_HOME    "  CYLINDER PRESENT", false);
-  dotNozzle_   = Theme::statusDot(dotCol, LV_SYMBOL_TINT    "  NOZZLE ENGAGED",   false);
-  dotStable_   = Theme::statusDot(dotCol, LV_SYMBOL_LOOP    "  WEIGHT STABLE",    false);
+  for (int i = 0; i < 4; i++) {
+    int col = i % 2, row = i / 2;
+    lv_obj_t* cell = lv_obj_create(rCard);
+    lv_obj_set_size(cell, 134, 82);
+    lv_obj_set_pos(cell, col * 140, 22 + row * 88);
+    lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
+    lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(cell, TC::border(), 0);
+    lv_obj_set_style_border_width(cell, 1, 0);
+    lv_obj_set_style_radius(cell, 8, 0);
+    lv_obj_set_style_pad_all(cell, 0, 0);
+    lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+
+    *readyRefs[i] = lv_label_create(cell);
+    lv_label_set_text(*readyRefs[i], kReadySym[i]);
+    lv_obj_set_style_text_font(*readyRefs[i], TF::xxl(), 0);
+    lv_obj_set_style_text_color(*readyRefs[i], TC::muted(), 0);
+    lv_obj_center(*readyRefs[i]);
+  }
 
   // ── Right column: Start Fill button (x=492, y=276, 292×158) ──────────────
   btnStart_ = lv_obj_create(scr_);
@@ -329,11 +344,11 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   display_label_setf(lblTare_, "Tare: %.3f kg", snap.tareWeightKg);
   display_label_setf(lblNet_,  "Net: %.3f kg",  snap.netWeightKg);
 
-  // Readiness dots
-  updateDot(dotEstop_,    snap.eStopOk);
-  updateDot(dotCylinder_, snap.cylinderPresent);
-  updateDot(dotNozzle_,   snap.nozzleEngaged);
-  updateDot(dotStable_,   snap.weightStable);
+  // Readiness icons — each icon has a semantically correct active colour
+  setReadyIcon(dotEstop_,    snap.eStopOk,         snap.eStopOk ? TC::ready()  : TC::danger());
+  setReadyIcon(dotCylinder_, snap.cylinderPresent,  TC::ready());
+  setReadyIcon(dotNozzle_,   snap.nozzleEngaged,    TC::active());
+  setReadyIcon(dotStable_,   snap.weightStable,     snap.weightStable ? TC::ready() : TC::warning());
 
   // Blink weight-stable dot while controller is actively measuring
   const bool isMeasuring = (snap.state == FillState::Validating ||
@@ -362,11 +377,21 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   else          lv_obj_clear_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
 }
 
-void DashboardScreen::updateDot(lv_obj_t* row, bool ok) {
-  lv_obj_t* dot = lv_obj_get_child(row, 0);
-  lv_obj_t* lbl = lv_obj_get_child(row, 1);
-  lv_obj_set_style_bg_color(dot, ok ? TC::ready() : TC::muted(), 0);
-  lv_obj_set_style_text_color(lbl, ok ? TC::text() : TC::muted(), 0);
+// iconLbl is the lv_label_create()'d symbol inside a readiness cell.
+// activeColor is the colour to use when ok=true.
+static void setReadyIcon(lv_obj_t* iconLbl, bool ok, lv_color_t activeColor) {
+  lv_color_t fg = ok ? activeColor : TC::muted();
+  lv_obj_set_style_text_color(iconLbl, fg, 0);
+  lv_obj_t* cell = lv_obj_get_parent(iconLbl);
+  lv_obj_set_style_border_color(cell, ok ? activeColor : TC::border(), 0);
+  // Subtle tinted background when active
+  lv_obj_set_style_bg_opa(cell, ok ? 40 : LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(cell, ok ? activeColor : TC::surface2(), 0);
+}
+
+void DashboardScreen::updateDot(lv_obj_t* iconLbl, bool ok) {
+  // Legacy wrapper — kept for the blink helper which still accesses dotStable_ directly.
+  setReadyIcon(iconLbl, ok, TC::ready());
 }
 
 // ── Start Fill dialog — stepper-based (no keyboard to avoid crash) ────────────
@@ -529,10 +554,10 @@ void DashboardScreen::blinkAnimCb(void* obj, int32_t v) {
 }
 
 void DashboardScreen::startStableBlink() {
-  lv_obj_t* dot = lv_obj_get_child(dotStable_, 0);
+  // dotStable_ is now the icon label itself — animate it directly
   lv_anim_t a;
   lv_anim_init(&a);
-  lv_anim_set_var(&a, dot);
+  lv_anim_set_var(&a, dotStable_);
   lv_anim_set_exec_cb(&a, blinkAnimCb);
   lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
   lv_anim_set_time(&a, 500);
@@ -542,9 +567,8 @@ void DashboardScreen::startStableBlink() {
 }
 
 void DashboardScreen::stopStableBlink() {
-  lv_obj_t* dot = lv_obj_get_child(dotStable_, 0);
-  lv_anim_del(dot, blinkAnimCb);
-  lv_obj_set_style_opa(dot, LV_OPA_COVER, 0);
+  lv_anim_del(dotStable_, blinkAnimCb);
+  lv_obj_set_style_opa(dotStable_, LV_OPA_COVER, 0);
 }
 
 // ── Role selector ─────────────────────────────────────────────────────────────
