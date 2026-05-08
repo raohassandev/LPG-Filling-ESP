@@ -89,11 +89,11 @@ private:
     CommHealth lastLoggedHealth_ = CommHealth::Offline;
     bool    healthLogged_ = false;
 
-    static constexpr int64_t kFastUs = 200000;
-    static constexpr int64_t kSlowUs = 2000000;
-    static constexpr int64_t kStatUs = 5000000;
-    static constexpr int64_t kDiagUs = 1000000;
-    static constexpr int     kDefaultTimeoutMs = 300;
+    static constexpr int64_t kFastUs = 500000;
+    static constexpr int64_t kSlowUs = 3000000;
+    static constexpr int64_t kStatUs = 10000000;
+    static constexpr int64_t kDiagUs = 3000000;
+    static constexpr int     kDefaultTimeoutMs = 500;
     static constexpr uint8_t kDefaultReadAttempts = 2;
     static constexpr uint8_t kDefaultWriteAttempts = 3;
 

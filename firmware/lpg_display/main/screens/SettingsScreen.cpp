@@ -148,21 +148,11 @@ void SettingsScreen::buildControllerLinkTab(lv_obj_t* tab) {
   snprintf(buf, sizeof(buf), "%u", rtu.unstableDebounceMs);
   taUnstable_ = makeSmallInput(card, "Unstable ms", buf, 570, 46, 150);
 
-  lv_obj_t* lblParity = Theme::label(card, "Parity", TF::sm(), TC::textSub());
-  lv_obj_set_pos(lblParity, 0, 130);
-  ddParity_ = lv_dropdown_create(card);
-  lv_dropdown_set_options(ddParity_, "None\nEven\nOdd");
-  lv_dropdown_set_selected(ddParity_, rtu.parity <= 2 ? rtu.parity : 0);
-  lv_obj_set_size(ddParity_, 160, 42);
-  lv_obj_set_pos(ddParity_, 0, 152);
+  snprintf(buf, sizeof(buf), "%u", rtu.parity <= 2 ? rtu.parity : 0);
+  taParity_ = makeSmallInput(card, "Parity 0N/1E/2O", buf, 0, 130, 160);
 
-  lv_obj_t* lblStop = Theme::label(card, "Stop Bits", TF::sm(), TC::textSub());
-  lv_obj_set_pos(lblStop, 180, 130);
-  ddStopBits_ = lv_dropdown_create(card);
-  lv_dropdown_set_options(ddStopBits_, "1\n2");
-  lv_dropdown_set_selected(ddStopBits_, rtu.stopBits == 2 ? 1 : 0);
-  lv_obj_set_size(ddStopBits_, 120, 42);
-  lv_obj_set_pos(ddStopBits_, 180, 152);
+  snprintf(buf, sizeof(buf), "%u", rtu.stopBits == 2 ? 2 : 1);
+  taStopBits_ = makeSmallInput(card, "Stop Bits", buf, 180, 130, 120);
 
   snprintf(buf, sizeof(buf), "%u", rtu.offlineDebounceMs);
   taOffline_ = makeSmallInput(card, "Offline ms", buf, 320, 130, 150);
@@ -265,8 +255,8 @@ void SettingsScreen::onSaveLink(lv_event_t* e) {
   settings.rtu.retries = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taRetries_)));
   settings.rtu.unstableDebounceMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taUnstable_)));
   settings.rtu.offlineDebounceMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taOffline_)));
-  settings.rtu.parity = static_cast<uint8_t>(lv_dropdown_get_selected(self->ddParity_));
-  settings.rtu.stopBits = lv_dropdown_get_selected(self->ddStopBits_) == 1 ? 2 : 1;
+  settings.rtu.parity = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taParity_)));
+  settings.rtu.stopBits = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taStopBits_)));
 
   if (DisplaySettingsStore::save(settings)) {
     settings = DisplaySettingsStore::load();

@@ -468,7 +468,8 @@ bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
 
 bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
                               uint8_t* resp, int expectLen) {
-    const int timeoutMs = rtu_.timeoutMs > 0 ? rtu_.timeoutMs : kDefaultTimeoutMs;
+    const int configuredTimeoutMs = rtu_.timeoutMs > 0 ? rtu_.timeoutMs : kDefaultTimeoutMs;
+    const int timeoutMs = configuredTimeoutMs < kDefaultTimeoutMs ? kDefaultTimeoutMs : configuredTimeoutMs;
     if (busMutex_ && xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(timeoutMs + 100)) != pdTRUE) {
         ESP_LOGW(TAG, "RTU busy req=%02X %02X", reqLen > 0 ? req[0] : 0, reqLen > 1 ? req[1] : 0);
         return false;

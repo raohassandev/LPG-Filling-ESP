@@ -72,6 +72,8 @@ void ModbusRtuService::begin() {
 void ModbusRtuService::handleClient() {
     if (!active_) return;
 
+    const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
+
     while (uart_.available()) {
         if (rxLen_ < kRxBufSize) {
             rxBuf_[rxLen_++] = static_cast<uint8_t>(uart_.read());
@@ -83,8 +85,24 @@ void ModbusRtuService::handleClient() {
     }
 
     while (true) {
+        while (rxLen_ > 0 && rxBuf_[0] != rtu.slaveAddress && rxBuf_[0] != kBroadcastAddr) {
+            memmove(rxBuf_, rxBuf_ + 1, rxLen_ - 1);
+            rxLen_--;
+            ResourceMonitor::instance().incrementRtuError();
+        }
+
         const uint16_t expected = expectedRequestLength(rxBuf_, rxLen_);
         if (expected == 0 || rxLen_ < expected) break;
+
+        const uint16_t rxCrc = static_cast<uint16_t>(rxBuf_[expected - 2]) |
+                               (static_cast<uint16_t>(rxBuf_[expected - 1]) << 8);
+        const uint16_t calcCrc = crc16(rxBuf_, expected - 2);
+        if (rxCrc != calcCrc) {
+            memmove(rxBuf_, rxBuf_ + 1, rxLen_ - 1);
+            rxLen_--;
+            ResourceMonitor::instance().incrementRtuError();
+            continue;
+        }
 
         const uint16_t savedLen = rxLen_;
         rxLen_ = expected;

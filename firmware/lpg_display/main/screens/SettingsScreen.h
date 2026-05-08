@@ -30,8 +30,8 @@ private:
   lv_obj_t* lblLinkStatus_ = nullptr;
   lv_obj_t* taSlave_ = nullptr;
   lv_obj_t* taBaud_ = nullptr;
-  lv_obj_t* ddParity_ = nullptr;
-  lv_obj_t* ddStopBits_ = nullptr;
+  lv_obj_t* taParity_ = nullptr;
+  lv_obj_t* taStopBits_ = nullptr;
   lv_obj_t* taTimeout_ = nullptr;
   lv_obj_t* taRetries_ = nullptr;
   lv_obj_t* taUnstable_ = nullptr;

@@ -418,5 +418,5 @@ void loop() {
                                      networkManager.isSTAConnected() ? static_cast<int16_t>(WiFi.RSSI()) : 0,
                                      mqttOk ? 1 : 0);
   ResourceMonitor::instance().recordLoop(static_cast<uint32_t>(micros() - loopStartUs));
-  delay(20);
+  delay(5);
 }
