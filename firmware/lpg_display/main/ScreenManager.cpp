@@ -7,6 +7,7 @@
 #include "screens/PinScreen.h"
 #include "screens/SettingsScreen.h"
 #include "screens/WifiScreen.h"
+#include "esp_log.h"
 
 static DashboardScreen    dashScr;
 static FillProgressScreen progScr;
@@ -15,6 +16,20 @@ static FaultScreen        faultScr;
 static PinScreen          pinScr;
 static SettingsScreen     settScr;
 static WifiScreen         wifiScr;
+static const char* TAG = "SCREEN";
+
+static const char* screenName(Screen s) {
+    switch (s) {
+        case Screen::Dashboard:    return "Dashboard";
+        case Screen::FillProgress: return "FillProgress";
+        case Screen::FillComplete: return "FillComplete";
+        case Screen::Fault:        return "Fault";
+        case Screen::Pin:          return "Pin";
+        case Screen::Settings:     return "Settings";
+        case Screen::Wifi:         return "Wifi";
+    }
+    return "?";
+}
 
 void ScreenManager::begin(ModbusClient& mbus, WifiManager& wifi) {
     ControllerSnapshot empty{};
@@ -77,6 +92,7 @@ void ScreenManager::update(const ControllerSnapshot& snap,
 }
 
 void ScreenManager::navigateTo(Screen s) {
+    ESP_LOGI(TAG, "navigate request: %s -> %s", screenName(current_), screenName(s));
     pending_ = s;
 }
 
@@ -106,7 +122,11 @@ void ScreenManager::loadScreen(Screen s, const ControllerSnapshot& snap,
                 if (!pinScr.screen()) pinScr.build();
                 next = pinScr.screen(); break;
             case Screen::Settings:
-                if (!settScr.screen()) settScr.build(mbus);
+                if (!settScr.screen()) {
+                    ESP_LOGI(TAG, "building Settings screen");
+                    settScr.build(mbus);
+                    ESP_LOGI(TAG, "Settings screen built");
+                }
                 settScr.update(snap);
                 next = settScr.screen(); break;
             case Screen::Wifi:

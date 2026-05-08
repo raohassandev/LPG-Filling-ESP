@@ -113,7 +113,7 @@ extern "C" void app_main() {
 
     xTaskCreatePinnedToCore(modbusTask, "modbus",  4096, nullptr, 5, nullptr, 0);
     xTaskCreatePinnedToCore(wifiTask,   "wifi",    6144, nullptr, 4, nullptr, 0);
-    xTaskCreatePinnedToCore(uiTask,     "ui",     32768, nullptr, 4, nullptr, 1);
+    xTaskCreatePinnedToCore(uiTask,     "ui",     49152, nullptr, 4, nullptr, 1);
 
     ESP_LOGI(TAG, "Tasks started");
     vTaskDelete(nullptr);
