@@ -1,10 +1,15 @@
 #include "ModbusRegisterMap.h"
 
-// Define LPG_MODBUS_WRITES_ENABLED=0 in build flags to disable Modbus HR writes.
-// This integration firmware keeps writes enabled so Modbus Poll / HMI clients can
-// write targets, rate, RTC/RTU settings, and the command register.
+// Production default is read-only. Enable writes explicitly with either:
+//   -DLPG_MODBUS_WRITES_ENABLED=1
+//   -DLPG_PROTOTYPE_BUILD=1
+// Prototype builds can then write target/rate/amount and command registers.
 #ifndef LPG_MODBUS_WRITES_ENABLED
-#define LPG_MODBUS_WRITES_ENABLED 1
+  #if defined(LPG_PROTOTYPE_BUILD) && LPG_PROTOTYPE_BUILD
+    #define LPG_MODBUS_WRITES_ENABLED 1
+  #else
+    #define LPG_MODBUS_WRITES_ENABLED 0
+  #endif
 #endif
 
 namespace {

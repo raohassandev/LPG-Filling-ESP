@@ -221,6 +221,13 @@ bool ModbusClient::writeFloat(uint16_t startReg, float value) {
     return writeRegisters(startReg, regs, 2);
 }
 
+bool ModbusClient::readDeviceId(uint16_t& deviceId) {
+    uint16_t r = 0;
+    if (!readHRRetry(0x0018, 1, &r, 1)) return false;
+    deviceId = r;
+    return true;
+}
+
 bool ModbusClient::readHRRetry(uint16_t start, uint16_t count, uint16_t* out, uint8_t attempts) {
     if (attempts == 0) attempts = rtu_.retries > 0 ? rtu_.retries : kDefaultReadAttempts;
     for (uint8_t i = 0; i < attempts; ++i) {

@@ -70,6 +70,7 @@ public:
     bool writeRegister(uint16_t reg, uint16_t val);
     bool writeRegisters(uint16_t startReg, const uint16_t* values, uint16_t count);
     bool writeFloat(uint16_t startReg, float value);
+    bool readDeviceId(uint16_t& deviceId);
     bool startFill(float targetWeightKg, float ratePerKg);
     bool cmdStart()   { return writeRegisterRetry(0x0017, 1); }
     bool cmdStop()    { return writeRegisterRetry(0x0017, 2); }

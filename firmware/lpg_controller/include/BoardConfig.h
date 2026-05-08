@@ -23,8 +23,13 @@ struct BoardConfig {
   static constexpr bool kInputEmergencyRawMeansTripped = true;
 
   static constexpr const char* kDeviceName = "kc868-a6-lpg";
+#if defined(LPG_DEV_WIFI_DEFAULTS) && LPG_DEV_WIFI_DEFAULTS
   static constexpr const char* kDefaultStaSsid     = "Rao";
   static constexpr const char* kDefaultStaPassword = "password123";
+#else
+  static constexpr const char* kDefaultStaSsid     = "";
+  static constexpr const char* kDefaultStaPassword = "";
+#endif
   static constexpr const char* kFallbackApSsid     = "LPG-Controller-Setup";
   static constexpr const char* kFallbackApPassword = "";   // Generated per-device in SettingsStore
   static constexpr const char* kFirmwareVersion = "0.1.0";

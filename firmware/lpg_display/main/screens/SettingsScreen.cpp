@@ -127,7 +127,7 @@ void SettingsScreen::buildControllerLinkTab(lv_obj_t* tab) {
   lv_obj_set_style_bg_color(tab, TC::bg(), 0);
 
   lv_obj_t* card = lv_obj_create(tab);
-  lv_obj_set_size(card, LV_PCT(100), 268);
+  lv_obj_set_size(card, LV_PCT(100), 312);
   lv_obj_set_pos(card, 0, 0);
   Theme::applyCard(card);
   lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
@@ -145,6 +145,8 @@ void SettingsScreen::buildControllerLinkTab(lv_obj_t* tab) {
   taTimeout_ = makeSmallInput(card, "Timeout ms", buf, 280, 46, 140);
   snprintf(buf, sizeof(buf), "%u", rtu.retries);
   taRetries_ = makeSmallInput(card, "Retries", buf, 440, 46, 110);
+  snprintf(buf, sizeof(buf), "%u", rtu.unstableDebounceMs);
+  taUnstable_ = makeSmallInput(card, "Unstable ms", buf, 570, 46, 150);
 
   lv_obj_t* lblParity = Theme::label(card, "Parity", TF::sm(), TC::textSub());
   lv_obj_set_pos(lblParity, 0, 130);
@@ -162,16 +164,21 @@ void SettingsScreen::buildControllerLinkTab(lv_obj_t* tab) {
   lv_obj_set_size(ddStopBits_, 120, 42);
   lv_obj_set_pos(ddStopBits_, 180, 152);
 
+  snprintf(buf, sizeof(buf), "%u", rtu.offlineDebounceMs);
+  taOffline_ = makeSmallInput(card, "Offline ms", buf, 320, 130, 150);
+
   lv_obj_t* btnSave = Theme::button(card, LV_SYMBOL_SAVE " SAVE & RECONNECT", TC::active(), TC::white(), 230, 46);
-  lv_obj_set_pos(btnSave, 330, 150);
+  lv_obj_set_pos(btnSave, 0, 222);
   lv_obj_add_event_cb(btnSave, onSaveLink, LV_EVENT_CLICKED, this);
 
-  lv_obj_t* btnTest = Theme::button(card, LV_SYMBOL_REFRESH " TEST LINK", TC::surface2(), TC::text(), 170, 46);
-  lv_obj_set_pos(btnTest, 580, 150);
+  lv_obj_t* btnTest = Theme::button(card, LV_SYMBOL_REFRESH " TEST DEVICE ID", TC::surface2(), TC::text(), 210, 46);
+  lv_obj_set_pos(btnTest, 250, 222);
   lv_obj_add_event_cb(btnTest, onTestLink, LV_EVENT_CLICKED, this);
 
   lblLinkMsg_ = Theme::label(card, "Saved defaults match current controller: slave 1, 9600 8N1.", TF::md(), TC::textSub());
-  lv_obj_set_pos(lblLinkMsg_, 0, 216);
+  lv_obj_set_width(lblLinkMsg_, 700);
+  lv_label_set_long_mode(lblLinkMsg_, LV_LABEL_LONG_WRAP);
+  lv_obj_set_pos(lblLinkMsg_, 0, 276);
 }
 
 void SettingsScreen::buildAboutTab(lv_obj_t* tab) {
@@ -256,6 +263,8 @@ void SettingsScreen::onSaveLink(lv_event_t* e) {
   settings.rtu.baudRate = static_cast<uint32_t>(strtoul(lv_textarea_get_text(self->taBaud_), nullptr, 10));
   settings.rtu.timeoutMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taTimeout_)));
   settings.rtu.retries = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taRetries_)));
+  settings.rtu.unstableDebounceMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taUnstable_)));
+  settings.rtu.offlineDebounceMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taOffline_)));
   settings.rtu.parity = static_cast<uint8_t>(lv_dropdown_get_selected(self->ddParity_));
   settings.rtu.stopBits = lv_dropdown_get_selected(self->ddStopBits_) == 1 ? 2 : 1;
 
@@ -271,14 +280,13 @@ void SettingsScreen::onSaveLink(lv_event_t* e) {
 void SettingsScreen::onTestLink(lv_event_t* e) {
   SettingsScreen* self = static_cast<SettingsScreen*>(lv_event_get_user_data(e));
   if (!self || !self->mbus_) return;
-  self->mbus_->poll();
-  const ControllerSnapshot& snap = self->mbus_->snapshot();
-  if (snap.commHealth == CommHealth::Online) {
-    ui_label_set_text_if_changed(self->lblLinkMsg_, "Link test OK. Controller responded.");
-  } else if (snap.commHealth == CommHealth::Unstable) {
-    ui_label_set_text_if_changed(self->lblLinkMsg_, "Link test unstable. Check A/B wiring and termination.");
+  uint16_t deviceId = 0;
+  if (self->mbus_->readDeviceId(deviceId) && deviceId == 0xA601) {
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "Device ID OK: controller returned 0xA601.");
+  } else if (deviceId != 0) {
+    lv_label_set_text_fmt(self->lblLinkMsg_, "Device ID mismatch: expected 0xA601, got 0x%04X.", deviceId);
   } else {
-    ui_label_set_text_if_changed(self->lblLinkMsg_, "No controller response. Check RS485 wiring, power, and slave address.");
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "Device ID test failed: no RTU response. Check RS485 wiring, slave address, baud, parity, and stop bits.");
   }
 }
 

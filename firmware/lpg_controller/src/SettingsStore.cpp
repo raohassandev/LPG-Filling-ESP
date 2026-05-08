@@ -59,11 +59,11 @@ void SettingsStore::begin() {
   mqttPref.end();
 
   // Validate / default WiFi
-  if (settings_.staSsid.isEmpty())       settings_.staSsid      = BoardConfig::kDefaultStaSsid;
+  if (settings_.staSsid.isEmpty()) settings_.staSsid = BoardConfig::kDefaultStaSsid;
   if (settings_.staPassword.length() < 8) settings_.staPassword = BoardConfig::kDefaultStaPassword;
   if (settings_.apSsid.isEmpty())          settings_.apSsid = BoardConfig::kFallbackApSsid;
 
-  if (settings_.wifiCount == 0 && !settings_.staSsid.isEmpty()) {
+  if (settings_.wifiCount == 0 && !settings_.staSsid.isEmpty() && settings_.staPassword.length() >= 8) {
     settings_.wifiCount = 1;
     settings_.wifiSsid[0] = settings_.staSsid;
     settings_.wifiPassword[0] = settings_.staPassword;

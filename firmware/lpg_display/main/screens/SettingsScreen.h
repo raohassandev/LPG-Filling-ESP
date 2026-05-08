@@ -34,6 +34,8 @@ private:
   lv_obj_t* ddStopBits_ = nullptr;
   lv_obj_t* taTimeout_ = nullptr;
   lv_obj_t* taRetries_ = nullptr;
+  lv_obj_t* taUnstable_ = nullptr;
+  lv_obj_t* taOffline_ = nullptr;
   lv_obj_t* lblLinkMsg_ = nullptr;
 
   ModbusClient* mbus_ = nullptr;

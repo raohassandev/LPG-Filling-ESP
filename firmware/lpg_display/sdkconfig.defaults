@@ -19,8 +19,9 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # FreeRTOS — 1 ms tick
 CONFIG_FREERTOS_HZ=1000
 
-# USB-Serial (keeps Serial monitor working over USB-C)
-CONFIG_ESP_CONSOLE_USB_CDC=y
+# USB-Serial/JTAG console (Waveshare ESP32-S3 USB-C programming/debug port)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_USB_CDC=n
 
 # RGB LCD — IRAM safe ISR disabled (lvgl_port vsync callback not IRAM_ATTR)
 CONFIG_LCD_RGB_ISR_IRAM_SAFE=n
