@@ -46,13 +46,13 @@
 | Default slave address | 1 |
 | Default parity | None (8N1) |
 | Default stop bits | 1 |
-| DE/RE pin | GPIO 5 (HIGH = transmit) |
-| UART2 RX | GPIO 16 |
-| UART2 TX | GPIO 17 |
+| DE/RE pin | Not used; board RS485 is auto-direction |
+| UART2 RX | GPIO 14 |
+| UART2 TX | GPIO 27 |
 | Supported FCs | FC01, FC02, FC03, FC04, FC05, FC06, FC16 |
-| Register map | **Identical** to Modbus TCP — same addresses |
+| Register map | Active 0-based holding-register map; see section 6 |
 
-> **IMPORTANT:** Verify GPIO pin traces on your specific KC868-A6 PCB revision before wiring. Configure via `/api/modbus-rtu` or Modbus registers `0x0019–0x001D`. RTU is disabled by default; enable via the app manufacturer settings → RTU panel.
+> **IMPORTANT:** Current working wiring uses the KC868-A6 RS485 port on GPIO27 TX and GPIO14 RX, not the RS232 pins GPIO16/GPIO17. Configure via `/api/modbus-rtu` or Modbus registers `0x0019..0x001D`. RTU is enabled by default on the current firmware.
 
 ### RTU Frame Format
 
@@ -141,7 +141,7 @@ Single 16-bit register. Read with FC03, write with FC06 or FC16.
 
 PDU addresses are **0x0000-based**. In Modbus Poll "4-digit" mode the display offset is +40001, so PDU 0x0000 → 40001.
 
-**`kHR_Base = 0x0000`, Count = 72 registers (0x0000–0x0047)**
+**`kHR_Base = 0x0000`; active map extends through diagnostic register `0x0050`.**
 
 ---
 

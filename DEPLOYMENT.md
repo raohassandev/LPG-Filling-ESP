@@ -19,8 +19,8 @@ Never define `LPG_DEV_BUILD` in production firmware.
    - `PubSubClient` (Nick O'Leary)
    - `Adafruit SSD1306` + `Adafruit GFX`
    - `RTClib` (Adafruit)
-3. Open `firmware/kc868_a6_lpg_controller/kc868_a6_lpg_controller.ino`
-4. Select board: `ESP32 Dev Module`, Flash: 4MB, Partition: `Default 4MB with spiffs`
+3. Open `firmware/lpg_controller/lpg_controller.ino`
+4. Select board: `ESP32 Dev Module`, Flash: 4MB, Partition: project partition CSV / SPIFFS-capable layout
 5. Upload
 
 ## Filesystem Upload (SPIFFS)
@@ -56,7 +56,9 @@ If no `index.html` is present, the firmware still runs — the API is accessible
 - [ ] Firmware flashed without `LPG_DEV_BUILD`
 - [ ] `LPG_MODBUS_WRITES_ENABLED=0` (default)
 - [ ] Admin password changed from first-boot value
-- [ ] No hardcoded credentials in source (verify with `grep -r "1234\|5678\|0000\|password123"`)
+- [ ] Site WiFi, MQTT, and user credentials changed from development defaults
+- [ ] Config export created with `GET /api/config/export` for handover backup
+- [ ] Commissioning summary checked with `GET /api/commissioning`
 - [ ] Scale calibrated and `calValid=true` in `/api/status`
 - [ ] E-stop test: open E-stop input → verify all relays de-energize and state=FAULT
 - [ ] Fill start block test: each gate condition blocks start individually

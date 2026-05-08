@@ -9,7 +9,7 @@ This project now has two Modbus surfaces:
 - Display-to-controller production path: Modbus RTU over RS485.
 - Optional integration path: Modbus TCP on controller port `502`.
 
-The display firmware uses the RTU map in `firmware/lpg_controller/include/ModbusRegisterMap.h`, with 0-based holding register addresses `0x0000..0x0047`. Do not use the older `0x1001` prototype map for the display firmware.
+The display firmware uses the RTU map in `firmware/lpg_controller/include/ModbusRegisterMap.h`, with 0-based holding register addresses. Do not use the older `0x1001` prototype map for the display firmware.
 
 Known-good RTU settings:
 
@@ -40,9 +40,9 @@ Delivery debugging rule: if the display says "Controller offline Check RS485" du
 - Modbus unit id: accepted and echoed, currently not filtered
 - Byte order: big-endian Modbus standard
 
-## Modbus TCP
+## Legacy Modbus TCP Prototype Map
 
-The `0x1001` map below is the older Modbus TCP/prototype integration map. It is retained for third-party clients that already use it. The display firmware does not use this map.
+Legacy reference only. The `0x1001` map below is the older Modbus TCP/prototype integration map. It is retained only for third-party clients that already use it. The display firmware does not use this map, and new HMI/SCADA clients should use the active `0x0000..0x0050` map below.
 
 Supported functions in the older TCP map:
 
@@ -53,7 +53,7 @@ Unsupported functions return Modbus exception `0x01`.
 Unsupported addresses return exception `0x02`.
 Read/write value errors return exception `0x03`.
 
-### Register Map
+### Legacy Register Map
 
 All weight values are unsigned 16-bit integers scaled as `kg x 100`.
 

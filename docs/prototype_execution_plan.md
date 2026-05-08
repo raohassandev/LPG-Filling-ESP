@@ -37,15 +37,11 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 
 ### Modbus/HMI Contract
 
-- Holding register values are exposed as kg x 100 where applicable.
-- `0x1001`: live weight.
-- `0x1002`: tare weight.
-- `0x1003`: net weight.
-- `0x1004`: filling status code.
-- `0x1005`: target weight.
-- `0x1006`: E-stop status.
-- The firmware serves Modbus TCP on port `502` for read holding registers and tare writes.
-- RTU transport remains a Phase 2 hardware-binding task after RS485/HMI settings are finalized.
+- Active display/HMI integration uses Modbus RTU over RS485.
+- Active register addresses are 0-based and live in `firmware/lpg_controller/include/ModbusRegisterMap.h`.
+- Live, tare, net, target, rate, amount, state, readiness, RTC, stats, and alarm diagnostics are exposed in the `0x0000..0x0050` range.
+- The old `0x1001..0x1006` TCP prototype map is legacy reference only and must not be used for current display firmware.
+- The firmware also serves optional Modbus TCP on port `502`.
 
 ### Logging and History
 

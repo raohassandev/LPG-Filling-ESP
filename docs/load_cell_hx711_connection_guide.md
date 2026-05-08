@@ -180,7 +180,7 @@ Required project rule:
 
 When the firmware implementation begins:
 
-- create an `Hx711WeightService` or equivalent hardware-backed replacement for the current simulated [WeightService.cpp](/Users/israrulhaq/Desktop/DEV/LPG-Filling-ESP/firmware/kc868_a6_lpg_controller/src/WeightService.cpp)
+- use the active hardware-backed [WeightService.cpp](../firmware/lpg_controller/src/WeightService.cpp) as the HX711 integration point
 - isolate raw ADC read, filtering, tare, and calibration from the fill-state machine
 - expose raw counts, filtered weight, stable/unstable status, and calibration status separately
 

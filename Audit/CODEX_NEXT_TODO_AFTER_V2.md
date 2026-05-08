@@ -295,6 +295,8 @@ Must remove or mark legacy:
 - statement that RTU is not enabled
 - production-looking default credentials such as `Rao/password123`
 
+**Status:** Implemented in docs. Added commissioning, active RTU map, MQTT integration, and display README docs. Corrected deployment/controller README paths and marked old `0x1001` map as legacy-only.
+
 ---
 
 ## 8. Later Phase 3

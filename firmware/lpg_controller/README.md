@@ -18,8 +18,8 @@ Current scope:
 - transaction records stored on SPIFFS and exposed by API
 - operator tare weight, net weight, and net-weight price calculation
 - admin rate setup and local sales statistics
-- Modbus/HMI register map for live, tare, net, status, target, and E-stop
-- Modbus TCP server on port `502` for holding register reads and tare writes
+- active Modbus RTU register map for display/HMI integration
+- optional Modbus TCP server on port `502`
 
 Hardware integration reference:
 
@@ -74,8 +74,8 @@ Useful HTTP endpoints:
 
 Default WiFi:
 
-- STA SSID: `Rao`
-- STA password: `password123`
+- STA credentials are commissioning values and should be changed per site.
+- The fallback AP uses a device-unique password printed on first boot.
 - fallback AP SSID: `LPG-Controller-Setup`
 
 Android app:
@@ -103,29 +103,21 @@ Fill sequence:
 - Operator amount mode calculates target weight as `amount / ratePerKg`.
 - Operator weight mode calculates target amount as `weight * ratePerKg`.
 
-Modbus/HMI register map:
+Active Modbus/HMI register map:
 
-- `0x1001`: live weight, kg x 100
-- `0x1002`: tare weight, kg x 100
-- `0x1003`: net weight, kg x 100
-- `0x1004`: filling status code
-- `0x1005`: target weight, kg x 100
-- `0x1006`: E-stop status, `1` = OK, `0` = tripped
-
-Modbus TCP support:
-
-- Port: `502`
-- Function `0x03`: read holding registers
-- Function `0x06`: write single register
-- Writable register: `0x1002` tare weight, kg x 100
-- RTU transport is planned after final RS485 baud, parity, and HMI wiring are selected.
+- Active display path: Modbus RTU over RS485 using 0-based holding register addresses in `include/ModbusRegisterMap.h`.
+- Known-good RTU settings: slave `1`, `9600`, `8N1`.
+- Display reads live/tare/net/target/rate/amount/state/readiness from `0x0000..0x0017`.
+- Display reads diagnostics from `0x0048..0x0050`.
+- Optional Modbus TCP remains available on port `502` for integration clients.
+- The older `0x1001..0x1006` prototype map is legacy reference only. Do not use it for current display firmware.
 
 Recommended next implementation steps:
 
 1. verify input truth table on real hardware
 2. verify relay truth table on real hardware
 3. verify HX711 pin availability and calibration on the actual KC868-A6 wiring
-4. bind Modbus register map to final TCP/RTU transport
+4. verify active RTU register map against display and third-party HMI tools
 5. harden process state machine and fault handling
 6. finalize production security and network mode policy
 
@@ -237,7 +229,7 @@ Step 4 — Open the Sketch
 File → Open → navigate to:
 
 
-firmware/kc868_a6_lpg_controller/kc868_a6_lpg_controller.ino
+firmware/lpg_controller/lpg_controller.ino
 Step 5 — Configure Board Settings
 Tools menu — set these exactly:
 
@@ -270,6 +262,6 @@ Step 9 — SPIFFS Upload (Web Portal UI) — Optional
 If you want the web portal served from the device:
 
 Install ESP32 Sketch Data Upload plugin
-Place index.html in firmware/kc868_a6_lpg_controller/data/
+Place index.html in firmware/lpg_controller/data/
 Tools → ESP32 Sketch Data Upload
 If no index.html is present, the REST API still works — only the browser portal is missing.
