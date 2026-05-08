@@ -267,19 +267,19 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // Fixed-position header controls avoid overlap on the physical 800x480 panel.
   stateBadge_ = lv_obj_create(bar);
-  lv_obj_set_size(stateBadge_, 102, 32);
+  lv_obj_set_size(stateBadge_, 96, 32);
   lv_obj_set_style_pad_hor(stateBadge_, 8, 0);
   lv_obj_set_style_pad_ver(stateBadge_, 0, 0);
   lv_obj_set_style_radius(stateBadge_, 16, 0);
   lv_obj_set_style_border_width(stateBadge_, 0, 0);
   lv_obj_set_style_bg_color(stateBadge_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(stateBadge_, LV_OPA_COVER, 0);
-  lv_obj_set_pos(stateBadge_, 324, 13);
+  lv_obj_set_pos(stateBadge_, 316, 13);
   lv_obj_clear_flag(stateBadge_, LV_OBJ_FLAG_SCROLLABLE);
 
   lblState_ = lv_label_create(stateBadge_);
   lv_label_set_text(lblState_, "IDLE");
-  lv_obj_set_width(lblState_, 86);
+  lv_obj_set_width(lblState_, 80);
   lv_label_set_long_mode(lblState_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblState_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblState_, TF::md(), 0);
@@ -288,38 +288,38 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // Right side of status bar: wifi | time | role
   lv_obj_t* btnWifi = Theme::button(bar, LV_SYMBOL_WIFI,
-                                    TC::surface2(), TC::textSub(), 46, 42);
-  lv_obj_set_pos(btnWifi, 430, 8);
+                                    TC::surface2(), TC::textSub(), 42, 40);
+  lv_obj_set_pos(btnWifi, 420, 9);
   lv_obj_add_event_cb(btnWifi, onWifiPressed, LV_EVENT_CLICKED, this);
 
   btnSettings_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
-                               TC::active(), TC::white(), 46, 42);
-  lv_obj_set_pos(btnSettings_, 482, 8);
+                               TC::active(), TC::white(), 42, 40);
+  lv_obj_set_pos(btnSettings_, 466, 9);
   lv_obj_add_event_cb(btnSettings_, onSettingsPressed, LV_EVENT_CLICKED, this);
   lv_obj_add_flag(btnSettings_, LV_OBJ_FLAG_HIDDEN);
 
   lblTime_ = lv_label_create(bar);
   lv_label_set_text(lblTime_, "--/-- --:--");
-  lv_obj_set_size(lblTime_, 86, 28);
+  lv_obj_set_size(lblTime_, 80, 28);
   lv_label_set_long_mode(lblTime_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblTime_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblTime_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
-  lv_obj_set_pos(lblTime_, 536, 18);
+  lv_obj_set_pos(lblTime_, 512, 18);
 
   lblMbus_ = lv_label_create(bar);
   lv_label_set_text(lblMbus_, LV_SYMBOL_CLOSE " RTU");
-  lv_obj_set_size(lblMbus_, 52, 24);
+  lv_obj_set_size(lblMbus_, 50, 24);
   lv_label_set_long_mode(lblMbus_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblMbus_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblMbus_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblMbus_, TC::danger(), 0);
-  lv_obj_set_pos(lblMbus_, 626, 18);
+  lv_obj_set_pos(lblMbus_, 596, 18);
 
   // Role button (password-protected role selector)
   btnRole_ = Theme::button(bar, "OPERATOR",
-                            TC::surface2(), TC::textSub(), 104, 42);
-  lv_obj_set_pos(btnRole_, 684, 8);
+                            TC::surface2(), TC::textSub(), 94, 40);
+  lv_obj_set_pos(btnRole_, 652, 9);
   lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
   // Update the button label text after creation (child 0 of btn is the label)
   lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
@@ -485,10 +485,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_obj_align(*statLabels[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
   }
 
-  // ── Right column: compact readiness strip (x=492, y=68, 292×68) ───────────
+  // ── Right column: compact readiness strip, kept inside the bezel safe area ──
   lv_obj_t* rCard = lv_obj_create(scr_);
-  lv_obj_set_size(rCard, 292, 84);
-  lv_obj_set_pos(rCard, 492, 68);
+  lv_obj_set_size(rCard, 268, 84);
+  lv_obj_set_pos(rCard, 484, 68);
   Theme::applyCard(rCard);
   lv_obj_set_style_pad_all(rCard, 4, 0);
 
@@ -500,8 +500,8 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   for (int i = 0; i < 4; i++) {
     lv_obj_t* cell = lv_obj_create(rCard);
-    lv_obj_set_size(cell, 66, 56);
-    lv_obj_set_pos(cell, i * 70, 5);
+    lv_obj_set_size(cell, 61, 56);
+    lv_obj_set_pos(cell, i * 65, 5);
     lv_obj_set_style_bg_color(cell, TC::surface2(), 0);
     lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(cell, TC::border(), 0);
@@ -517,7 +517,7 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
     lv_obj_t* txt = lv_label_create(cell);
     lv_label_set_text(txt, kReadyText[i]);
-    lv_obj_set_width(txt, 62);
+    lv_obj_set_width(txt, 58);
     lv_label_set_long_mode(txt, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_align(txt, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(txt, TF::sm(), 0);
@@ -526,15 +526,15 @@ void DashboardScreen::build(ModbusClient& mbus) {
   }
 
   alertCard_ = lv_obj_create(scr_);
-  lv_obj_set_size(alertCard_, 292, 122);
-  lv_obj_set_pos(alertCard_, 492, 160);
+  lv_obj_set_size(alertCard_, 268, 118);
+  lv_obj_set_pos(alertCard_, 484, 158);
   Theme::applyCard(alertCard_);
   lv_obj_set_style_pad_all(alertCard_, 12, 0);
   lv_obj_clear_flag(alertCard_, LV_OBJ_FLAG_SCROLLABLE);
 
   lblAlertTitle_ = lv_label_create(alertCard_);
   lv_label_set_text(lblAlertTitle_, "System ready");
-  lv_obj_set_width(lblAlertTitle_, 260);
+  lv_obj_set_width(lblAlertTitle_, 240);
   lv_label_set_long_mode(lblAlertTitle_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_font(lblAlertTitle_, TF::md(), 0);
   lv_obj_set_style_text_color(lblAlertTitle_, TC::ready(), 0);
@@ -542,7 +542,7 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   lblAlertBody_ = lv_label_create(alertCard_);
   lv_label_set_text(lblAlertBody_, "All primary readiness checks are healthy.");
-  lv_obj_set_width(lblAlertBody_, 260);
+  lv_obj_set_width(lblAlertBody_, 240);
   lv_label_set_long_mode(lblAlertBody_, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_font(lblAlertBody_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblAlertBody_, TC::textSub(), 0);
@@ -550,8 +550,8 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // ── Right column: Start Fill button (bottom-right, compact action) ───────
   btnStart_ = lv_obj_create(scr_);
-  lv_obj_set_size(btnStart_, 292, 78);
-  lv_obj_set_pos(btnStart_, 492, 356);
+  lv_obj_set_size(btnStart_, 268, 68);
+  lv_obj_set_pos(btnStart_, 484, 344);
   lv_obj_set_style_bg_color(btnStart_, TC::muted(), 0);
   lv_obj_set_style_bg_opa(btnStart_, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(btnStart_, 0, 0);
@@ -561,10 +561,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_add_event_cb(btnStart_, onStartPressed, LV_EVENT_CLICKED, this);
 
   lblActionIcon_ = Theme::label(btnStart_, LV_SYMBOL_PLAY, TF::xl(), TC::white());
-  lv_obj_align(lblActionIcon_, LV_ALIGN_CENTER, 0, -16);
+  lv_obj_align(lblActionIcon_, LV_ALIGN_CENTER, 0, -14);
 
   lblActionText_ = Theme::label(btnStart_, "START FILL", TF::lg(), TC::white());
-  lv_obj_align(lblActionText_, LV_ALIGN_CENTER, 0, 18);
+  lv_obj_align(lblActionText_, LV_ALIGN_CENTER, 0, 16);
 }
 
 // ── update ────────────────────────────────────────────────────────────────────
