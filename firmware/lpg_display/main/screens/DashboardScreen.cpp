@@ -288,59 +288,43 @@ void DashboardScreen::build(ModbusClient& mbus) {
 
   // Right side of status bar: wifi | time | role
   lv_obj_t* btnWifi = Theme::button(bar, LV_SYMBOL_WIFI,
-                                    TC::surface2(), TC::textSub(), 42, 34);
-  lv_obj_set_pos(btnWifi, 446, 12);
+                                    TC::surface2(), TC::textSub(), 46, 42);
+  lv_obj_set_pos(btnWifi, 430, 8);
   lv_obj_add_event_cb(btnWifi, onWifiPressed, LV_EVENT_CLICKED, this);
+
+  btnSettings_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
+                               TC::active(), TC::white(), 46, 42);
+  lv_obj_set_pos(btnSettings_, 482, 8);
+  lv_obj_add_event_cb(btnSettings_, onSettingsPressed, LV_EVENT_CLICKED, this);
+  lv_obj_add_flag(btnSettings_, LV_OBJ_FLAG_HIDDEN);
 
   lblTime_ = lv_label_create(bar);
   lv_label_set_text(lblTime_, "--/-- --:--");
-  lv_obj_set_size(lblTime_, 108, 28);
+  lv_obj_set_size(lblTime_, 86, 28);
   lv_label_set_long_mode(lblTime_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblTime_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblTime_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
-  lv_obj_set_pos(lblTime_, 496, 18);
+  lv_obj_set_pos(lblTime_, 536, 18);
 
   lblMbus_ = lv_label_create(bar);
   lv_label_set_text(lblMbus_, LV_SYMBOL_CLOSE " RTU");
-  lv_obj_set_size(lblMbus_, 64, 24);
+  lv_obj_set_size(lblMbus_, 52, 24);
   lv_label_set_long_mode(lblMbus_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblMbus_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblMbus_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblMbus_, TC::danger(), 0);
-  lv_obj_set_pos(lblMbus_, 606, 18);
+  lv_obj_set_pos(lblMbus_, 626, 18);
 
   // Role button (password-protected role selector)
-  btnRole_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
-                            TC::surface2(), TC::textSub(), 118, 34);
-  lv_obj_set_pos(btnRole_, 666, 12);
+  btnRole_ = Theme::button(bar, "OPERATOR",
+                            TC::surface2(), TC::textSub(), 104, 42);
+  lv_obj_set_pos(btnRole_, 684, 8);
   lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
   // Update the button label text after creation (child 0 of btn is the label)
   lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
-  lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");
+  lv_label_set_text(lblRoleBtn_, "OPERATOR");
   lv_obj_set_style_text_font(lblRoleBtn_, TF::sm(), 0);
-
-  // Physical touch can be slightly offset near the top edge. Add transparent
-  // hit zones after all header labels so WiFi/role taps are always on top.
-  lv_obj_t* wifiHit = lv_obj_create(bar);
-  lv_obj_set_size(wifiHit, 64, 58);
-  lv_obj_set_pos(wifiHit, 432, 0);
-  lv_obj_set_style_bg_opa(wifiHit, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(wifiHit, 0, 0);
-  lv_obj_set_style_pad_all(wifiHit, 0, 0);
-  lv_obj_clear_flag(wifiHit, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(wifiHit, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(wifiHit, onWifiPressed, LV_EVENT_CLICKED, this);
-
-  lv_obj_t* roleHit = lv_obj_create(bar);
-  lv_obj_set_size(roleHit, 146, 58);
-  lv_obj_set_pos(roleHit, 646, 0);
-  lv_obj_set_style_bg_opa(roleHit, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(roleHit, 0, 0);
-  lv_obj_set_style_pad_all(roleHit, 0, 0);
-  lv_obj_clear_flag(roleHit, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(roleHit, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(roleHit, onRolePressed, LV_EVENT_CLICKED, this);
 
   // ── Left column: Weight card (x=16, y=68, 460×258) ──────────────────────────
   lv_obj_t* wCard = lv_obj_create(scr_);
@@ -682,7 +666,8 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
                         && snap.weightStable
                         && snap.alarmCode == 0
                         && snap.blockerMask == 0;
-  const bool canAct = canStart || needsReset;
+  const bool startAllowedToRespond = (snap.state == FillState::Idle || snap.state == FillState::Ready);
+  const bool canAct = canStart || needsReset || startAllowedToRespond;
   const bool prevCanStart = (prev.state == FillState::Idle || prev.state == FillState::Ready)
                             && prev.connected
                             && prev.eStopOk
@@ -696,7 +681,7 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
                               prev.state == FillState::Complete ||
                               (!prev.eStopOk && prev.connected);
   if (fullRefresh || canStart != prevCanStart || needsReset != prevNeedsReset) {
-    lv_obj_set_style_bg_color(btnStart_, needsReset ? TC::warning() : (canStart ? TC::active() : TC::muted()), 0);
+    lv_obj_set_style_bg_color(btnStart_, needsReset ? TC::warning() : (canStart ? TC::active() : TC::surface2()), 0);
     setLabelTextIfChanged(lblActionIcon_, needsReset ? LV_SYMBOL_REFRESH : LV_SYMBOL_PLAY);
     setLabelTextIfChanged(lblActionText_, needsReset ? "RESET" : "START FILL");
     if (canAct) lv_obj_add_flag(btnStart_, LV_OBJ_FLAG_CLICKABLE);
@@ -1073,7 +1058,28 @@ void DashboardScreen::onOfflineOk(lv_event_t* e) {
 }
 
 void DashboardScreen::onWifiPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (self) {
+    self->closeRoleModal();
+    self->closeStartDialog();
+    self->closeNumOverlay();
+    self->closeOfflineModal();
+  }
   screenManager.navigateTo(Screen::Wifi);
+}
+
+void DashboardScreen::onSettingsPressed(lv_event_t* e) {
+  DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  if (!self) return;
+  if (self->currentRole_ == Role::Operator) {
+    self->openRoleModal();
+    return;
+  }
+  self->closeRoleModal();
+  self->closeStartDialog();
+  self->closeNumOverlay();
+  self->closeOfflineModal();
+  screenManager.navigateTo(Screen::Settings);
 }
 
 // ── Blink animation ───────────────────────────────────────────────────────────
@@ -1113,9 +1119,18 @@ static const char* kRoleNumLabels[] = {
 void DashboardScreen::updateRoleButton() {
   if (!lblRoleBtn_) return;
   switch (currentRole_) {
-    case Role::Operator:     lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");     break;
-    case Role::Admin:        lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " ADMIN");        break;
-    case Role::Manufacturer: lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " MANUFACTURER"); break;
+    case Role::Operator:     lv_label_set_text(lblRoleBtn_, "OPERATOR"); break;
+    case Role::Admin:        lv_label_set_text(lblRoleBtn_, "ADMIN");    break;
+    case Role::Manufacturer: lv_label_set_text(lblRoleBtn_, "MFG");      break;
+  }
+  if (btnSettings_) {
+    if (currentRole_ == Role::Operator) {
+      lv_obj_add_flag(btnSettings_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(btnSettings_, LV_OBJ_FLAG_CLICKABLE);
+    } else {
+      lv_obj_clear_flag(btnSettings_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(btnSettings_, LV_OBJ_FLAG_CLICKABLE);
+    }
   }
 }
 
@@ -1296,6 +1311,9 @@ void DashboardScreen::submitRolePin() {
 
 void DashboardScreen::onRolePressed(lv_event_t* e) {
   DashboardScreen* self = (DashboardScreen*)lv_event_get_user_data(e);
+  self->closeStartDialog();
+  self->closeNumOverlay();
+  self->closeOfflineModal();
   self->openRoleModal();
 }
 

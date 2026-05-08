@@ -67,6 +67,7 @@ private:
   Role         pendingRole_    = Role::Operator;
   lv_obj_t*    btnRole_        = nullptr;
   lv_obj_t*    lblRoleBtn_     = nullptr;
+  lv_obj_t*    btnSettings_    = nullptr;
   lv_obj_t*    roleModal_      = nullptr;
   lv_obj_t*    lblRolePinDots_ = nullptr;
   lv_obj_t*    lblRolePinErr_  = nullptr;
@@ -105,6 +106,7 @@ private:
   static void onNumKbEvent(lv_event_t* e);
   static void onOfflineOk(lv_event_t* e);
   static void onWifiPressed(lv_event_t* e);
+  static void onSettingsPressed(lv_event_t* e);
   static void onRolePressed(lv_event_t* e);
   static void onRolePinKey(lv_event_t* e);
   static void onRolePinDel(lv_event_t* e);
