@@ -24,7 +24,7 @@ void MqttService::begin() {
     client_.setKeepAlive(30);
     client_.setSocketTimeout(5);
     // Buffer large enough for a full status payload
-    client_.setBufferSize(512);
+    client_.setBufferSize(768);
 }
 
 // Called every loop iteration
@@ -94,6 +94,28 @@ void MqttService::publishStatus() {
     client_.publish(topicFor("status").c_str(), payload.c_str(), false);
 }
 
+bool MqttService::publishTest(String& topicOut, String& messageOut) {
+    const MqttSettingsSnapshot cfg = settingsStore_.mqttSnapshot();
+    if (!cfg.enabled) {
+        messageOut = "MQTT is disabled";
+        return false;
+    }
+    if (!networkManager_.isSTAConnected()) {
+        messageOut = "WiFi STA is not connected";
+        return false;
+    }
+    if (!client_.connected() && !reconnect()) {
+        messageOut = "MQTT broker connection failed";
+        return false;
+    }
+
+    topicOut = topicFor("status");
+    const String payload = buildStatusPayload();
+    const bool ok = client_.publish(topicOut.c_str(), payload.c_str(), false);
+    messageOut = ok ? "test publish sent" : "publish failed";
+    return ok;
+}
+
 void MqttService::publishTransaction(const TransactionRecord& record) {
     if (!client_.connected()) return;
     const String payload = buildTransactionPayload(record);
@@ -110,17 +132,25 @@ void MqttService::publishAlert(const String& alertType, const String& message) {
 
 String MqttService::buildStatusPayload() {
     const StatusSnapshot s = statusStore_.snapshot();
-    char buf[256];
+    const SettingsSnapshot cfg = settingsStore_.snapshot();
+    char buf[640];
     snprintf(buf, sizeof(buf),
-        "{\"state\":\"%s\",\"live\":%.3f,\"net\":%.3f,\"target\":%.3f,"
-        "\"estop\":%s,\"cylinder\":%s,\"nozzle\":%s,\"stable\":%s,"
-        "\"uptime\":%lu}",
+        "{\"deviceType\":\"lpg-controller\",\"stationId\":\"%s\",\"controllerId\":\"%s\","
+        "\"siteName\":\"%s\",\"nozzleId\":\"%s\",\"ts\":%lu,"
+        "\"state\":\"%s\",\"liveKg\":%.3f,\"netKg\":%.3f,\"targetKg\":%.3f,"
+        "\"rate\":%.2f,\"amount\":%.2f,"
+        "\"estopOk\":%s,\"cylinderPresent\":%s,\"nozzleEngaged\":%s,\"weightStable\":%s,"
+        "\"alarmCode\":%u,\"alarmSeverity\":%u,\"readinessMask\":%u,\"blockerMask\":%u,"
+        "\"uptimeSec\":%lu}",
+        cfg.stationId.c_str(), cfg.controllerId.c_str(), cfg.siteName.c_str(), cfg.nozzleId.c_str(),
+        millis() / 1000UL,
         s.stateLabel.c_str(),
-        s.liveWeightKg, s.netWeightKg, s.targetWeightKg,
+        s.liveWeightKg, s.netWeightKg, s.targetWeightKg, s.ratePerKg, s.netWeightKg * s.ratePerKg,
         s.emergencyStopOk  ? "true" : "false",
         s.cylinderPresent  ? "true" : "false",
         s.nozzleEngaged    ? "true" : "false",
-        s.weightStable     ? "true" : "false",
+        s.weightStable     ? "true" : "false", s.alarmCode, s.alarmSeverity,
+        s.readinessMask, s.blockerMask,
         millis() / 1000UL);
     return String(buf);
 }
@@ -142,8 +172,9 @@ String MqttService::buildTransactionPayload(const TransactionRecord& r) {
 
 String MqttService::topicFor(const String& suffix) const {
     const MqttSettingsSnapshot cfg = settingsStore_.mqttSnapshot();
-    const String prefix = cfg.topicPrefix.isEmpty() ? "lpg/controller" : cfg.topicPrefix;
-    return prefix + "/" + suffix;
+    const SettingsSnapshot settings = settingsStore_.snapshot();
+    const String prefix = cfg.topicPrefix.isEmpty() ? "lpg" : cfg.topicPrefix;
+    return prefix + "/" + settings.stationId + "/" + settings.controllerId + "/" + suffix;
 }
 
 String MqttService::brokerHost() const {

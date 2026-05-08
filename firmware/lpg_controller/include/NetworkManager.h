@@ -68,6 +68,12 @@ private:
     String wifiSsid_[SettingsSnapshot::kMaxWifiNetworks];
     String wifiPassword_[SettingsSnapshot::kMaxWifiNetworks];
     bool wifiEnabled_[SettingsSnapshot::kMaxWifiNetworks] = {true, true, true, true, true};
+    bool staDhcp_ = true;
+    String staStaticIp_;
+    String staGateway_;
+    String staSubnet_;
+    String staDns1_;
+    String staDns2_;
 
     unsigned long lastStatusChange_      = 0;
     unsigned long lastReconnectAttemptMs_ = 0;
@@ -78,5 +84,6 @@ private:
     void startAP();
     bool startSTA();
     bool connectBestSTA();
+    bool applyStaIpConfig();
     void startMdns();
 };

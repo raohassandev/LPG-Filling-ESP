@@ -40,6 +40,7 @@ void LpgNetworkManager::poll()
         {
             updateStatus(NetworkStatus::Connecting);
             lastReconnectAttemptMs_ = millis();
+            applyStaIpConfig();
             if (autoSwitch_) connectBestSTA();
             else WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
             Serial.println("[NET] STA reconnect initiated");
@@ -53,6 +54,7 @@ void LpgNetworkManager::poll()
         {
             lastReconnectAttemptMs_ = millis();
             updateStatus(NetworkStatus::Connecting);
+            applyStaIpConfig();
             if (autoSwitch_) connectBestSTA();
             else WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
             Serial.printf("[NET] STA retry (ssid: %s)\n", staSsid_.c_str());
@@ -104,6 +106,12 @@ bool LpgNetworkManager::configureWifi(const SettingsSnapshot& settings)
     autoSwitch_ = settings.wifiAutoSwitch;
     apSsid_ = settings.apSsid;
     apPassword_ = settings.apPassword;
+    staDhcp_ = settings.staDhcp;
+    staStaticIp_ = settings.staStaticIp;
+    staGateway_ = settings.staGateway;
+    staSubnet_ = settings.staSubnet;
+    staDns1_ = settings.staDns1;
+    staDns2_ = settings.staDns2;
     wifiCount_ = settings.wifiCount;
     if (wifiCount_ > SettingsSnapshot::kMaxWifiNetworks) wifiCount_ = SettingsSnapshot::kMaxWifiNetworks;
     for (uint8_t i = 0; i < wifiCount_; i++) {
@@ -194,6 +202,7 @@ bool LpgNetworkManager::startSTA()
 
     updateStatus(NetworkStatus::Connecting);
     lastReconnectAttemptMs_ = millis();
+    applyStaIpConfig();
     if (autoSwitch_ && connectBestSTA()) return true;
     WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
     Serial.printf("[NET] STA connecting to: %s\n", staSsid_.c_str());
@@ -225,8 +234,44 @@ bool LpgNetworkManager::connectBestSTA()
     if (selected < 0) return false;
     staSsid_ = wifiSsid_[selected];
     staPassword_ = wifiPassword_[selected];
+    applyStaIpConfig();
     WiFi.begin(staSsid_.c_str(), staPassword_.c_str());
     Serial.printf("[NET] STA auto-select: %s\n", staSsid_.c_str());
+    return true;
+}
+
+static IPAddress parseIpOrZero(const String& s)
+{
+    IPAddress ip;
+    if (!ip.fromString(s)) return IPAddress(0, 0, 0, 0);
+    return ip;
+}
+
+bool LpgNetworkManager::applyStaIpConfig()
+{
+    if (staDhcp_) {
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        return true;
+    }
+
+    IPAddress ip = parseIpOrZero(staStaticIp_);
+    IPAddress gw = parseIpOrZero(staGateway_);
+    IPAddress sn = parseIpOrZero(staSubnet_);
+    IPAddress dns1 = parseIpOrZero(staDns1_);
+    IPAddress dns2 = parseIpOrZero(staDns2_);
+
+    if (ip == IPAddress(0, 0, 0, 0) ||
+        gw == IPAddress(0, 0, 0, 0) ||
+        sn == IPAddress(0, 0, 0, 0)) {
+        Serial.println("[NET] Invalid static IP config; using DHCP");
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        return false;
+    }
+
+    if (dns1 == IPAddress(0, 0, 0, 0)) dns1 = gw;
+    WiFi.config(ip, gw, sn, dns1, dns2);
+    Serial.printf("[NET] Static IP requested: ip=%s gw=%s subnet=%s\n",
+                  ip.toString().c_str(), gw.toString().c_str(), sn.toString().c_str());
     return true;
 }
 

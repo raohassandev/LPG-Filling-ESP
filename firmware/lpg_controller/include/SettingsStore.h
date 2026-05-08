@@ -12,6 +12,12 @@ struct SettingsSnapshot {
   bool   staEnabled        = true;
   bool   apEnabled         = true;
   bool   wifiAutoSwitch    = true;
+  bool   staDhcp           = true;
+  String staStaticIp;
+  String staGateway;
+  String staSubnet;
+  String staDns1;
+  String staDns2;
   uint8_t wifiCount        = 0;
   String wifiSsid[kMaxWifiNetworks];
   String wifiPassword[kMaxWifiNetworks];
@@ -19,6 +25,13 @@ struct SettingsSnapshot {
   float   slowFillThreshold = 0.95f;
   float   ratePerKg         = 250.0f;
   uint8_t storageMode       = 0;  // 0=SPIFFS only  1=SD only  2=Both
+  String stationId          = "LPG-STN-001";
+  String controllerId       = "CTRL-001";
+  String siteName;
+  String nozzleId           = "NOZ-01";
+  bool commissioningComplete = false;
+  bool inputsVerified        = false;
+  bool productionLocked      = false;
 };
 
 struct MqttSettingsSnapshot {
@@ -52,6 +65,11 @@ class SettingsStore {
   bool setStorageMode(uint8_t mode);
   bool setWifi(const String& staSsid, const String& staPassword);
   bool setWifiFlags(bool staEnabled, bool apEnabled, bool autoSwitch);
+  bool setStaIpConfig(bool dhcp, const String& ip, const String& gateway,
+                      const String& subnet, const String& dns1, const String& dns2);
+  bool setDeviceIdentity(const String& stationId, const String& controllerId,
+                         const String& siteName, const String& nozzleId);
+  bool setCommissioningFlags(bool complete, bool inputsVerified, bool productionLocked);
   bool upsertWifiNetwork(const String& ssid, const String& password, bool enabled);
   bool removeWifiNetwork(uint8_t index);
   bool setMqtt(const MqttSettingsSnapshot& cfg);

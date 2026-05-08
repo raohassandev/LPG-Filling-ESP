@@ -76,11 +76,11 @@ The LPG Filling Station automates the LPG cylinder filling process. It consists 
 | HX711 SCK | GPIO (configured in firmware) |
 | Solenoid Valve (fast) | Relay 1 |
 | Solenoid Valve (slow) | Relay 2 |
-| Nozzle sensor | Input 1 |
-| Cylinder-present sensor | Input 2 |
-| Emergency stop | Input 3 |
+| Cylinder-present sensor | Input 1 |
+| Nozzle sensor | Input 2 |
+| Emergency stop raw/tripped input | Input 4 |
 | Spare relays | Relay 3–6 |
-| Spare inputs | Input 4–6 |
+| Spare inputs | Input 3, Input 5–6 |
 
 > **Note:** Relay outputs are **active-low** on this board. The firmware handles this internally.
 
@@ -360,7 +360,7 @@ BOOT → IDLE → READY → VALIDATING → FILLING_FAST → FILLING_SLOW → SET
 
 ### 8.3 Emergency Stop
 
-- The E-Stop input (Input 3) is normally-closed. If the circuit opens, all solenoids close immediately and the state transitions to ABORTED.
+- The current prototype maps E-stop to raw Input 4. When this raw input is active/tripped, all solenoids close immediately and the state transitions to ABORTED/FAULT as appropriate.
 - The OLED and web portal both indicate the E-Stop status.
 
 ### 8.4 Slow-Fill Threshold
@@ -502,6 +502,7 @@ Connect at **115200 baud**. The console accepts plain-text commands.
 |---------|-------------|
 | `help` | List all commands |
 | `status` | Print full status snapshot |
+| `io` / `inputs` | Print raw input bits, configured input mapping, and interpreted readiness |
 | `weight` / `hx` | Print HX711 diagnostic data |
 | `tare` | Zero the scale at current reading |
 | `tarew <kg>` | Set empty cylinder weight |
@@ -545,8 +546,8 @@ See the separate [MODBUS_PROTOCOL.md](MODBUS_PROTOCOL.md) document for the compl
 ### E-Stop fault at startup
 
 1. Check that the E-Stop circuit is properly wired normally-closed.
-2. The `emergencyStopOk` status will be `false` if Input 3 reads low.
-3. Use `status` serial command to confirm current input states.
+2. The `emergencyStopOk` status will be `false` if raw Input 4 is active/tripped.
+3. Use the `io` serial command to confirm raw inputs and interpreted readiness.
 
 ### Fill stops early (Aborted)
 

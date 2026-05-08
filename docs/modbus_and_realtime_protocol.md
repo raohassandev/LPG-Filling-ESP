@@ -259,8 +259,8 @@ Recommended WebSocket message:
 
 ## Real-Time Guidance
 
-- HMI/SCADA should poll Modbus register block `0x1001..0x1006` in a single request.
-- Suggested Modbus polling interval: `250-1000 ms`.
+- Current display firmware polls the active RTU holding-register map, especially `0x0000..0x0017`, `0x0020..0x0025`, `0x0030..0x0035`, and diagnostics `0x0048..0x004B`.
+- Suggested third-party HMI/SCADA polling interval: `250-1000 ms`. Avoid faster polling on 9600 baud RTU.
 - Mobile app fallback polling interval: `1000 ms`.
 - Avoid writing tare while filling is active. Firmware blocks HTTP zero-net during fill; Modbus clients should follow the same rule at the HMI layer.
 - For the display-to-controller path, start/stop/reset use RTU command register `0x0017`. Older prototype TCP clients should still use HTTP for start/stop/reset.
@@ -270,4 +270,5 @@ Recommended WebSocket message:
 - If live weight/readiness update but START fails, check controller serial first. In one delivery debug session the real blocker was `Scale not calibrated`, not RS485.
 - If controller serial `rtu` shows correct settings but logs CRC errors, check A/B wiring, display GPIO44/GPIO43, controller GPIO27/GPIO14, baud/parity, and whether display polling is interleaving with writes.
 - If the controller was updated from older firmware, make sure saved calibration data is migrated. Current firmware treats a saved non-zero factor or valid two-point calibration as calibrated.
-- Display serial logs of `RTU busy req=01 03` during START indicate the write sequence is colliding with polling. Current display firmware serializes `startFill()` and `sendRecv()` using a recursive mutex.
+- Current display firmware uses a 300 ms RTU timeout, retry wrappers, and read-back confirmation after START. A single missed frame should show at most `RS485 unstable`; hard offline is only after the debounced communication state becomes offline.
+- Display serial logs of `RTU busy req=01 03` during START indicate the write sequence is colliding with polling. Current display firmware serializes `startFill()` and `sendRecv()` using a recursive mutex and confirms fill state after the command.

@@ -39,10 +39,10 @@ LpgNetworkManager networkManager;
 SdService sdService;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
-WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService);
 ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService);
 ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService);
 MqttService mqttService(networkManager, settingsStore, statusStore);
+WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService, mqttService);
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -52,10 +52,29 @@ void printStatusSnapshot() {
                 status.nozzleEngaged, status.cylinderPresent, status.emergencyStopOk, status.lastReasonCode.c_str());
 }
 
+void printIoSnapshot() {
+  const StatusSnapshot status = statusStore.snapshot();
+  Serial.print(F("[IO] rawInputs="));
+  for (uint8_t i = 0; i < BoardConfig::kInputCount; ++i) {
+    if (i > 0) {
+      Serial.print(',');
+    }
+    Serial.print(status.inputs[i] ? '1' : '0');
+  }
+  Serial.println();
+  Serial.printf("[IO] mapping cylinder=IN%u(active-high) nozzle=IN%u(active-high) estop=IN%u(raw-tripped=%u)\n",
+                BoardConfig::kInputCylinderPresent + 1, BoardConfig::kInputNozzleEngaged + 1,
+                BoardConfig::kInputEmergencyStop + 1, BoardConfig::kInputEmergencyRawMeansTripped ? 1 : 0);
+  Serial.printf("[IO] interpreted cylinder=%u nozzle=%u estopOk=%u\n",
+                status.cylinderPresent ? 1 : 0, status.nozzleEngaged ? 1 : 0,
+                status.emergencyStopOk ? 1 : 0);
+}
+
 void printSerialHelp() {
   Serial.println(F("[SERIAL] Commands:"));
   Serial.println(F("  help"));
   Serial.println(F("  status"));
+  Serial.println(F("  io"));
   Serial.println(F("  weight"));
   Serial.println(F("  hx"));
   Serial.println(F("  tarew <emptyCylinderKg>"));
@@ -84,6 +103,11 @@ void handleSerialCommand(const String& line) {
 
   if (command == "status") {
     printStatusSnapshot();
+    return;
+  }
+
+  if (command == "io" || command == "inputs") {
+    printIoSnapshot();
     return;
   }
 

@@ -223,10 +223,11 @@ void FillController::syncInputs() {
     cylinderPresent = simCylinderPresent_;
     nozzleEngaged   = simNozzleEngaged_;
   } else {
-    cylinderPresent = inputExpander_.inputState(0);
-    nozzleEngaged   = inputExpander_.inputState(1);
+    cylinderPresent = inputExpander_.inputState(BoardConfig::kInputCylinderPresent);
+    nozzleEngaged   = inputExpander_.inputState(BoardConfig::kInputNozzleEngaged);
   }
-  const bool emergencyOk = !inputExpander_.inputState(3);
+  const bool rawEmergency = inputExpander_.inputState(BoardConfig::kInputEmergencyStop);
+  const bool emergencyOk = BoardConfig::kInputEmergencyRawMeansTripped ? !rawEmergency : rawEmergency;
 
   statusStore_.setCylinderPresent(cylinderPresent);
   statusStore_.setNozzleEngaged(nozzleEngaged);

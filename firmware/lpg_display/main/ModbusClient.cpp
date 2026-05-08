@@ -20,13 +20,19 @@ float ModbusClient::regsToFloat(uint16_t hi, uint16_t lo) {
 }
 
 void ModbusClient::begin() {
+    begin(DisplaySettingsStore::load().rtu);
+}
+
+void ModbusClient::begin(const DisplayRtuSettings& rtu) {
     if (!busMutex_) busMutex_ = xSemaphoreCreateRecursiveMutex();
+    rtu_ = rtu;
 
     uart_config_t cfg = {
-        .baud_rate  = kRtuBaud,
+        .baud_rate  = static_cast<int>(rtu_.baudRate),
         .data_bits  = UART_DATA_8_BITS,
-        .parity     = UART_PARITY_DISABLE,
-        .stop_bits  = UART_STOP_BITS_1,
+        .parity     = rtu_.parity == 1 ? UART_PARITY_EVEN :
+                      rtu_.parity == 2 ? UART_PARITY_ODD : UART_PARITY_DISABLE,
+        .stop_bits  = rtu_.stopBits == 2 ? UART_STOP_BITS_2 : UART_STOP_BITS_1,
         .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
@@ -34,8 +40,76 @@ void ModbusClient::begin() {
     uart_param_config(kRtuUart, &cfg);
     uart_set_pin(kRtuUart, kRtuTxPin, kRtuRxPin,
                  UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    ESP_LOGI(TAG, "Modbus RTU UART%d TX=%d RX=%d baud=%d",
-             (int)kRtuUart, (int)kRtuTxPin, (int)kRtuRxPin, kRtuBaud);
+    ESP_LOGI(TAG, "Modbus RTU UART%d TX=%d RX=%d slave=%u baud=%lu parity=%u stop=%u timeout=%u retries=%u",
+             (int)kRtuUart, (int)kRtuTxPin, (int)kRtuRxPin, rtu_.slaveAddress,
+             static_cast<unsigned long>(rtu_.baudRate), rtu_.parity, rtu_.stopBits,
+             rtu_.timeoutMs, rtu_.retries);
+}
+
+void ModbusClient::applySettings(const DisplayRtuSettings& rtu) {
+    bool locked = false;
+    const int timeout = rtu_.timeoutMs > 0 ? rtu_.timeoutMs : kDefaultTimeoutMs;
+    if (busMutex_ && xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(timeout + 300)) == pdTRUE) {
+        locked = true;
+    }
+
+    rtu_ = rtu;
+    uart_config_t cfg = {
+        .baud_rate  = static_cast<int>(rtu_.baudRate),
+        .data_bits  = UART_DATA_8_BITS,
+        .parity     = rtu_.parity == 1 ? UART_PARITY_EVEN :
+                      rtu_.parity == 2 ? UART_PARITY_ODD : UART_PARITY_DISABLE,
+        .stop_bits  = rtu_.stopBits == 2 ? UART_STOP_BITS_2 : UART_STOP_BITS_1,
+        .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    uart_param_config(kRtuUart, &cfg);
+    uart_flush_input(kRtuUart);
+    snap_.commFailStreak = 0;
+    snap_.commOkStreak = 0;
+    snap_.lastOkUs = 0;
+    snap_.lastFailUs = 0;
+    snap_.connected = false;
+    snap_.valid = false;
+    snap_.commHealth = CommHealth::Offline;
+
+    if (locked && busMutex_) xSemaphoreGiveRecursive(busMutex_);
+    ESP_LOGI(TAG, "Applied RTU slave=%u baud=%lu parity=%u stop=%u timeout=%u retries=%u",
+             rtu_.slaveAddress, static_cast<unsigned long>(rtu_.baudRate),
+             rtu_.parity, rtu_.stopBits, rtu_.timeoutMs, rtu_.retries);
+}
+
+void ModbusClient::noteCommOk() {
+    const int64_t now = now_us();
+    if (snap_.commOkStreak < UINT16_MAX) snap_.commOkStreak++;
+    snap_.commFailStreak = 0;
+    snap_.connected = true;
+    snap_.valid = true;
+    snap_.lastOkUs = now;
+    updateCommHealth();
+}
+
+void ModbusClient::noteCommFail() {
+    const int64_t now = now_us();
+    if (snap_.commFailStreak < UINT16_MAX) snap_.commFailStreak++;
+    snap_.lastFailUs = now;
+    updateCommHealth();
+}
+
+void ModbusClient::updateCommHealth() {
+    const int64_t now = now_us();
+    const int64_t offlineUs = static_cast<int64_t>(rtu_.offlineDebounceMs) * 1000;
+    const int64_t unstableUs = static_cast<int64_t>(rtu_.unstableDebounceMs) * 1000;
+    if (snap_.lastOkUs == 0 || (now - snap_.lastOkUs) > offlineUs) {
+        snap_.connected = false;
+        snap_.commHealth = CommHealth::Offline;
+        return;
+    }
+    snap_.connected = true;
+    snap_.commHealth = (snap_.commFailStreak >= 2 ||
+                       (snap_.lastFailUs > 0 && (now - snap_.lastFailUs) < unstableUs))
+                       ? CommHealth::Unstable
+                       : CommHealth::Online;
 }
 
 void ModbusClient::poll() {
@@ -45,7 +119,7 @@ void ModbusClient::poll() {
     if (now - lastFastUs_ >= kFastUs) {
         lastFastUs_ = now;
         uint16_t r[24] = {};
-        if (readHR(0x0000, 24, r)) {
+        if (readHRRetry(0x0000, 24, r)) {
             snap_.liveWeightKg    = regsToFloat(r[0x00], r[0x01]);
             snap_.tareWeightKg    = regsToFloat(r[0x02], r[0x03]);
             snap_.netWeightKg     = regsToFloat(r[0x04], r[0x05]);
@@ -58,11 +132,8 @@ void ModbusClient::poll() {
             snap_.cylinderPresent = r[0x10] != 0;
             snap_.nozzleEngaged   = r[0x11] != 0;
             snap_.weightStable    = r[0x12] != 0;
-            snap_.valid           = true;
-            snap_.connected       = true;
-            snap_.lastOkUs        = now;
         } else {
-            if (now - snap_.lastOkUs > 3000000) snap_.connected = false;
+            updateCommHealth();
         }
     }
 
@@ -70,7 +141,7 @@ void ModbusClient::poll() {
     if (now - lastSlowUs_ >= kSlowUs) {
         lastSlowUs_ = now;
         uint16_t r[6] = {};
-        if (readHR(0x0020, 6, r)) {
+        if (readHRRetry(0x0020, 6, r)) {
             snap_.rtcYear   = r[0];
             snap_.rtcMonth  = r[1];
             snap_.rtcDay    = r[2];
@@ -84,7 +155,7 @@ void ModbusClient::poll() {
     if (now - lastDiagUs_ >= kDiagUs) {
         lastDiagUs_ = now;
         uint16_t r[4] = {};
-        if (readHR(0x0048, 4, r)) {
+        if (readHRRetry(0x0048, 4, r)) {
             snap_.alarmCode     = r[0];
             snap_.alarmSeverity = r[1];
             snap_.readinessMask = r[2];
@@ -96,7 +167,7 @@ void ModbusClient::poll() {
     if (now - lastStatUs_ >= kStatUs) {
         lastStatUs_ = now;
         uint16_t r[6] = {};
-        if (readHR(0x0030, 6, r)) {
+        if (readHRRetry(0x0030, 6, r)) {
             snap_.todayFills  = r[0];
             snap_.todayFails  = r[1];
             snap_.todayKg     = regsToFloat(r[2], r[3]);
@@ -107,7 +178,7 @@ void ModbusClient::poll() {
 
 bool ModbusClient::writeRegister(uint16_t reg, uint16_t val) {
     uint8_t req[8];
-    req[0] = kRtuAddr;
+    req[0] = rtu_.slaveAddress;
     req[1] = 0x06;
     req[2] = reg >> 8;   req[3] = reg & 0xFF;
     req[4] = val >> 8;   req[5] = val & 0xFF;
@@ -123,7 +194,7 @@ bool ModbusClient::writeRegisters(uint16_t startReg, const uint16_t* values, uin
     uint8_t req[256];
     const int byteCount = count * 2;
     const int reqLen = 9 + byteCount;
-    req[0] = kRtuAddr;
+    req[0] = rtu_.slaveAddress;
     req[1] = 0x10;
     req[2] = startReg >> 8; req[3] = startReg & 0xFF;
     req[4] = count >> 8;    req[5] = count & 0xFF;
@@ -150,10 +221,80 @@ bool ModbusClient::writeFloat(uint16_t startReg, float value) {
     return writeRegisters(startReg, regs, 2);
 }
 
+bool ModbusClient::readHRRetry(uint16_t start, uint16_t count, uint16_t* out, uint8_t attempts) {
+    if (attempts == 0) attempts = rtu_.retries > 0 ? rtu_.retries : kDefaultReadAttempts;
+    for (uint8_t i = 0; i < attempts; ++i) {
+        if (readHR(start, count, out)) {
+            noteCommOk();
+            return true;
+        }
+        if (i + 1 < attempts) vTaskDelay(pdMS_TO_TICKS(40 + i * 40));
+    }
+    noteCommFail();
+    return false;
+}
+
+bool ModbusClient::writeRegisterRetry(uint16_t reg, uint16_t val, uint8_t attempts) {
+    if (attempts == 0) attempts = rtu_.retries > 0 ? static_cast<uint8_t>(rtu_.retries + 1) : kDefaultWriteAttempts;
+    for (uint8_t i = 0; i < attempts; ++i) {
+        if (writeRegister(reg, val)) {
+            noteCommOk();
+            return true;
+        }
+        if (i + 1 < attempts) vTaskDelay(pdMS_TO_TICKS(50 + i * 50));
+    }
+    noteCommFail();
+    return false;
+}
+
+bool ModbusClient::writeRegistersRetry(uint16_t startReg, const uint16_t* values,
+                                       uint16_t count, uint8_t attempts) {
+    if (attempts == 0) attempts = rtu_.retries > 0 ? static_cast<uint8_t>(rtu_.retries + 1) : kDefaultWriteAttempts;
+    for (uint8_t i = 0; i < attempts; ++i) {
+        if (writeRegisters(startReg, values, count)) {
+            noteCommOk();
+            return true;
+        }
+        if (i + 1 < attempts) vTaskDelay(pdMS_TO_TICKS(50 + i * 50));
+    }
+    noteCommFail();
+    return false;
+}
+
+bool ModbusClient::confirmFillStarted(uint32_t waitMs) {
+    const uint32_t loops = waitMs / 150;
+    for (uint32_t i = 0; i < loops; ++i) {
+        uint16_t r[24] = {};
+        if (readHRRetry(0x0000, 24, r, 1)) {
+            snap_.liveWeightKg    = regsToFloat(r[0x00], r[0x01]);
+            snap_.tareWeightKg    = regsToFloat(r[0x02], r[0x03]);
+            snap_.netWeightKg     = regsToFloat(r[0x04], r[0x05]);
+            snap_.targetWeightKg  = regsToFloat(r[0x06], r[0x07]);
+            snap_.ratePerKg       = regsToFloat(r[0x08], r[0x09]);
+            snap_.targetAmount    = regsToFloat(r[0x0A], r[0x0B]);
+            snap_.currentAmount   = regsToFloat(r[0x0C], r[0x0D]);
+            snap_.state           = static_cast<FillState>(r[0x0E]);
+            snap_.eStopOk         = r[0x0F] != 0;
+            snap_.cylinderPresent = r[0x10] != 0;
+            snap_.nozzleEngaged   = r[0x11] != 0;
+            snap_.weightStable    = r[0x12] != 0;
+            if (snap_.state == FillState::Validating ||
+                snap_.state == FillState::Fast ||
+                snap_.state == FillState::Slow ||
+                snap_.state == FillState::Settling ||
+                snap_.state == FillState::Complete) {
+                return true;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(150));
+    }
+    return false;
+}
+
 bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     bool locked = false;
     if (busMutex_) {
-        if (xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(kTimeoutMs + 400)) != pdTRUE) {
+        if (xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(rtu_.timeoutMs + 400)) != pdTRUE) {
             ESP_LOGW(TAG, "Start fill failed: RTU bus busy");
             return false;
         }
@@ -195,30 +336,42 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
 
     // Keep these as separate FC16 writes. The controller applies each float when
     // its low word arrives, using the latest persisted values for the other fields.
-    if (!writeRegisters(0x0006, targetRegs, 2)) {
-        ESP_LOGW(TAG, "Start fill failed: target write did not get RTU response");
+    if (!writeRegistersRetry(0x0006, targetRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: target write not confirmed");
         unlock();
         return false;
     }
     vTaskDelay(pdMS_TO_TICKS(80));
-    if (!writeRegisters(0x0008, rateRegs, 2)) {
-        ESP_LOGW(TAG, "Start fill failed: rate write did not get RTU response");
+    if (!writeRegistersRetry(0x0008, rateRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: rate write not confirmed");
         unlock();
         return false;
     }
     vTaskDelay(pdMS_TO_TICKS(80));
-    if (!writeRegisters(0x000A, amountRegs, 2)) {
-        ESP_LOGW(TAG, "Start fill failed: amount write did not get RTU response");
+    if (!writeRegistersRetry(0x000A, amountRegs, 2)) {
+        ESP_LOGW(TAG, "Start fill failed: amount write not confirmed");
         unlock();
         return false;
     }
     vTaskDelay(pdMS_TO_TICKS(80));
-    if (!cmdStart()) {
-        ESP_LOGW(TAG, "Start fill failed: command write did not get RTU response");
+    if (!writeRegisterRetry(0x0017, 1)) {
+        ESP_LOGW(TAG, "Start command response missing; checking controller state");
+        if (confirmFillStarted(900)) {
+            ESP_LOGW(TAG, "Start command accepted despite missing RTU response");
+            unlock();
+            return true;
+        }
         unlock();
         return false;
     }
-    ESP_LOGI(TAG, "Start fill command accepted: target=%.3fkg rate=%.2f amount=%.2f",
+
+    if (!confirmFillStarted(900)) {
+        ESP_LOGW(TAG, "Start command written but fill state not confirmed");
+        unlock();
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Start fill confirmed: target=%.3fkg rate=%.2f amount=%.2f",
              targetWeightKg, ratePerKg, targetAmount);
     unlock();
     return true;
@@ -226,7 +379,7 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
 
 bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
     uint8_t req[8];
-    req[0] = kRtuAddr; req[1] = 0x03;
+    req[0] = rtu_.slaveAddress; req[1] = 0x03;
     req[2] = start >> 8; req[3] = start & 0xFF;
     req[4] = count >> 8; req[5] = count & 0xFF;
     uint16_t c = crc16(req, 6);
@@ -243,7 +396,8 @@ bool ModbusClient::readHR(uint16_t start, uint16_t count, uint16_t* out) {
 
 bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
                               uint8_t* resp, int expectLen) {
-    if (busMutex_ && xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(kTimeoutMs + 100)) != pdTRUE) {
+    const int timeoutMs = rtu_.timeoutMs > 0 ? rtu_.timeoutMs : kDefaultTimeoutMs;
+    if (busMutex_ && xSemaphoreTakeRecursive(busMutex_, pdMS_TO_TICKS(timeoutMs + 100)) != pdTRUE) {
         ESP_LOGW(TAG, "RTU busy req=%02X %02X", reqLen > 0 ? req[0] : 0, reqLen > 1 ? req[1] : 0);
         return false;
     }
@@ -272,14 +426,14 @@ bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
         uint16_t rxCrc   = (uint16_t)resp[expectLen-2] | ((uint16_t)resp[expectLen-1] << 8);
         uint16_t calcCrc = crc16(resp, expectLen - 2);
         if (rxCrc != calcCrc) return false;
-        if (resp[0] != kRtuAddr) return false;
+        if (resp[0] != rtu_.slaveAddress) return false;
         if (resp[1] & 0x80) return true;  // valid Modbus exception frame
         return resp[1] == req[1];
     };
 
     uint8_t buf[320] = {};
     int len = 0;
-    const int64_t deadline = now_us() + (int64_t)kTimeoutMs * 1000;
+    const int64_t deadline = now_us() + (int64_t)timeoutMs * 1000;
 
     uart_flush_input(kRtuUart);
     uart_write_bytes(kRtuUart, req, reqLen);
@@ -315,7 +469,7 @@ bool ModbusClient::sendRecv(const uint8_t* req, int reqLen,
             len--;
         }
 
-        if (len >= 5 && buf[0] == kRtuAddr && buf[1] == (req[1] | 0x80)) {
+        if (len >= 5 && buf[0] == rtu_.slaveAddress && buf[1] == (req[1] | 0x80)) {
             const uint16_t rxCrc = (uint16_t)buf[3] | ((uint16_t)buf[4] << 8);
             const uint16_t calcCrc = crc16(buf, 3);
             if (rxCrc == calcCrc) {

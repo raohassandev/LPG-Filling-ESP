@@ -40,6 +40,7 @@ class MqttService {
   void publishTransaction(const TransactionRecord& record);
   void publishAlert(const String& alertType, const String& message);
   void publishStatus();
+  bool publishTest(String& topicOut, String& messageOut);
 
   bool isConnected() const { return client_.connected(); }
   String brokerHost() const;
@@ -77,6 +78,11 @@ class MqttService {
   void publishTransaction(const TransactionRecord&) {}
   void publishAlert(const String&, const String&) {}
   void publishStatus() {}
+  bool publishTest(String& topicOut, String& messageOut) {
+    topicOut = "";
+    messageOut = "MQTT support is disabled at build time";
+    return false;
+  }
   bool isConnected() const { return false; }
   String brokerHost() const { return ""; }
   uint16_t brokerPort() const { return 0; }

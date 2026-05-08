@@ -1,6 +1,7 @@
 #include "screens/FillCompleteScreen.h"
 #include "DisplayFormat.h"
 #include "Theme.h"
+#include "UiHelpers.h"
 #include "ScreenManager.h"
 #include "esp_timer.h"
 
@@ -97,10 +98,12 @@ void FillCompleteScreen::build(ModbusClient& mbus) {
 
 void FillCompleteScreen::update(const ControllerSnapshot& snap) {
   if (!scr_) return;
-  lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
-  display_label_setf(lblNet_,  "%.3f kg", snap.netWeightKg);
-  display_label_setf(lblAmt_,  "%.2f " LV_SYMBOL_CHARGE, snap.currentAmount);
-  display_label_setf(lblRate_, "%.2f " LV_SYMBOL_CHARGE "/kg", snap.ratePerKg);
+  char dt[32];
+  formatRtcHeader(snap, dt, sizeof(dt));
+  ui_label_set_text_if_changed(lblTime_, dt);
+  display_label_setf(lblNet_,  "%.3f kg", sanitizeDisplayKg(snap.netWeightKg));
+  display_label_setf(lblAmt_,  "%.2f PKR", snap.currentAmount);
+  display_label_setf(lblRate_, "%.2f PKR/kg", snap.ratePerKg);
 }
 
 void FillCompleteScreen::onNewFill(lv_event_t* e) {

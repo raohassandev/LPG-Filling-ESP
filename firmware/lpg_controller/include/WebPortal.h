@@ -17,6 +17,7 @@
 #include "NetworkManager.h"
 #include "EventLog.h"
 #include "FillController.h"
+#include "MqttService.h"
 #include "RelayBank.h"
 #include "RtcService.h"
 #include "SdService.h"
@@ -30,7 +31,7 @@ class WebPortal {
   WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
             SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
             RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
-            RtcService& rtcService, SdService& sdService);
+            RtcService& rtcService, SdService& sdService, MqttService& mqttService);
 
   void begin();
   void handleClient();
@@ -68,13 +69,20 @@ class WebPortal {
   void handleSetWifi();
   void handleWifiScan();
   void handleGetNetwork();
+  void handleGetIoLive();
   void handleListUsers();
   void handleCreateUser();
   void handleUpdateUser();
   void handleDeleteUser();
   void handleGetSystem();
+  void handleSetSystem();
   void handleGetMqtt();
   void handleSetMqtt();
+  void handleMqttTest();
+  void handleConfigExport();
+  void handleConfigImport();
+  void handleGetCommissioning();
+  void handleSetCommissioning();
   void handleGetStats();
   void handleGetTime();
   void handleSetTime();
@@ -99,6 +107,7 @@ class WebPortal {
   LpgNetworkManager& networkManager_;
   RtcService& rtcService_;
   SdService& sdService_;
+  MqttService& mqttService_;
   WebServer server_{80};
 #if LPG_WEBSOCKET_ENABLED
   WebSocketsServer wsServer_{81};

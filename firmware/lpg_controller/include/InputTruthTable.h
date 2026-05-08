@@ -7,10 +7,10 @@
 
 enum class InputChannel : uint8_t
 {
-    kNozzleEngaged = 0,   // Input 0: Nozzle in holder (active high)
-    kCylinderPresent = 1, // Input 1: Cylinder detected on scale
-    kEmergencyStop = 2,   // Input 2: Emergency stop button
-    kDoorInterlock = 3,   // Input 3: Cabinet door closed
+    kCylinderPresent = 0, // Input 0: Cylinder detected on scale
+    kNozzleEngaged = 1,   // Input 1: Nozzle lock/engage input
+    kDoorInterlock = 2,   // Input 2: spare / cabinet door if wired
+    kEmergencyStop = 3,   // Input 3: E-stop tripped raw input
     kPressureOk = 4,      // Input 4: System pressure OK
     kPowerOk = 5,         // Input 5: Power supply OK
 };
@@ -29,18 +29,7 @@ struct InputConfig
 
 // Global input configuration
 static constexpr InputConfig kInputConfigs[] = {
-    // Input 0: Nozzle Engaged
-    {
-        InputChannel::kNozzleEngaged,
-        "nozzle_engaged",
-        "Nozzle is properly seated in holder",
-        true, // Active high
-        true, // NO contact (presence = high)
-        50,   // 50ms debounce
-        false // Not safety critical
-    },
-
-    // Input 1: Cylinder Present
+    // Input 0: Cylinder Present
     {
         InputChannel::kCylinderPresent,
         "cylinder_present",
@@ -51,25 +40,36 @@ static constexpr InputConfig kInputConfigs[] = {
         false // Not safety critical
     },
 
-    // Input 2: Emergency Stop
+    // Input 1: Nozzle Engaged
     {
-        InputChannel::kEmergencyStop,
-        "emergency_stop",
-        "Emergency stop button not pressed (NC)",
-        false, // Active low (NC = closed = normal)
-        false, // NC contact
-        10,    // 10ms debounce - critical
-        true   // SAFETY CRITICAL
+        InputChannel::kNozzleEngaged,
+        "nozzle_engaged",
+        "Nozzle lock/engage input is active",
+        true, // Active high
+        true, // NO contact (presence = high)
+        50,   // 50ms debounce
+        false // Not safety critical
     },
 
-    // Input 3: Door Interlock
+    // Input 2: Door Interlock / spare on current prototype
     {
         InputChannel::kDoorInterlock,
         "door_interlock",
-        "Cabinet door is closed (NC)",
-        false, // Active low
+        "Spare / cabinet door input if wired",
+        false, // Active low (NC = closed = normal)
         false, // NC contact
         50,    // 50ms debounce
+        true   // SAFETY CRITICAL
+    },
+
+    // Input 3: Emergency Stop
+    {
+        InputChannel::kEmergencyStop,
+        "emergency_stop",
+        "Emergency stop raw input: true means tripped, controller inverts to emergencyStopOk",
+        true,  // Active high raw trip signal in current runtime wiring
+        false, // NC contact
+        10,    // 10ms debounce - critical
         true   // SAFETY CRITICAL
     },
 

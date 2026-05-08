@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "EventLog.h"
+#include "BoardConfig.h"
 #include "InputExpander.h"
 #include "RelayBank.h"
 #include "SettingsStore.h"

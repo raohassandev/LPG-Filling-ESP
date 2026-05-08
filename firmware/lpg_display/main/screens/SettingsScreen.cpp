@@ -1,7 +1,10 @@
 #include "screens/SettingsScreen.h"
+#include "DisplaySettings.h"
 #include "DisplayFormat.h"
 #include "Theme.h"
 #include "ScreenManager.h"
+#include "UiHelpers.h"
+#include <stdlib.h>
 #include <initializer_list>
 
 extern ScreenManager screenManager;
@@ -30,10 +33,12 @@ void SettingsScreen::build(ModbusClient& mbus) {
 
   lv_obj_t* tabCal   = lv_tabview_add_tab(tabview_, "CALIBRATION");
   lv_obj_t* tabDiag  = lv_tabview_add_tab(tabview_, "DIAGNOSTICS");
+  lv_obj_t* tabLink  = lv_tabview_add_tab(tabview_, "CONTROLLER LINK");
   lv_obj_t* tabAbout = lv_tabview_add_tab(tabview_, "ABOUT");
 
   buildCalibrationTab(tabCal);
   buildDiagnosticsTab(tabDiag);
+  buildControllerLinkTab(tabLink);
   buildAboutTab(tabAbout);
 }
 
@@ -103,6 +108,72 @@ void SettingsScreen::buildDiagnosticsTab(lv_obj_t* tab) {
   addRow(&lblDiagStats_);
 }
 
+static lv_obj_t* makeSmallInput(lv_obj_t* parent, const char* label, const char* value, int x, int y, int w) {
+  lv_obj_t* lbl = Theme::label(parent, label, TF::sm(), TC::textSub());
+  lv_obj_set_pos(lbl, x, y);
+  lv_obj_t* ta = lv_textarea_create(parent);
+  lv_obj_set_size(ta, w, 42);
+  lv_obj_set_pos(ta, x, y + 22);
+  lv_textarea_set_one_line(ta, true);
+  lv_textarea_set_text(ta, value);
+  lv_obj_set_style_text_font(ta, TF::md(), 0);
+  lv_obj_set_style_bg_color(ta, TC::surface2(), 0);
+  lv_obj_set_style_text_color(ta, TC::text(), 0);
+  lv_obj_set_style_border_color(ta, TC::border(), 0);
+  return ta;
+}
+
+void SettingsScreen::buildControllerLinkTab(lv_obj_t* tab) {
+  lv_obj_set_style_bg_color(tab, TC::bg(), 0);
+
+  lv_obj_t* card = lv_obj_create(tab);
+  lv_obj_set_size(card, LV_PCT(100), 268);
+  lv_obj_set_pos(card, 0, 0);
+  Theme::applyCard(card);
+  lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+
+  lblLinkStatus_ = Theme::label(card, "RS485: OFFLINE", TF::lg(), TC::danger());
+  lv_obj_align(lblLinkStatus_, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  const DisplayRtuSettings rtu = mbus_ ? mbus_->rtuSettings() : DisplaySettingsStore::load().rtu;
+  char buf[24];
+  snprintf(buf, sizeof(buf), "%u", rtu.slaveAddress);
+  taSlave_ = makeSmallInput(card, "Slave", buf, 0, 46, 110);
+  snprintf(buf, sizeof(buf), "%lu", static_cast<unsigned long>(rtu.baudRate));
+  taBaud_ = makeSmallInput(card, "Baud", buf, 130, 46, 130);
+  snprintf(buf, sizeof(buf), "%u", rtu.timeoutMs);
+  taTimeout_ = makeSmallInput(card, "Timeout ms", buf, 280, 46, 140);
+  snprintf(buf, sizeof(buf), "%u", rtu.retries);
+  taRetries_ = makeSmallInput(card, "Retries", buf, 440, 46, 110);
+
+  lv_obj_t* lblParity = Theme::label(card, "Parity", TF::sm(), TC::textSub());
+  lv_obj_set_pos(lblParity, 0, 130);
+  ddParity_ = lv_dropdown_create(card);
+  lv_dropdown_set_options(ddParity_, "None\nEven\nOdd");
+  lv_dropdown_set_selected(ddParity_, rtu.parity <= 2 ? rtu.parity : 0);
+  lv_obj_set_size(ddParity_, 160, 42);
+  lv_obj_set_pos(ddParity_, 0, 152);
+
+  lv_obj_t* lblStop = Theme::label(card, "Stop Bits", TF::sm(), TC::textSub());
+  lv_obj_set_pos(lblStop, 180, 130);
+  ddStopBits_ = lv_dropdown_create(card);
+  lv_dropdown_set_options(ddStopBits_, "1\n2");
+  lv_dropdown_set_selected(ddStopBits_, rtu.stopBits == 2 ? 1 : 0);
+  lv_obj_set_size(ddStopBits_, 120, 42);
+  lv_obj_set_pos(ddStopBits_, 180, 152);
+
+  lv_obj_t* btnSave = Theme::button(card, LV_SYMBOL_SAVE " SAVE & RECONNECT", TC::active(), TC::white(), 230, 46);
+  lv_obj_set_pos(btnSave, 330, 150);
+  lv_obj_add_event_cb(btnSave, onSaveLink, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* btnTest = Theme::button(card, LV_SYMBOL_REFRESH " TEST LINK", TC::surface2(), TC::text(), 170, 46);
+  lv_obj_set_pos(btnTest, 580, 150);
+  lv_obj_add_event_cb(btnTest, onTestLink, LV_EVENT_CLICKED, this);
+
+  lblLinkMsg_ = Theme::label(card, "Saved defaults match current controller: slave 1, 9600 8N1.", TF::md(), TC::textSub());
+  lv_obj_set_pos(lblLinkMsg_, 0, 216);
+}
+
 void SettingsScreen::buildAboutTab(lv_obj_t* tab) {
   lv_obj_set_style_bg_color(tab, TC::bg(), 0);
 
@@ -149,6 +220,20 @@ void SettingsScreen::update(const ControllerSnapshot& snap) {
     display_label_setf(lblDiagStats_,
       "Today:  %u fills  %.2f kg  %.2f " LV_SYMBOL_CHARGE,
       snap.todayFills, snap.todayKg, snap.todayAmount);
+
+  if (lblLinkStatus_) {
+    const char* text = "RS485: OFFLINE";
+    lv_color_t color = TC::danger();
+    if (snap.commHealth == CommHealth::Online) {
+      text = "RS485: ONLINE";
+      color = TC::ready();
+    } else if (snap.commHealth == CommHealth::Unstable) {
+      text = "RS485: UNSTABLE";
+      color = TC::warning();
+    }
+    ui_label_set_text_if_changed(lblLinkStatus_, text);
+    lv_obj_set_style_text_color(lblLinkStatus_, color, 0);
+  }
 }
 
 void SettingsScreen::onTare(lv_event_t* e) {
@@ -160,6 +245,41 @@ void SettingsScreen::onTare(lv_event_t* e) {
 void SettingsScreen::onZeroNet(lv_event_t* e) {
   SettingsScreen* self = static_cast<SettingsScreen*>(lv_event_get_user_data(e));
   if (self->mbus_) self->mbus_->cmdZeroNet();
+}
+
+void SettingsScreen::onSaveLink(lv_event_t* e) {
+  SettingsScreen* self = static_cast<SettingsScreen*>(lv_event_get_user_data(e));
+  if (!self || !self->mbus_) return;
+
+  DisplaySettingsSnapshot settings = DisplaySettingsStore::load();
+  settings.rtu.slaveAddress = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taSlave_)));
+  settings.rtu.baudRate = static_cast<uint32_t>(strtoul(lv_textarea_get_text(self->taBaud_), nullptr, 10));
+  settings.rtu.timeoutMs = static_cast<uint16_t>(atoi(lv_textarea_get_text(self->taTimeout_)));
+  settings.rtu.retries = static_cast<uint8_t>(atoi(lv_textarea_get_text(self->taRetries_)));
+  settings.rtu.parity = static_cast<uint8_t>(lv_dropdown_get_selected(self->ddParity_));
+  settings.rtu.stopBits = lv_dropdown_get_selected(self->ddStopBits_) == 1 ? 2 : 1;
+
+  if (DisplaySettingsStore::save(settings)) {
+    settings = DisplaySettingsStore::load();
+    self->mbus_->applySettings(settings.rtu);
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "RS485 settings saved. Reconnecting with new parameters.");
+  } else {
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "Save failed. Settings were not changed.");
+  }
+}
+
+void SettingsScreen::onTestLink(lv_event_t* e) {
+  SettingsScreen* self = static_cast<SettingsScreen*>(lv_event_get_user_data(e));
+  if (!self || !self->mbus_) return;
+  self->mbus_->poll();
+  const ControllerSnapshot& snap = self->mbus_->snapshot();
+  if (snap.commHealth == CommHealth::Online) {
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "Link test OK. Controller responded.");
+  } else if (snap.commHealth == CommHealth::Unstable) {
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "Link test unstable. Check A/B wiring and termination.");
+  } else {
+    ui_label_set_text_if_changed(self->lblLinkMsg_, "No controller response. Check RS485 wiring, power, and slave address.");
+  }
 }
 
 void SettingsScreen::onBack(lv_event_t* e) {

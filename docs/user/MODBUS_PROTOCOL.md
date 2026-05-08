@@ -392,10 +392,10 @@ In Modbus Poll, discrete inputs display as `10001 + address`.
 
 | Modbus Poll (10001+) | PDU Address | Name | Description |
 |---------------------|-------------|------|-------------|
-| 10001 | 0x0000 | Input 1 | Physical digital input 1 (nozzle sensor) |
-| 10002 | 0x0001 | Input 2 | Physical digital input 2 (cylinder present) |
-| 10003 | 0x0002 | Input 3 | Physical digital input 3 (E-Stop) |
-| 10004 | 0x0003 | Input 4 | Physical digital input 4 (spare) |
+| 10001 | 0x0000 | Input 1 | Cylinder-present sensor in current prototype wiring |
+| 10002 | 0x0001 | Input 2 | Nozzle lock/engage sensor in current prototype wiring |
+| 10003 | 0x0002 | Input 3 | Spare / cabinet door if wired |
+| 10004 | 0x0003 | Input 4 | E-stop raw input; true means tripped, controller exposes `emergencyStopOk = false` |
 | 10005 | 0x0004 | Input 5 | Physical digital input 5 (spare) |
 | 10006 | 0x0005 | Input 6 | Physical digital input 6 (spare) |
 

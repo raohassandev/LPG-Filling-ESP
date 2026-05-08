@@ -1,6 +1,7 @@
 #include "screens/DashboardScreen.h"
 #include "DisplayFormat.h"
 #include "Theme.h"
+#include "UiHelpers.h"
 #include "ScreenManager.h"
 #include "esp_log.h"
 #include <cstdarg>
@@ -33,6 +34,7 @@ static const char* stateLabel(FillState s) {
 
 static const char* alertTitle(const ControllerSnapshot& s) {
   if (!s.connected) return "Controller link lost";
+  if (s.commHealth == CommHealth::Unstable) return "RS485 link unstable";
   switch (s.alarmCode) {
     case 1:  return "Emergency stop active";
     case 2:  return "Nozzle disengaged";
@@ -64,6 +66,7 @@ static const char* alertTitle(const ControllerSnapshot& s) {
 
 static const char* alertBody(const ControllerSnapshot& s) {
   if (!s.connected) return "Check RS485 wiring and controller power.";
+  if (s.commHealth == CommHealth::Unstable) return "Recent Modbus frame was missed. Commands will retry.";
   switch (s.alarmCode) {
     case 1:  return "Release emergency push button, then press RESET.";
     case 2:  return "Lock the nozzle before starting or continuing fill.";
@@ -95,6 +98,7 @@ static const char* alertBody(const ControllerSnapshot& s) {
 
 static lv_color_t alertColor(const ControllerSnapshot& s) {
   if (!s.connected || s.state == FillState::Fault || !s.eStopOk) return TC::danger();
+  if (s.commHealth == CommHealth::Unstable) return TC::warning();
   if (s.alarmSeverity >= 3) return TC::danger();
   if (s.alarmSeverity == 2 || s.alarmCode != 0) return TC::warning();
   if (s.state == FillState::Aborted || !s.cylinderPresent || !s.nozzleEngaged || !s.weightStable) return TC::warning();
@@ -201,6 +205,8 @@ static void setLabelFmtIfChanged(lv_obj_t* label, const char* fmt, ...) {
 static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b) {
   return a.state           != b.state
       || a.connected       != b.connected
+      || a.commHealth      != b.commHealth
+      || a.commFailStreak  != b.commFailStreak
       || a.eStopOk         != b.eStopOk
       || a.cylinderPresent != b.cylinderPresent
       || a.nozzleEngaged   != b.nozzleEngaged
@@ -579,9 +585,7 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   if (fullRefresh || snap.rtcYear != prev.rtcYear || snap.rtcMonth != prev.rtcMonth ||
       snap.rtcDay != prev.rtcDay || snap.rtcHour != prev.rtcHour ||
       snap.rtcMinute != prev.rtcMinute || snap.rtcSecond != prev.rtcSecond) {
-    if (snap.rtcMonth >= 1 && snap.rtcMonth <= 12 && snap.rtcDay >= 1 && snap.rtcDay <= 31 &&
-        snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
-        (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
+    if (isValidRtcDateTime(snap)) {
       setLabelFmtIfChanged(lblTime_, "%02u/%02u %02u:%02u",
                            snap.rtcDay, snap.rtcMonth, snap.rtcHour, snap.rtcMinute);
     } else {
@@ -589,15 +593,23 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
     }
   }
 
-  if (fullRefresh || snap.connected != prev.connected) {
-    setLabelTextIfChanged(lblMbus_, snap.connected ? LV_SYMBOL_OK " MB" : LV_SYMBOL_CLOSE " MB");
-    lv_obj_set_style_text_color(lblMbus_, snap.connected ? TC::ready() : TC::danger(), 0);
+  if (fullRefresh || snap.connected != prev.connected || snap.commHealth != prev.commHealth) {
+    if (snap.commHealth == CommHealth::Offline || !snap.connected) {
+      setLabelTextIfChanged(lblMbus_, LV_SYMBOL_CLOSE " MB");
+      lv_obj_set_style_text_color(lblMbus_, TC::danger(), 0);
+    } else if (snap.commHealth == CommHealth::Unstable) {
+      setLabelTextIfChanged(lblMbus_, LV_SYMBOL_WARNING " MB");
+      lv_obj_set_style_text_color(lblMbus_, TC::warning(), 0);
+    } else {
+      setLabelTextIfChanged(lblMbus_, LV_SYMBOL_OK " MB");
+      lv_obj_set_style_text_color(lblMbus_, TC::ready(), 0);
+    }
   }
 
   // Live weight (no "kg" in hero — separate unit label)
-  display_label_setf(lblLive_, "%.3f", snap.liveWeightKg);
-  display_label_setf(lblTare_, "Tare: %.3f kg", snap.tareWeightKg);
-  display_label_setf(lblNet_,  "Net: %.3f kg",  snap.netWeightKg);
+  display_label_setf(lblLive_, "%.3f", sanitizeDisplayKg(snap.liveWeightKg));
+  display_label_setf(lblTare_, "Tare: %.3f kg", sanitizeDisplayKg(snap.tareWeightKg));
+  display_label_setf(lblNet_,  "Net: %.3f kg",  sanitizeDisplayKg(snap.netWeightKg));
 
   // Readiness icons — only restyle the icon whose boolean changed.
   if (fullRefresh || snap.eStopOk != prev.eStopOk)
@@ -641,10 +653,22 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
                           snap.state == FillState::Complete ||
                           (!snap.eStopOk && snap.connected);
   const bool canStart = (snap.state == FillState::Idle || snap.state == FillState::Ready)
-                        && (snap.eStopOk || !snap.connected);
+                        && snap.connected
+                        && snap.eStopOk
+                        && snap.cylinderPresent
+                        && snap.nozzleEngaged
+                        && snap.weightStable
+                        && snap.alarmCode == 0
+                        && snap.blockerMask == 0;
   const bool canAct = canStart || needsReset;
   const bool prevCanStart = (prev.state == FillState::Idle || prev.state == FillState::Ready)
-                            && (prev.eStopOk || !prev.connected);
+                            && prev.connected
+                            && prev.eStopOk
+                            && prev.cylinderPresent
+                            && prev.nozzleEngaged
+                            && prev.weightStable
+                            && prev.alarmCode == 0
+                            && prev.blockerMask == 0;
   const bool prevNeedsReset = prev.state == FillState::Fault ||
                               prev.state == FillState::Aborted ||
                               prev.state == FillState::Complete ||
@@ -906,7 +930,7 @@ void DashboardScreen::onStartPressed(lv_event_t* e) {
     ESP_LOGI(TAG, "RESET pressed ok=%d", ok ? 1 : 0);
     return;
   }
-  if (!self->lastSnap_.connected) {
+  if (self->lastSnap_.commHealth == CommHealth::Offline || !self->lastSnap_.connected) {
     ESP_LOGW(TAG, "START blocked: controller offline");
     self->openOfflineModal();
     return;
@@ -915,7 +939,11 @@ void DashboardScreen::onStartPressed(lv_event_t* e) {
   const bool ok = self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
   ESP_LOGI(TAG, "START pressed target=%.3f rate=%.2f ok=%d",
            self->dialogTargetKg_, self->dialogRatePerKg_, ok ? 1 : 0);
-  if (!ok) self->openOfflineModal();
+  if (!ok && self->mbus_->snapshot().commHealth == CommHealth::Offline) {
+    self->openOfflineModal();
+  } else if (!ok) {
+    ESP_LOGW(TAG, "START not confirmed; controller is not hard offline");
+  }
 }
 
 void DashboardScreen::onStartConfirm(lv_event_t* e) {
@@ -932,18 +960,36 @@ void DashboardScreen::onStartConfirm(lv_event_t* e) {
       lv_label_set_text(self->lblStartError_, "Set a rate > 0");
     return;
   }
-  if (!self->lastSnap_.connected) {
+  if (self->lastSnap_.commHealth == CommHealth::Offline || !self->lastSnap_.connected) {
     ESP_LOGW(TAG, "START confirm blocked: controller offline");
     self->closeStartDialog();
     self->openOfflineModal();
     return;
   }
   self->lastRatePerKg_  = self->dialogRatePerKg_;
+  if (self->lblStartError_) {
+    lv_label_set_text(self->lblStartError_,
+                      self->lastSnap_.commHealth == CommHealth::Unstable
+                      ? "RS485 unstable. Retrying command..."
+                      : "Sending start command...");
+  }
   const bool ok = self->mbus_->startFill(self->dialogTargetKg_, self->dialogRatePerKg_);
   ESP_LOGI(TAG, "START confirmed target=%.3f rate=%.2f ok=%d",
            self->dialogTargetKg_, self->dialogRatePerKg_, ok ? 1 : 0);
-  self->closeStartDialog();
-  if (!ok) self->openOfflineModal();
+  if (ok) {
+    self->closeStartDialog();
+    return;
+  }
+  const ControllerSnapshot& s = self->mbus_->snapshot();
+  if (s.commHealth == CommHealth::Offline || !s.connected) {
+    self->closeStartDialog();
+    self->openOfflineModal();
+  } else if (self->lblStartError_) {
+    lv_label_set_text(self->lblStartError_,
+                      s.commHealth == CommHealth::Unstable
+                      ? "RS485 unstable. Command not confirmed."
+                      : "Start not confirmed. Check readiness and try again.");
+  }
 }
 
 void DashboardScreen::onTargetMinus(lv_event_t* e) {

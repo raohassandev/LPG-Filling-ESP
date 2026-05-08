@@ -15,6 +15,13 @@ struct BoardConfig {
   static constexpr uint8_t kRelayCount = 6;
   static constexpr uint8_t kInputCount = 6;
 
+  // Runtime input mapping verified on the current prototype wiring.
+  // inputState(index) returns true when the PCF8574 input is active.
+  static constexpr uint8_t kInputCylinderPresent = 0;
+  static constexpr uint8_t kInputNozzleEngaged   = 1;
+  static constexpr uint8_t kInputEmergencyStop   = 3;
+  static constexpr bool kInputEmergencyRawMeansTripped = true;
+
   static constexpr const char* kDeviceName = "kc868-a6-lpg";
   static constexpr const char* kDefaultStaSsid     = "Rao";
   static constexpr const char* kDefaultStaPassword = "password123";

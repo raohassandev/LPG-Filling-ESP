@@ -71,7 +71,7 @@ Boot
 
 KC868-A6 slave address: **1**  
 Baud: **9600 8N1**  
-Protocol: FC03 read holding registers, FC06 write single register
+Protocol: FC03 read holding registers, FC06 write single register, FC16 write FLOAT32 pairs
 
 | Poll group | Registers | Content |
 |------------|-----------|---------|
@@ -84,6 +84,8 @@ Protocol: FC03 read holding registers, FC06 write single register
 
 **Write command**: FC06 to register 0x0017 (kHR_Command)  
 `1 = Start, 2 = Stop, 3 = Reset, 4 = ZeroNet`
+
+Current display firmware also polls diagnostics `0x0048..0x004B` for alarm code, severity, readiness mask, and blocker mask. It uses a 300 ms RTU timeout, retry wrappers, and `Online / Unstable / Offline` communication health; a single missed frame should not open the offline modal.
 
 ---
 

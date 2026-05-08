@@ -26,13 +26,26 @@ private:
   // About tab
   lv_obj_t* lblAbout_ = nullptr;
 
+  // Controller Link tab
+  lv_obj_t* lblLinkStatus_ = nullptr;
+  lv_obj_t* taSlave_ = nullptr;
+  lv_obj_t* taBaud_ = nullptr;
+  lv_obj_t* ddParity_ = nullptr;
+  lv_obj_t* ddStopBits_ = nullptr;
+  lv_obj_t* taTimeout_ = nullptr;
+  lv_obj_t* taRetries_ = nullptr;
+  lv_obj_t* lblLinkMsg_ = nullptr;
+
   ModbusClient* mbus_ = nullptr;
 
   void buildCalibrationTab(lv_obj_t* tab);
   void buildDiagnosticsTab(lv_obj_t* tab);
+  void buildControllerLinkTab(lv_obj_t* tab);
   void buildAboutTab(lv_obj_t* tab);
 
   static void onTare(lv_event_t* e);
   static void onZeroNet(lv_event_t* e);
+  static void onSaveLink(lv_event_t* e);
+  static void onTestLink(lv_event_t* e);
   static void onBack(lv_event_t* e);
 };

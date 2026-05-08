@@ -1,13 +1,9 @@
 #include "screens/FaultScreen.h"
 #include "Theme.h"
+#include "UiHelpers.h"
 #include "ScreenManager.h"
 
 extern ScreenManager screenManager;
-
-static const char* faultHint(FillState s) {
-  if (s == FillState::Aborted) return "Fill was stopped by operator.";
-  return "Check nozzle connection, cylinder placement,\nand e-stop status, then reset.";
-}
 
 void FaultScreen::build(ModbusClient& mbus) {
   mbus_ = &mbus;
@@ -71,23 +67,30 @@ void FaultScreen::build(ModbusClient& mbus) {
 
 void FaultScreen::update(const ControllerSnapshot& snap) {
   if (!scr_) return;
-  lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+  char dt[32];
+  formatRtcHeader(snap, dt, sizeof(dt));
+  ui_label_set_text_if_changed(lblTime_, dt);
 
   if (snap.state == FillState::Aborted) {
-    lv_label_set_text(lblTitle_, "ABORTED");
+    ui_label_set_text_if_changed(lblTitle_, "ABORTED");
     lv_obj_set_style_text_color(lblTitle_, TC::warning(), 0);
   } else {
-    lv_label_set_text(lblTitle_, "FAULT");
+    ui_label_set_text_if_changed(lblTitle_, "FAULT");
     lv_obj_set_style_text_color(lblTitle_, TC::danger(), 0);
   }
 
-  lv_label_set_text(lblReason_, snap.state == FillState::Aborted
-                                ? "Fill stopped by operator" : "System fault detected");
-  lv_label_set_text(lblHint_, faultHint(snap.state));
+  const uint16_t code = (!snap.connected || snap.commHealth == CommHealth::Offline)
+                        ? 13
+                        : snap.alarmCode;
+  ui_label_set_text_if_changed(lblReason_, snap.state == FillState::Aborted
+                               ? "Fill stopped by operator"
+                               : alarmTitle(code));
+  ui_label_set_text_if_changed(lblHint_, snap.state == FillState::Aborted
+                               ? "Press RESET to return to ready state."
+                               : alarmHint(code));
 }
 
 void FaultScreen::onReset(lv_event_t* e) {
   FaultScreen* self = static_cast<FaultScreen*>(lv_event_get_user_data(e));
   if (self->mbus_) self->mbus_->cmdReset();
-  screenManager.navigateTo(Screen::Dashboard);
 }

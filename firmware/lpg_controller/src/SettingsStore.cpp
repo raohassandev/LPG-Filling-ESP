@@ -16,9 +16,22 @@ void SettingsStore::begin() {
   settings_.staEnabled        = preferences.getBool("sta_en",      true);
   settings_.apEnabled         = preferences.getBool("ap_en",       true);
   settings_.wifiAutoSwitch    = preferences.getBool("wifi_auto",   true);
+  settings_.staDhcp           = preferences.getBool("sta_dhcp",    true);
+  settings_.staStaticIp       = preferences.getString("sta_ip",     "");
+  settings_.staGateway        = preferences.getString("sta_gw",     "");
+  settings_.staSubnet         = preferences.getString("sta_sn",     "");
+  settings_.staDns1           = preferences.getString("sta_dns1",   "");
+  settings_.staDns2           = preferences.getString("sta_dns2",   "");
   settings_.slowFillThreshold = preferences.getFloat("slow_fill",  0.95f);
   settings_.ratePerKg         = preferences.getFloat("rate_kg",    250.0f);
   settings_.storageMode       = preferences.getUChar("storage",    0);
+  settings_.stationId         = preferences.getString("station",    "LPG-STN-001");
+  settings_.controllerId      = preferences.getString("ctrl_id",    "CTRL-001");
+  settings_.siteName          = preferences.getString("site",       "");
+  settings_.nozzleId          = preferences.getString("nozzle",     "NOZ-01");
+  settings_.commissioningComplete = preferences.getBool("comm_done", false);
+  settings_.inputsVerified        = preferences.getBool("in_verify", false);
+  settings_.productionLocked      = preferences.getBool("prod_lock", false);
   preferences.end();
 
   Preferences wifiPref;
@@ -126,6 +139,56 @@ bool SettingsStore::setWifiFlags(bool staEnabled, bool apEnabled, bool autoSwitc
   settings_.staEnabled = staEnabled;
   settings_.apEnabled = apEnabled;
   settings_.wifiAutoSwitch = autoSwitch;
+  return true;
+}
+
+bool SettingsStore::setStaIpConfig(bool dhcp, const String& ip, const String& gateway,
+                                   const String& subnet, const String& dns1, const String& dns2) {
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) return false;
+  preferences.putBool("sta_dhcp", dhcp);
+  preferences.putString("sta_ip", ip);
+  preferences.putString("sta_gw", gateway);
+  preferences.putString("sta_sn", subnet);
+  preferences.putString("sta_dns1", dns1);
+  preferences.putString("sta_dns2", dns2);
+  preferences.end();
+  settings_.staDhcp = dhcp;
+  settings_.staStaticIp = ip;
+  settings_.staGateway = gateway;
+  settings_.staSubnet = subnet;
+  settings_.staDns1 = dns1;
+  settings_.staDns2 = dns2;
+  return true;
+}
+
+bool SettingsStore::setDeviceIdentity(const String& stationId, const String& controllerId,
+                                      const String& siteName, const String& nozzleId) {
+  if (stationId.isEmpty() || controllerId.isEmpty() || nozzleId.isEmpty()) return false;
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) return false;
+  preferences.putString("station", stationId);
+  preferences.putString("ctrl_id", controllerId);
+  preferences.putString("site", siteName);
+  preferences.putString("nozzle", nozzleId);
+  preferences.end();
+  settings_.stationId = stationId;
+  settings_.controllerId = controllerId;
+  settings_.siteName = siteName;
+  settings_.nozzleId = nozzleId;
+  return true;
+}
+
+bool SettingsStore::setCommissioningFlags(bool complete, bool inputsVerified, bool productionLocked) {
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) return false;
+  preferences.putBool("comm_done", complete);
+  preferences.putBool("in_verify", inputsVerified);
+  preferences.putBool("prod_lock", productionLocked);
+  preferences.end();
+  settings_.commissioningComplete = complete;
+  settings_.inputsVerified = inputsVerified;
+  settings_.productionLocked = productionLocked;
   return true;
 }
 

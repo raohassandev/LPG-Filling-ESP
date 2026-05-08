@@ -24,7 +24,7 @@ String jsonStr(const String& s) {
 WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
                      SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
                      RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
-                     RtcService& rtcService, SdService& sdService)
+                     RtcService& rtcService, SdService& sdService, MqttService& mqttService)
     : statusStore_(statusStore),
       fillController_(fillController),
       weightService_(weightService),
@@ -35,7 +35,8 @@ WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, W
       authService_(authService),
       networkManager_(networkManager),
       rtcService_(rtcService),
-      sdService_(sdService) {}
+      sdService_(sdService),
+      mqttService_(mqttService) {}
 
 void WebPortal::begin() {
   // Collect Authorization header so requireAuth() can read Bearer tokens
@@ -150,13 +151,20 @@ void WebPortal::registerRoutes() {
   server_.on("/api/wifi",    HTTP_POST, [this]() { handleSetWifi(); });
   server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
   server_.on("/api/network", HTTP_GET,  [this]() { handleGetNetwork(); });
+  server_.on("/api/io/live",  HTTP_GET,  [this]() { handleGetIoLive(); });
   server_.on("/api/users",         HTTP_GET,    [this]() { handleListUsers(); });
   server_.on("/api/users",         HTTP_POST,   [this]() { handleCreateUser(); });
   server_.on("/api/users/update",  HTTP_POST,   [this]() { handleUpdateUser(); });
   server_.on("/api/users/delete",  HTTP_POST,   [this]() { handleDeleteUser(); });
   server_.on("/api/system",        HTTP_GET,    [this]() { handleGetSystem(); });
+  server_.on("/api/system",        HTTP_POST,   [this]() { handleSetSystem(); });
   server_.on("/api/mqtt",          HTTP_GET,    [this]() { handleGetMqtt(); });
   server_.on("/api/mqtt",          HTTP_POST,   [this]() { handleSetMqtt(); });
+  server_.on("/api/mqtt/test",     HTTP_POST,   [this]() { handleMqttTest(); });
+  server_.on("/api/config/export", HTTP_GET,    [this]() { handleConfigExport(); });
+  server_.on("/api/config/import", HTTP_POST,   [this]() { handleConfigImport(); });
+  server_.on("/api/commissioning", HTTP_GET,    [this]() { handleGetCommissioning(); });
+  server_.on("/api/commissioning", HTTP_POST,   [this]() { handleSetCommissioning(); });
   server_.on("/api/stats",         HTTP_GET,    [this]() { handleGetStats(); });
   server_.on("/api/time",          HTTP_GET,    [this]() { handleGetTime(); });
   server_.on("/api/time",          HTTP_POST,   [this]() { handleSetTime(); });
@@ -599,6 +607,12 @@ void WebPortal::handleGetWifi() {
   body += "\"staEnabled\":" + jsonBool(s.staEnabled) + ",";
   body += "\"apEnabled\":" + jsonBool(s.apEnabled) + ",";
   body += "\"autoSwitch\":" + jsonBool(s.wifiAutoSwitch) + ",";
+  body += "\"dhcp\":" + jsonBool(s.staDhcp) + ",";
+  body += "\"staticIp\":" + jsonStr(s.staStaticIp) + ",";
+  body += "\"gateway\":" + jsonStr(s.staGateway) + ",";
+  body += "\"subnet\":" + jsonStr(s.staSubnet) + ",";
+  body += "\"dns1\":" + jsonStr(s.staDns1) + ",";
+  body += "\"dns2\":" + jsonStr(s.staDns2) + ",";
   body += "\"connected\":" + jsonBool(connected) + ",";
   body += "\"staSSID\":" + jsonStr(networkManager_.staSSID()) + ",";
   body += "\"staIP\":" + jsonStr(staIP) + ",";
@@ -625,6 +639,21 @@ void WebPortal::handleSetWifi() {
     const bool autoSwitch = server_.hasArg("autoSwitch") ? server_.arg("autoSwitch") == "1" : s.wifiAutoSwitch;
     if (!settingsStore_.setWifiFlags(staEnabled, apEnabled, autoSwitch)) {
       sendJson(500, "{\"ok\":false,\"message\":\"WiFi mode save failed\"}");
+      return;
+    }
+    networkManager_.configureWifi(settingsStore_.snapshot());
+  }
+  if (server_.hasArg("dhcp") || server_.hasArg("staticIp") || server_.hasArg("gateway") ||
+      server_.hasArg("subnet") || server_.hasArg("dns1") || server_.hasArg("dns2")) {
+    const SettingsSnapshot s = settingsStore_.snapshot();
+    const bool dhcp = server_.hasArg("dhcp") ? (server_.arg("dhcp") == "1" || server_.arg("dhcp") == "true") : s.staDhcp;
+    const String ip = server_.hasArg("staticIp") ? server_.arg("staticIp") : s.staStaticIp;
+    const String gw = server_.hasArg("gateway") ? server_.arg("gateway") : s.staGateway;
+    const String sn = server_.hasArg("subnet") ? server_.arg("subnet") : s.staSubnet;
+    const String dns1 = server_.hasArg("dns1") ? server_.arg("dns1") : s.staDns1;
+    const String dns2 = server_.hasArg("dns2") ? server_.arg("dns2") : s.staDns2;
+    if (!settingsStore_.setStaIpConfig(dhcp, ip, gw, sn, dns1, dns2)) {
+      sendJson(500, "{\"ok\":false,\"message\":\"IP config save failed\"}");
       return;
     }
     networkManager_.configureWifi(settingsStore_.snapshot());
@@ -672,13 +701,42 @@ void WebPortal::handleWifiScan() {
 
 void WebPortal::handleGetNetwork() {
   if (!requireAuth(UserRole::Operator)) return;
+  const SettingsSnapshot s = settingsStore_.snapshot();
   String body = "{";
   body += "\"staConnected\":" + String(networkManager_.isSTAConnected() ? "true" : "false") + ",";
   body += "\"staSSID\":\""    + networkManager_.staSSID() + "\",";
   body += "\"staIP\":\""      + networkManager_.staIP()   + "\",";
+  body += "\"dhcp\":"         + jsonBool(s.staDhcp) + ",";
+  body += "\"staticIp\":"     + jsonStr(s.staStaticIp) + ",";
+  body += "\"gateway\":"      + jsonStr(s.staGateway) + ",";
+  body += "\"subnet\":"       + jsonStr(s.staSubnet) + ",";
+  body += "\"dns1\":"         + jsonStr(s.staDns1) + ",";
+  body += "\"dns2\":"         + jsonStr(s.staDns2) + ",";
   body += "\"apSSID\":\""     + networkManager_.apSSID()  + "\",";
   body += "\"apIP\":\""       + networkManager_.apIP()    + "\"";
   body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleGetIoLive() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const StatusSnapshot s = statusStore_.snapshot();
+
+  String body = "{\"ok\":true,\"rawInputs\":[";
+  for (uint8_t i = 0; i < BoardConfig::kInputCount; ++i) {
+    if (i > 0) body += ",";
+    body += jsonBool(s.inputs[i]);
+  }
+  body += "],\"mapping\":{";
+  body += "\"cylinder\":{\"channel\":" + String(BoardConfig::kInputCylinderPresent) + ",\"activeHigh\":true},";
+  body += "\"nozzle\":{\"channel\":" + String(BoardConfig::kInputNozzleEngaged) + ",\"activeHigh\":true},";
+  body += "\"estop\":{\"channel\":" + String(BoardConfig::kInputEmergencyStop)
+       + ",\"rawMeansTripped\":" + jsonBool(BoardConfig::kInputEmergencyRawMeansTripped) + "}";
+  body += "},\"interpreted\":{";
+  body += "\"cylinderPresent\":" + jsonBool(s.cylinderPresent) + ",";
+  body += "\"nozzleEngaged\":" + jsonBool(s.nozzleEngaged) + ",";
+  body += "\"emergencyStopOk\":" + jsonBool(s.emergencyStopOk);
+  body += "}}";
   sendJson(200, body);
 }
 
@@ -775,8 +833,13 @@ void WebPortal::handleGetSystem() {
   const String boardTime = rtcService_.initialized()
                          ? rtcService_.getIso8601String()
                          : String("(RTC not set)");
+  const SettingsSnapshot cfg = settingsStore_.snapshot();
 
   String body = "{";
+  body += "\"stationId\":"   + jsonStr(cfg.stationId)    + ",";
+  body += "\"controllerId\":" + jsonStr(cfg.controllerId) + ",";
+  body += "\"siteName\":"    + jsonStr(cfg.siteName)     + ",";
+  body += "\"nozzleId\":"    + jsonStr(cfg.nozzleId)     + ",";
   body += "\"freeHeap\":"    + String(freeHeap)    + ",";
   body += "\"minFreeHeap\":" + String(minFreeHeap) + ",";
   body += "\"heapTotal\":"   + String(heapTotal)   + ",";
@@ -791,6 +854,21 @@ void WebPortal::handleGetSystem() {
   body += "\"firmware\":\""  + String(BoardConfig::kFirmwareVersion) + "\"";
   body += "}";
   sendJson(200, body);
+}
+
+void WebPortal::handleSetSystem() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const SettingsSnapshot cfg = settingsStore_.snapshot();
+  const String stationId = server_.hasArg("stationId") ? server_.arg("stationId") : cfg.stationId;
+  const String controllerId = server_.hasArg("controllerId") ? server_.arg("controllerId") : cfg.controllerId;
+  const String siteName = server_.hasArg("siteName") ? server_.arg("siteName") : cfg.siteName;
+  const String nozzleId = server_.hasArg("nozzleId") ? server_.arg("nozzleId") : cfg.nozzleId;
+
+  if (!settingsStore_.setDeviceIdentity(stationId, controllerId, siteName, nozzleId)) {
+    sendJson(400, "{\"ok\":false,\"message\":\"stationId, controllerId and nozzleId are required\"}");
+    return;
+  }
+  sendJson(200, "{\"ok\":true}");
 }
 
 void WebPortal::handleGetMqtt() {
@@ -840,6 +918,133 @@ void WebPortal::handleSetMqtt() {
   if (!passArg.isEmpty()) cfg.password = passArg;
 
   const bool ok = settingsStore_.setMqtt(cfg);
+  sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"NVS write failed\"}");
+}
+
+void WebPortal::handleMqttTest() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const MqttSettingsSnapshot cfg = settingsStore_.mqttSnapshot();
+  String topic;
+  String message;
+  const bool ok = mqttService_.publishTest(topic, message);
+  String body = "{";
+  body += "\"ok\":" + jsonBool(ok) + ",";
+  body += "\"compiled\":" + jsonBool(LPG_MQTT_ENABLED != 0) + ",";
+  body += "\"enabled\":" + jsonBool(cfg.enabled) + ",";
+  body += "\"connected\":" + jsonBool(mqttService_.isConnected()) + ",";
+  body += "\"topic\":" + jsonStr(topic) + ",";
+  body += "\"message\":" + jsonStr(message);
+  body += "}";
+  sendJson(ok ? 200 : 400, body);
+}
+
+void WebPortal::handleConfigExport() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const SettingsSnapshot s = settingsStore_.snapshot();
+  const MqttSettingsSnapshot m = settingsStore_.mqttSnapshot();
+  const ModbusRtuSettings r = settingsStore_.rtuSnapshot();
+
+  String body = "{";
+  body += "\"schemaVersion\":1,";
+  body += "\"identity\":{";
+  body += "\"stationId\":" + jsonStr(s.stationId) + ",";
+  body += "\"controllerId\":" + jsonStr(s.controllerId) + ",";
+  body += "\"siteName\":" + jsonStr(s.siteName) + ",";
+  body += "\"nozzleId\":" + jsonStr(s.nozzleId) + "},";
+  body += "\"wifi\":{";
+  body += "\"staEnabled\":" + jsonBool(s.staEnabled) + ",";
+  body += "\"apEnabled\":" + jsonBool(s.apEnabled) + ",";
+  body += "\"autoSwitch\":" + jsonBool(s.wifiAutoSwitch) + ",";
+  body += "\"dhcp\":" + jsonBool(s.staDhcp) + ",";
+  body += "\"staticIp\":" + jsonStr(s.staStaticIp) + ",";
+  body += "\"gateway\":" + jsonStr(s.staGateway) + ",";
+  body += "\"subnet\":" + jsonStr(s.staSubnet) + ",";
+  body += "\"dns1\":" + jsonStr(s.staDns1) + ",";
+  body += "\"dns2\":" + jsonStr(s.staDns2) + ",";
+  body += "\"networks\":[";
+  for (uint8_t i = 0; i < s.wifiCount; ++i) {
+    if (i) body += ",";
+    body += "{\"ssid\":" + jsonStr(s.wifiSsid[i]) + ",\"enabled\":" + jsonBool(s.wifiEnabled[i]) + "}";
+  }
+  body += "]},";
+  body += "\"rtu\":{\"enabled\":" + jsonBool(r.enabled) + ",\"slaveAddress\":" + String(r.slaveAddress) +
+          ",\"baudRate\":" + String(r.baudRate) + ",\"parity\":" + String(r.parity) +
+          ",\"stopBits\":" + String(r.stopBits) + "},";
+  body += "\"mqtt\":{\"enabled\":" + jsonBool(m.enabled) + ",\"preset\":" + String(m.preset) +
+          ",\"brokerHost\":" + jsonStr(m.brokerHost) + ",\"brokerPort\":" + String(m.brokerPort) +
+          ",\"topicPrefix\":" + jsonStr(m.topicPrefix) + ",\"clientId\":" + jsonStr(m.clientId) +
+          ",\"username\":" + jsonStr(m.username) + "},";
+  body += "\"fill\":{\"ratePerKg\":" + String(s.ratePerKg, 2) +
+          ",\"slowFillThreshold\":" + String(s.slowFillThreshold, 3) + "},";
+  body += "\"calibration\":{\"valid\":" + jsonBool(weightService_.calibrationValid()) +
+          ",\"factor\":" + String(weightService_.calibrationFactor(), 2) + "},";
+  body += "\"productionLock\":" + jsonBool(s.productionLocked);
+  body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleConfigImport() {
+  if (!requireAuth(UserRole::Admin)) return;
+  sendJson(501, "{\"ok\":false,\"message\":\"config import skeleton only; export is available and secrets are excluded\"}");
+}
+
+void WebPortal::handleGetCommissioning() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const SettingsSnapshot s = settingsStore_.snapshot();
+  const ModbusRtuSettings r = settingsStore_.rtuSnapshot();
+  const bool identityConfigured = !s.stationId.isEmpty() && !s.controllerId.isEmpty() && !s.nozzleId.isEmpty();
+  const bool networkConfigured = s.wifiCount > 0 || !s.staSsid.isEmpty();
+  const bool rtuConfigured = r.enabled && r.slaveAddress >= 1 && r.slaveAddress <= 247 && r.baudRate > 0;
+  const bool scaleCalibrated = weightService_.calibrationValid();
+  const bool mqttConfigured = settingsStore_.mqttSnapshot().enabled;
+  const bool rtcValid = rtcService_.initialized();
+  const bool complete = s.commissioningComplete && identityConfigured && networkConfigured &&
+                        rtuConfigured && scaleCalibrated && s.inputsVerified && rtcValid;
+
+  String blockers = "[";
+  bool first = true;
+  auto addBlocker = [&](const char* name) {
+    if (!first) blockers += ",";
+    first = false;
+    blockers += jsonStr(String(name));
+  };
+  if (!identityConfigured) addBlocker("identityConfigured");
+  if (!networkConfigured) addBlocker("networkConfigured");
+  if (!rtuConfigured) addBlocker("rtuConfigured");
+  if (!scaleCalibrated) addBlocker("scaleCalibrated");
+  if (!s.inputsVerified) addBlocker("inputsVerified");
+  if (!rtcValid) addBlocker("rtcValid");
+  blockers += "]";
+
+  String body = "{";
+  body += "\"ok\":true,";
+  body += "\"commissioningComplete\":" + jsonBool(complete) + ",";
+  body += "\"identityConfigured\":" + jsonBool(identityConfigured) + ",";
+  body += "\"networkConfigured\":" + jsonBool(networkConfigured) + ",";
+  body += "\"rtuConfigured\":" + jsonBool(rtuConfigured) + ",";
+  body += "\"scaleCalibrated\":" + jsonBool(scaleCalibrated) + ",";
+  body += "\"inputsVerified\":" + jsonBool(s.inputsVerified) + ",";
+  body += "\"mqttConfigured\":" + jsonBool(mqttConfigured) + ",";
+  body += "\"rtcValid\":" + jsonBool(rtcValid) + ",";
+  body += "\"productionLocked\":" + jsonBool(s.productionLocked) + ",";
+  body += "\"blockers\":" + blockers;
+  body += "}";
+  sendJson(200, body);
+}
+
+void WebPortal::handleSetCommissioning() {
+  if (!requireAuth(UserRole::Admin)) return;
+  const SettingsSnapshot s = settingsStore_.snapshot();
+  const bool complete = server_.hasArg("commissioningComplete")
+      ? (server_.arg("commissioningComplete") == "1" || server_.arg("commissioningComplete") == "true")
+      : s.commissioningComplete;
+  const bool inputsVerified = server_.hasArg("inputsVerified")
+      ? (server_.arg("inputsVerified") == "1" || server_.arg("inputsVerified") == "true")
+      : s.inputsVerified;
+  const bool productionLocked = server_.hasArg("productionLocked")
+      ? (server_.arg("productionLocked") == "1" || server_.arg("productionLocked") == "true")
+      : s.productionLocked;
+  const bool ok = settingsStore_.setCommissioningFlags(complete, inputsVerified, productionLocked);
   sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}" : "{\"ok\":false,\"message\":\"NVS write failed\"}");
 }
 

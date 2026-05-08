@@ -1,6 +1,7 @@
 #include "screens/FillProgressScreen.h"
 #include "DisplayFormat.h"
 #include "Theme.h"
+#include "UiHelpers.h"
 #include "ScreenManager.h"
 
 extern ScreenManager screenManager;
@@ -76,6 +77,14 @@ void FillProgressScreen::build(ModbusClient& mbus) {
   lv_obj_set_style_text_color(lblTarget_, TC::textSub(), 0);
   lv_obj_align(lblTarget_, LV_ALIGN_TOP_MID, 0, 154);
 
+  lblStatus_ = lv_label_create(card);
+  lv_obj_set_width(lblStatus_, 640);
+  lv_label_set_long_mode(lblStatus_, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(lblStatus_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lblStatus_, TF::md(), 0);
+  lv_obj_set_style_text_color(lblStatus_, TC::textSub(), 0);
+  lv_obj_align(lblStatus_, LV_ALIGN_TOP_MID, 0, 190);
+
   // Rate / amount row
   lv_obj_t* infoRow = lv_obj_create(card);
   lv_obj_set_size(infoRow, LV_PCT(100), 48);
@@ -105,11 +114,37 @@ void FillProgressScreen::build(ModbusClient& mbus) {
 void FillProgressScreen::update(const ControllerSnapshot& snap) {
   if (!scr_) return;
 
-  lv_label_set_text(lblState_, fillStateLabel(snap.state));
-  lv_obj_set_style_text_color(lblState_, fillStateColor(snap.state), 0);
-  lv_label_set_text_fmt(lblTime_, "%02u:%02u", snap.rtcHour, snap.rtcMinute);
+  static FillState lastState = FillState::Idle;
+  static int lastPct1000 = -1;
+  static float lastNet = 1000000.0f;
+  static float lastTarget = 1000000.0f;
+  static float lastRate = 1000000.0f;
+  static float lastCurrentAmount = 1000000.0f;
+  static float lastTargetAmount = 1000000.0f;
+  static uint16_t lastAlarmCode = 65535;
+  static CommHealth lastCommHealth = CommHealth::Offline;
+  static uint16_t lastMinute = 999;
+  static uint16_t lastDay = 999;
 
-  display_label_setf(lblNet_, "%.3f kg", snap.netWeightKg);
+  if (snap.state != lastState) {
+    ui_label_set_text_if_changed(lblState_, fillStateLabel(snap.state));
+    lv_obj_set_style_text_color(lblState_, fillStateColor(snap.state), 0);
+    lv_obj_set_style_bg_color(bar_, fillStateColor(snap.state), LV_PART_INDICATOR);
+    lastState = snap.state;
+  }
+
+  if (snap.rtcMinute != lastMinute || snap.rtcDay != lastDay) {
+    char dt[32];
+    formatRtcHeader(snap, dt, sizeof(dt));
+    ui_label_set_text_if_changed(lblTime_, dt);
+    lastMinute = snap.rtcMinute;
+    lastDay = snap.rtcDay;
+  }
+
+  if (ui_changed_by(snap.netWeightKg, lastNet, 0.005f)) {
+    ui_label_set_fmt_if_changed(lblNet_, "%.3f kg", sanitizeDisplayKg(snap.netWeightKg));
+    lastNet = snap.netWeightKg;
+  }
 
   // Progress 0–1000 (mapped from net/target)
   int pct1000 = 0;
@@ -119,17 +154,43 @@ void FillProgressScreen::update(const ControllerSnapshot& snap) {
     if (pct > 1.0f) pct = 1.0f;
     pct1000 = (int)(pct * 1000);
   }
-  lv_bar_set_value(bar_, pct1000, LV_ANIM_OFF);
-
-  // Bar color: settling = purple, slow = amber, fast = blue
-  lv_color_t barColor = fillStateColor(snap.state);
-  lv_obj_set_style_bg_color(bar_, barColor, LV_PART_INDICATOR);
-
-  display_label_setf(lblPct_, "%.1f%%", pct1000 / 10.0f);
-  display_label_setf(lblTarget_, "Target: %.3f kg", snap.targetWeightKg);
-  display_label_setf(lblRate_,   "Rate: %.2f " LV_SYMBOL_CHARGE "/kg", snap.ratePerKg);
-  display_label_setf(lblAmount_, "%.2f / %.2f " LV_SYMBOL_CHARGE,
-                     snap.currentAmount, snap.targetAmount);
+  if (pct1000 != lastPct1000) {
+    lv_bar_set_value(bar_, pct1000, LV_ANIM_OFF);
+    ui_label_set_fmt_if_changed(lblPct_, "%.1f%%", pct1000 / 10.0f);
+    lastPct1000 = pct1000;
+  }
+  if (ui_changed_by(snap.targetWeightKg, lastTarget, 0.005f)) {
+    ui_label_set_fmt_if_changed(lblTarget_, "Target: %.3f kg", sanitizeDisplayKg(snap.targetWeightKg));
+    lastTarget = snap.targetWeightKg;
+  }
+  if (ui_changed_by(snap.ratePerKg, lastRate, 0.01f)) {
+    ui_label_set_fmt_if_changed(lblRate_, "Rate: %.2f PKR/kg", snap.ratePerKg);
+    lastRate = snap.ratePerKg;
+  }
+  if (ui_changed_by(snap.currentAmount, lastCurrentAmount, 0.50f) ||
+      ui_changed_by(snap.targetAmount, lastTargetAmount, 0.50f)) {
+    ui_label_set_fmt_if_changed(lblAmount_, "%.2f / %.2f PKR",
+                                snap.currentAmount, snap.targetAmount);
+    lastCurrentAmount = snap.currentAmount;
+    lastTargetAmount = snap.targetAmount;
+  }
+  if (snap.alarmCode != lastAlarmCode || snap.commHealth != lastCommHealth) {
+    if (snap.commHealth == CommHealth::Offline || !snap.connected) {
+      ui_label_set_text_if_changed(lblStatus_, "Controller offline. Check RS485.");
+      lv_obj_set_style_text_color(lblStatus_, TC::danger(), 0);
+    } else if (snap.commHealth == CommHealth::Unstable) {
+      ui_label_set_text_if_changed(lblStatus_, "RS485 unstable. Fill continues under monitoring.");
+      lv_obj_set_style_text_color(lblStatus_, TC::warning(), 0);
+    } else if (snap.alarmCode != 0) {
+      ui_label_set_text_if_changed(lblStatus_, alarmTitle(snap.alarmCode));
+      lv_obj_set_style_text_color(lblStatus_, snap.alarmSeverity >= 3 ? TC::danger() : TC::warning(), 0);
+    } else {
+      ui_label_set_text_if_changed(lblStatus_, "Fill in progress");
+      lv_obj_set_style_text_color(lblStatus_, TC::textSub(), 0);
+    }
+    lastAlarmCode = snap.alarmCode;
+    lastCommHealth = snap.commHealth;
+  }
 }
 
 void FillProgressScreen::onStopPressed(lv_event_t* e) {

@@ -18,6 +18,7 @@ private:
   lv_obj_t* lblTarget_  = nullptr;
   lv_obj_t* lblRate_    = nullptr;
   lv_obj_t* lblAmount_  = nullptr;
+  lv_obj_t* lblStatus_  = nullptr;
   lv_obj_t* btnStop_    = nullptr;
   lv_obj_t* mboxStop_   = nullptr;
 
