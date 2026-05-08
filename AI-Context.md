@@ -23,6 +23,7 @@ The current handoff is documented in:
 
 - Active Modbus RTU addresses are 0-based holding register addresses from `firmware/lpg_controller/include/ModbusRegisterMap.h`.
 - Device ID register is holding register `0x0018`, value `0xA601`.
+- Active board resource/status registers start at `0x0051` and extend through heartbeat at `0x0076`.
 - The old `0x1001..0x1006` map is legacy only. Do not use it for display firmware or new integrations.
 - Controller production builds disable Modbus writes by default.
 - Prototype builds enable Modbus writes with `-DLPG_PROTOTYPE_BUILD=1` or `-DLPG_MODBUS_WRITES_ENABLED=1`.
@@ -85,10 +86,24 @@ These still require deliberate bench actions:
 - Force one missed RTU frame and confirm display shows `UNSTABLE`, not `OFFLINE`.
 - Interrupt controller/RS485 long enough to confirm `OFFLINE`.
 - Press Start Fill and confirm target/rate/amount/command writes plus confirm-state behavior in live logs.
+- Confirm preset sync readback logs show `Preset sync write`, `Preset sync readback`, and `Preset sync OK` on current flashed display firmware.
+- Confirm resource registers `0x0051..0x0077` return sensible values with Modbus Poll or equivalent.
 - Trigger a real fault and confirm `FaultScreen` shows the real alarm reason.
+
+## Current Implementation Notes
+
+- Display dashboard target, rate, target amount, and current amount must come from controller snapshot/registers, not draft dialog variables.
+- Draft fill values live only in the Start Fill / preset dialog until written and read back from the controller.
+- Controller webpage route `/modbus-map` serves the active register table; `/modbus.html` remains available.
+- `Application Load Percent` is a main-loop load estimate, not true CPU load.
+- `ESP32 Internal Chip Temperature` is internal die temperature, not ambient temperature.
 
 ## Change Log
 
 ### 2026-05-08 - Codex - Firmware Handoff Refresh
 
 Replaced stale SOP content with current firmware handoff pointers. Marked old controller path, old `0x1001` Modbus map, and old production WiFi defaults as stale. Added bench verification references for COM10 controller and COM8 display.
+
+### 2026-05-08 - Codex - Modbus Resource Register Sync
+
+Added controller resource/status register documentation, documented `/modbus-map`, and noted that display dashboard process values must be sourced from controller registers.

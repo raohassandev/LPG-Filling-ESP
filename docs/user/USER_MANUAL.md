@@ -523,7 +523,11 @@ See the separate [MODBUS_PROTOCOL.md](MODBUS_PROTOCOL.md) document for the compl
 - Port: **502**
 - Protocol: Modbus TCP
 - Unit ID: Any (1 recommended)
-- Holding Registers: 25 (addresses 40001–40025 in Modbus Poll notation)
+- Holding Registers: active 0-based PDU map `0x0000..0x0077`
+- Device ID: register `0x0018` returns `0xA601`
+- Resource/status registers: start at `0x0051`
+
+Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell HMI, Modbus Poll verification, or current SCADA integration.
 
 ---
 

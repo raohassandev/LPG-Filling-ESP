@@ -121,6 +121,11 @@ void WebPortal::registerRoutes() {
     if (!file) { sendJson(404, "{\"ok\":false,\"message\":\"modbus.html not found\"}"); return; }
     sendCorsHeaders(); server_.streamFile(file, "text/html"); file.close();
   });
+  server_.on("/modbus-map", HTTP_GET, [this]() {
+    File file = SPIFFS.open("/modbus.html", "r");
+    if (!file) { sendJson(404, "{\"ok\":false,\"message\":\"modbus.html not found\"}"); return; }
+    sendCorsHeaders(); server_.streamFile(file, "text/html"); file.close();
+  });
   server_.on("/api/health", HTTP_GET, [this]() { handleHealth(); });
   server_.on("/api/version", HTTP_GET, [this]() { handleVersion(); });
   server_.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
@@ -338,12 +343,12 @@ void WebPortal::handleModbusMap() {
   // Addresses shown as Modbus Poll display numbers (40001 + PDU addr).
   char buf[32];
   String body = "{\"port\":502,\"protocol\":\"ModbusTCP\","
-                "\"hrBase\":40001,\"hrCount\":" + String(kHR_Count) + ","
+                "\"hrBase\":0,\"hrCount\":" + String(kHR_Count) + ","
                 "\"coilBase\":1,\"coilCount\":" + String(kCoil_Count) + ","
                 "\"diBase\":10001,\"diCount\":" + String(kDI_Count) + ","
                 "\"registers\":{";
   for (uint16_t i = 0; i < kHR_Count; i++) {
-    const uint16_t val = readHR(i, status, transactionLog_, settingsStore_, rtcTime, false);
+    const uint16_t val = readHR(i, status, transactionLog_, settingsStore_, rtcTime, mqttService_.isConnected());
     snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, val);
     body += (i > 0 ? "," : "");
     body += buf;

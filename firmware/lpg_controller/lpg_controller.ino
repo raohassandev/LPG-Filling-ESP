@@ -22,6 +22,7 @@
 #include "ModbusRtuService.h"
 #include "MqttService.h"
 #include "SdService.h"
+#include "ResourceMonitor.h"
 
 namespace {
 BoardConfig boardConfig;
@@ -355,6 +356,7 @@ void setup() {
   transactionLog.begin();
   authService.begin();
   fillController.begin();
+  ResourceMonitor::instance().begin();
   networkManager.begin(settingsStore.snapshot());
   networkManager.connectSTA(settingsStore.snapshot().staSsid, settingsStore.snapshot().staPassword);
   // mDNS is managed entirely by NetworkManager — started/restarted via poll() on every connection
@@ -372,6 +374,7 @@ void setup() {
 }
 
 void loop() {
+  const uint32_t loopStartUs = micros();
   inputExpander.poll();
   weightService.poll();
   statusStore.setWeightStable(weightService.stable());
@@ -411,5 +414,9 @@ void loop() {
   mqttService.loop();
   pollSerialCommands();
   updateOledStatus();
+  ResourceMonitor::instance().sample(static_cast<uint16_t>(WiFi.status()),
+                                     networkManager.isSTAConnected() ? static_cast<int16_t>(WiFi.RSSI()) : 0,
+                                     mqttOk ? 1 : 0);
+  ResourceMonitor::instance().recordLoop(static_cast<uint32_t>(micros() - loopStartUs));
   delay(20);
 }

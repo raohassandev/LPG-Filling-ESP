@@ -310,7 +310,10 @@ void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
     for (uint16_t i = 0; i < qty; ++i) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
         const uint16_t val  = readU16(&data[1 + i * 2]);
-        writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_);
+        if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
+            sendException(client, mbap, kFC_WriteMultiHR, kEx_IllegalValue);
+            return;
+        }
     }
 
     // Response: MBAP(7) + FC(1) + startAddr(2) + qty(2) = 12 bytes

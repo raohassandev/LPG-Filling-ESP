@@ -6,6 +6,7 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <math.h>
 #include <string.h>
 
 static const char* TAG = "MBUS";
@@ -325,6 +326,18 @@ bool ModbusClient::confirmFillStarted(uint32_t waitMs) {
     return false;
 }
 
+bool ModbusClient::readPresetRegisters(float& targetWeightKg, float& ratePerKg, float& targetAmount) {
+    uint16_t r[6] = {};
+    if (!readHRRetry(0x0006, 6, r, 2)) return false;
+    targetWeightKg = regsToFloat(r[0], r[1]);
+    ratePerKg = regsToFloat(r[2], r[3]);
+    targetAmount = regsToFloat(r[4], r[5]);
+    snap_.targetWeightKg = targetWeightKg;
+    snap_.ratePerKg = ratePerKg;
+    snap_.targetAmount = targetAmount;
+    return true;
+}
+
 bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     bool locked = false;
     if (busMutex_) {
@@ -350,6 +363,8 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
     }
 
     const float targetAmount = targetWeightKg * ratePerKg;
+    ESP_LOGI(TAG, "Preset sync write target=%.3f rate=%.3f amount=%.3f",
+             targetWeightKg, ratePerKg, targetAmount);
     uint32_t targetBits, rateBits, amountBits;
     memcpy(&targetBits, &targetWeightKg, sizeof(targetBits));
     memcpy(&rateBits, &ratePerKg, sizeof(rateBits));
@@ -388,6 +403,29 @@ bool ModbusClient::startFill(float targetWeightKg, float ratePerKg) {
         return false;
     }
     vTaskDelay(pdMS_TO_TICKS(80));
+
+    float readTarget = 0.0f;
+    float readRate = 0.0f;
+    float readAmount = 0.0f;
+    if (!readPresetRegisters(readTarget, readRate, readAmount)) {
+        ESP_LOGW(TAG, "Start fill failed: preset readback did not get RTU response");
+        unlock();
+        return false;
+    }
+    ESP_LOGI(TAG, "Preset sync readback target=%.3f rate=%.3f amount=%.3f",
+             readTarget, readRate, readAmount);
+    const bool presetOk = fabsf(readTarget - targetWeightKg) <= 0.01f &&
+                          fabsf(readRate - ratePerKg) <= 0.05f &&
+                          fabsf(readAmount - targetAmount) <= 0.50f;
+    if (!presetOk) {
+        ESP_LOGW(TAG,
+                 "Preset sync mismatch targetWrite=%.3f targetRead=%.3f rateWrite=%.3f rateRead=%.3f amountWrite=%.3f amountRead=%.3f",
+                 targetWeightKg, readTarget, ratePerKg, readRate, targetAmount, readAmount);
+        unlock();
+        return false;
+    }
+    ESP_LOGI(TAG, "Preset sync OK");
+
     if (!writeRegisterRetry(0x0017, 1)) {
         ESP_LOGW(TAG, "Start command response missing; checking controller state");
         if (confirmFillStarted(900)) {

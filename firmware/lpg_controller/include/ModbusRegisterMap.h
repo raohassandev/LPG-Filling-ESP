@@ -124,8 +124,49 @@ constexpr uint16_t kHR_CalibrationValid  = 0x004E;  // UINT16 R  1=calibration v
 constexpr uint16_t kHR_SimulationActive  = 0x004F;  // UINT16 R  1=simulated weight active
 constexpr uint16_t kHR_AlarmSource       = 0x0050;  // UINT16 R  0=none 1=safety 2=scale 3=process 4=operator/comms
 
+// Controller board resource/status registers
+constexpr uint16_t kHR_ApplicationLoadHi = 0x0051;  // FLOAT32 R  main-loop load estimate percent
+constexpr uint16_t kHR_ApplicationLoadLo = 0x0052;
+constexpr uint16_t kHR_LoopAvgMsHi       = 0x0053;  // FLOAT32 R  milliseconds
+constexpr uint16_t kHR_LoopAvgMsLo       = 0x0054;
+constexpr uint16_t kHR_LoopMaxMsHi       = 0x0055;  // FLOAT32 R  milliseconds
+constexpr uint16_t kHR_LoopMaxMsLo       = 0x0056;
+constexpr uint16_t kHR_HeapTotalHi       = 0x0057;  // UINT32 R   bytes
+constexpr uint16_t kHR_HeapTotalLo       = 0x0058;
+constexpr uint16_t kHR_HeapFreeHi        = 0x0059;  // UINT32 R   bytes
+constexpr uint16_t kHR_HeapFreeLo        = 0x005A;
+constexpr uint16_t kHR_HeapMinFreeHi     = 0x005B;  // UINT32 R   bytes
+constexpr uint16_t kHR_HeapMinFreeLo     = 0x005C;
+constexpr uint16_t kHR_HeapFreePctHi     = 0x005D;  // FLOAT32 R  percent
+constexpr uint16_t kHR_HeapFreePctLo     = 0x005E;
+constexpr uint16_t kHR_PsramTotalHi      = 0x005F;  // UINT32 R   bytes
+constexpr uint16_t kHR_PsramTotalLo      = 0x0060;
+constexpr uint16_t kHR_PsramFreeHi       = 0x0061;  // UINT32 R   bytes
+constexpr uint16_t kHR_PsramFreeLo       = 0x0062;
+constexpr uint16_t kHR_PsramFreePctHi    = 0x0063;  // FLOAT32 R  percent
+constexpr uint16_t kHR_PsramFreePctLo    = 0x0064;
+constexpr uint16_t kHR_FlashSizeHi       = 0x0065;  // UINT32 R   bytes
+constexpr uint16_t kHR_FlashSizeLo       = 0x0066;
+constexpr uint16_t kHR_SketchSizeHi      = 0x0067;  // UINT32 R   bytes
+constexpr uint16_t kHR_SketchSizeLo      = 0x0068;
+constexpr uint16_t kHR_FreeSketchHi      = 0x0069;  // UINT32 R   bytes
+constexpr uint16_t kHR_FreeSketchLo      = 0x006A;
+constexpr uint16_t kHR_ChipTempHi        = 0x006B;  // FLOAT32 R  ESP32 internal chip temperature C
+constexpr uint16_t kHR_ChipTempLo        = 0x006C;
+constexpr uint16_t kHR_WifiRssi          = 0x006D;  // INT16 R    dBm
+constexpr uint16_t kHR_WifiStatus        = 0x006E;  // UINT16 R   ESP32 WiFi status
+constexpr uint16_t kHR_MqttClientState   = 0x006F;  // INT16 R    0 disconnected, 1 connected
+constexpr uint16_t kHR_LastResetReason   = 0x0070;  // UINT16 R   esp_reset_reason
+constexpr uint16_t kHR_FirmwareBuildMode = 0x0071;  // UINT16 R   0 production, 1 prototype, 2 development
+constexpr uint16_t kHR_RtuReqCountHi     = 0x0072;  // UINT32 R
+constexpr uint16_t kHR_RtuReqCountLo     = 0x0073;
+constexpr uint16_t kHR_RtuErrCountHi     = 0x0074;  // UINT32 R
+constexpr uint16_t kHR_RtuErrCountLo     = 0x0075;
+constexpr uint16_t kHR_HeartbeatHi       = 0x0076;  // UINT32 R
+constexpr uint16_t kHR_HeartbeatLo       = 0x0077;
+
 constexpr uint16_t kHR_Base  = kHR_LiveWeightHi;
-constexpr uint16_t kHR_Count = 0x0051;  // 81 registers (0x0000-0x0050)
+constexpr uint16_t kHR_Count = 0x0078;  // 120 registers (0x0000-0x0077)
 
 // ── Coil PDU addresses (FC01/FC05) ───────────────────────────────────────
 constexpr uint16_t kCoil_EstopOk        = 0x0000;  // R   emergency stop OK

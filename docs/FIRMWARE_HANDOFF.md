@@ -46,6 +46,7 @@ Important modules:
 - `include/ModbusRegisterMap.h` - active 0-based Modbus register addresses
 - `src/ModbusRegisterMap.cpp` - Modbus read/write behavior and production/prototype write gating
 - `src/ModbusRtuService.cpp` - Modbus RTU server
+- `src/ResourceMonitor.cpp` - controller runtime/resource monitor exposed through Modbus
 - `src/FillController.cpp` - filling state machine
 - `src/SettingsStore.cpp` - NVS/Preferences settings
 - `src/NetworkManager.cpp` - WiFi AP/STA management
@@ -201,35 +202,36 @@ PY
 
 The active Modbus map is 0-based and defined in `firmware/lpg_controller/include/ModbusRegisterMap.h`.
 
-Use these PDU addresses with Function 03/04/06/16. If a tool displays 40001-style addresses, display address is `40001 + PDU address`.
+Use these PDU addresses with Function 03/04/06/16. Some Modbus tools display Holding Register addresses as 40001 + PDU address.
+
+Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell HMI, Modbus Poll verification, or current SCADA integration.
 
 Critical registers:
 
-| PDU | 40001-style | Name | Type | Access |
-|---|---:|---|---|---|
-| `0x0000` | 40001 | Live Weight Hi | FLOAT32 Hi | R |
-| `0x0001` | 40002 | Live Weight Lo | FLOAT32 Lo | R |
-| `0x0004` | 40005 | Net Weight Hi | FLOAT32 Hi | R |
-| `0x0005` | 40006 | Net Weight Lo | FLOAT32 Lo | R |
-| `0x0006` | 40007 | Target Weight Hi | FLOAT32 Hi | R/W in prototype |
-| `0x0007` | 40008 | Target Weight Lo | FLOAT32 Lo | R/W in prototype |
-| `0x0008` | 40009 | Rate Hi | FLOAT32 Hi | R/W in prototype |
-| `0x0009` | 40010 | Rate Lo | FLOAT32 Lo | R/W in prototype |
-| `0x000A` | 40011 | Target Amount Hi | FLOAT32 Hi | R/W in prototype |
-| `0x000B` | 40012 | Target Amount Lo | FLOAT32 Lo | R/W in prototype |
-| `0x000E` | 40015 | Fill State | UINT16 | R |
-| `0x000F` | 40016 | E-stop OK | UINT16 | R |
-| `0x0010` | 40017 | Cylinder Present | UINT16 | R |
-| `0x0011` | 40018 | Nozzle Engaged | UINT16 | R |
-| `0x0012` | 40019 | Weight Stable | UINT16 | R |
-| `0x0017` | 40024 | Command | UINT16 | W in prototype |
-| `0x0018` | 40025 | Device ID | UINT16 | R, value `0xA601` |
-| `0x0048` | 40073 | Alarm Code | UINT16 | R |
-| `0x0049` | 40074 | Alarm Severity | UINT16 | R |
-| `0x004A` | 40075 | Readiness Mask | UINT16 | R |
-| `0x004B` | 40076 | Blocker Mask | UINT16 | R |
+| Decimal Address | Hex Address | Name | Type | Access | Registers |
+|---:|---|---|---|---|---:|
+| 0000 | `0x0000` | Live Weight | Float32 | R | 2 |
+| 0006 | `0x0006` | Target Weight | Float32 | RW in prototype | 2 |
+| 0008 | `0x0008` | Rate Per Kg | Float32 | RW in prototype | 2 |
+| 0010 | `0x000A` | Target Amount | Float32 | RW in prototype | 2 |
+| 0012 | `0x000C` | Current Amount | Float32 | R | 2 |
+| 0014 | `0x000E` | Fill State | UINT16 | R | 1 |
+| 0023 | `0x0017` | Command | UINT16 | W in prototype | 1 |
+| 0024 | `0x0018` | Device ID | UINT16 | R, `0xA601` | 1 |
+| 0072 | `0x0048` | Alarm Code | UINT16 | R | 1 |
+| 0074 | `0x004A` | Readiness Mask | UINT16 | R | 1 |
+| 0075 | `0x004B` | Blocker Mask | UINT16 | R | 1 |
+| 0081 | `0x0051` | Application Load Percent | Float32 | R | 2 |
+| 0087 | `0x0057` | Heap Total Memory | UINT32 | R | 2 |
+| 0089 | `0x0059` | Heap Free Memory | UINT32 | R | 2 |
+| 0107 | `0x006B` | ESP32 Internal Chip Temperature | Float32 | R | 2 |
+| 0109 | `0x006D` | WiFi RSSI | INT16 | R | 1 |
+| 0110 | `0x006E` | WiFi Status | UINT16 | R | 1 |
+| 0114 | `0x0072` | Modbus RTU Request Count | UINT32 | R | 2 |
+| 0116 | `0x0074` | Modbus RTU Error Count | UINT32 | R | 2 |
+| 0118 | `0x0076` | Controller Heartbeat Counter | UINT32 | R | 2 |
 
-The old `0x1001..0x1006` prototype/TCP map is stale for display work. Do not use it for current firmware.
+The full table is in `docs/user/MODBUS_PROTOCOL.md` and the controller webpage route `/modbus-map`.
 
 ## Display Controller Link / RS485 Settings
 

@@ -1,6 +1,15 @@
 # Current Modbus RTU Map
 
-This is the active display-to-controller Modbus RTU map. Addresses are 0-based PDU holding-register addresses.
+This is a compact pointer to the active display-to-controller Modbus RTU map. The full source of truth is:
+
+- Firmware source: `firmware/lpg_controller/include/ModbusRegisterMap.h`
+- Register behavior: `firmware/lpg_controller/src/ModbusRegisterMap.cpp`
+- User manual table: `docs/user/MODBUS_PROTOCOL.md`
+- Controller webpage: `/modbus-map` or `/modbus.html`
+
+Addresses are 0-based PDU holding-register addresses. Some Modbus tools display Holding Register addresses as 40001 + PDU address.
+
+Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell HMI, Modbus Poll verification, or current SCADA integration.
 
 ## Link Settings
 
@@ -12,39 +21,32 @@ This is the active display-to-controller Modbus RTU map. Addresses are 0-based P
 | Controller RX/TX | GPIO14 / GPIO27 |
 | Display RX/TX | GPIO43 / GPIO44 |
 
-## Core Registers
+## Key Registers
 
-| Address | Name | Type | Access |
-| --- | --- | --- | --- |
-| `0x0000..0x0001` | Live weight kg | FLOAT32 | R |
-| `0x0002..0x0003` | Tare weight kg | FLOAT32 | R/W |
-| `0x0004..0x0005` | Net weight kg | FLOAT32 | R |
-| `0x0006..0x0007` | Target weight kg | FLOAT32 | R/W |
-| `0x0008..0x0009` | Rate per kg | FLOAT32 | R/W |
-| `0x000A..0x000B` | Target amount | FLOAT32 | R/W |
-| `0x000C..0x000D` | Current amount | FLOAT32 | R |
-| `0x000E` | Fill state | UINT16 | R |
-| `0x000F` | E-stop OK | UINT16 | R |
-| `0x0010` | Cylinder present | UINT16 | R |
-| `0x0011` | Nozzle engaged | UINT16 | R |
-| `0x0012` | Weight stable | UINT16 | R |
-| `0x0017` | Command | UINT16 | W |
-| `0x0019` | RTU slave address | UINT16 | R/W |
-| `0x001A..0x001B` | RTU baud | UINT32 | R/W |
-| `0x001C` | RTU parity | UINT16 | R/W |
-| `0x001D` | RTU stop bits | UINT16 | R/W |
-| `0x0020..0x0025` | RTC Y/M/D/H/M/S | UINT16 | R/W |
-| `0x0026..0x0027` | RTC Unix timestamp | UINT32 | R/W |
-| `0x0030..0x0035` | Today stats | mixed | R |
-| `0x0048` | Alarm code | UINT16 | R |
-| `0x0049` | Alarm severity | UINT16 | R |
-| `0x004A` | Readiness mask | UINT16 | R |
-| `0x004B` | Blocker mask | UINT16 | R |
-| `0x004C` | Scale initialized | UINT16 | R |
-| `0x004D` | Scale read error | UINT16 | R |
-| `0x004E` | Calibration valid | UINT16 | R |
-| `0x004F` | Simulation active | UINT16 | R |
-| `0x0050` | Alarm source | UINT16 | R |
+| Decimal Address | Hex Address | Description | Data Type | Access | Number of Registers |
+|---:|---|---|---|---|---:|
+| 0000 | 0x0000 | Live Weight | Float32 | R | 2 |
+| 0006 | 0x0006 | Target Weight | Float32 | RW | 2 |
+| 0008 | 0x0008 | Rate Per Kg | Float32 | RW | 2 |
+| 0010 | 0x000A | Target Amount | Float32 | RW | 2 |
+| 0012 | 0x000C | Current Amount | Float32 | R | 2 |
+| 0014 | 0x000E | Fill State | UINT16 | R | 1 |
+| 0023 | 0x0017 | Command | UINT16 | W | 1 |
+| 0024 | 0x0018 | Device ID | UINT16 | R | 1 |
+| 0072 | 0x0048 | Alarm Code | UINT16 | R | 1 |
+| 0074 | 0x004A | Readiness Mask | UINT16 | R | 1 |
+| 0075 | 0x004B | Blocker Mask | UINT16 | R | 1 |
+| 0081 | 0x0051 | Application Load Percent | Float32 | R | 2 |
+| 0087 | 0x0057 | Heap Total Memory | UINT32 | R | 2 |
+| 0089 | 0x0059 | Heap Free Memory | UINT32 | R | 2 |
+| 0107 | 0x006B | ESP32 Internal Chip Temperature | Float32 | R | 2 |
+| 0109 | 0x006D | WiFi RSSI | INT16 | R | 1 |
+| 0110 | 0x006E | WiFi Status | UINT16 | R | 1 |
+| 0114 | 0x0072 | Modbus RTU Request Count | UINT32 | R | 2 |
+| 0116 | 0x0074 | Modbus RTU Error Count | UINT32 | R | 2 |
+| 0118 | 0x0076 | Controller Heartbeat Counter | UINT32 | R | 2 |
+
+Device ID register `0x0018` must return `0xA601`. If a signed Modbus Poll view shows `-23039`, that is the signed representation of `0xA601`, not an error.
 
 Command register `0x0017`:
 
@@ -55,4 +57,4 @@ Command register `0x0017`:
 | `3` | Reset |
 | `4` | Zero net |
 
-Do not use the old `0x1001` prototype map for the display.
+Production builds reject Modbus writes unless writes are explicitly enabled. Prototype builds use `-DLPG_PROTOTYPE_BUILD=1` to enable preset and command writes.

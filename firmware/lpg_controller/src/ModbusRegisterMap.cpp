@@ -1,4 +1,5 @@
 #include "ModbusRegisterMap.h"
+#include "ResourceMonitor.h"
 
 // Production default is read-only. Enable writes explicitly with either:
 //   -DLPG_MODBUS_WRITES_ENABLED=1
@@ -19,6 +20,11 @@ void floatToRegs(float f, uint16_t& hi, uint16_t& lo) {
     memcpy(&bits, &f, sizeof(bits));
     hi = static_cast<uint16_t>(bits >> 16);
     lo = static_cast<uint16_t>(bits & 0xFFFF);
+}
+
+void uint32ToRegs(uint32_t value, uint16_t& hi, uint16_t& lo) {
+    hi = static_cast<uint16_t>((value >> 16) & 0xFFFF);
+    lo = static_cast<uint16_t>(value & 0xFFFF);
 }
 
 float regsToFloat(uint16_t hi, uint16_t lo) {
@@ -257,6 +263,46 @@ uint16_t ModbusRegisterMap::readHR(uint16_t addr, const StatusSnapshot& status,
         case kHR_CalibrationValid: return status.calibrationValid ? 1 : 0;
         case kHR_SimulationActive: return status.simulationActive ? 1 : 0;
         case kHR_AlarmSource:      return alarmSource(status);
+
+        case kHR_ApplicationLoadHi: { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.applicationLoadPercent, hi, lo); return hi; }
+        case kHR_ApplicationLoadLo: { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.applicationLoadPercent, hi, lo); return lo; }
+        case kHR_LoopAvgMsHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.mainLoopAverageMs, hi, lo); return hi; }
+        case kHR_LoopAvgMsLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.mainLoopAverageMs, hi, lo); return lo; }
+        case kHR_LoopMaxMsHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.mainLoopMaximumMs, hi, lo); return hi; }
+        case kHR_LoopMaxMsLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.mainLoopMaximumMs, hi, lo); return lo; }
+        case kHR_HeapTotalHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapTotalBytes, hi, lo); return hi; }
+        case kHR_HeapTotalLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapTotalBytes, hi, lo); return lo; }
+        case kHR_HeapFreeHi:        { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapFreeBytes, hi, lo); return hi; }
+        case kHR_HeapFreeLo:        { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapFreeBytes, hi, lo); return lo; }
+        case kHR_HeapMinFreeHi:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapMinFreeBytes, hi, lo); return hi; }
+        case kHR_HeapMinFreeLo:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heapMinFreeBytes, hi, lo); return lo; }
+        case kHR_HeapFreePctHi:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.heapFreePercent, hi, lo); return hi; }
+        case kHR_HeapFreePctLo:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.heapFreePercent, hi, lo); return lo; }
+        case kHR_PsramTotalHi:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.psramTotalBytes, hi, lo); return hi; }
+        case kHR_PsramTotalLo:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.psramTotalBytes, hi, lo); return lo; }
+        case kHR_PsramFreeHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.psramFreeBytes, hi, lo); return hi; }
+        case kHR_PsramFreeLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.psramFreeBytes, hi, lo); return lo; }
+        case kHR_PsramFreePctHi:    { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.psramFreePercent, hi, lo); return hi; }
+        case kHR_PsramFreePctLo:    { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.psramFreePercent, hi, lo); return lo; }
+        case kHR_FlashSizeHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.flashSizeBytes, hi, lo); return hi; }
+        case kHR_FlashSizeLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.flashSizeBytes, hi, lo); return lo; }
+        case kHR_SketchSizeHi:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.sketchSizeBytes, hi, lo); return hi; }
+        case kHR_SketchSizeLo:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.sketchSizeBytes, hi, lo); return lo; }
+        case kHR_FreeSketchHi:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.freeSketchBytes, hi, lo); return hi; }
+        case kHR_FreeSketchLo:      { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.freeSketchBytes, hi, lo); return lo; }
+        case kHR_ChipTempHi:        { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.chipTemperatureC, hi, lo); return hi; }
+        case kHR_ChipTempLo:        { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); floatToRegs(r.chipTemperatureC, hi, lo); return lo; }
+        case kHR_WifiRssi:          return static_cast<uint16_t>(ResourceMonitor::instance().snapshot().wifiRssiDbm);
+        case kHR_WifiStatus:        return ResourceMonitor::instance().snapshot().wifiStatus;
+        case kHR_MqttClientState:   return static_cast<uint16_t>(ResourceMonitor::instance().snapshot().mqttClientState);
+        case kHR_LastResetReason:   return ResourceMonitor::instance().snapshot().lastResetReason;
+        case kHR_FirmwareBuildMode: return ResourceMonitor::instance().snapshot().firmwareBuildMode;
+        case kHR_RtuReqCountHi:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.modbusRtuRequestCount, hi, lo); return hi; }
+        case kHR_RtuReqCountLo:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.modbusRtuRequestCount, hi, lo); return lo; }
+        case kHR_RtuErrCountHi:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.modbusRtuErrorCount, hi, lo); return hi; }
+        case kHR_RtuErrCountLo:     { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.modbusRtuErrorCount, hi, lo); return lo; }
+        case kHR_HeartbeatHi:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heartbeatCounter, hi, lo); return hi; }
+        case kHR_HeartbeatLo:       { const ResourceSnapshot r = ResourceMonitor::instance().snapshot(); uint32ToRegs(r.heartbeatCounter, hi, lo); return lo; }
 
         default: return 0;
     }

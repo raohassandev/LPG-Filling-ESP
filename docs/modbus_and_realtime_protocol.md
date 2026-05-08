@@ -11,6 +11,8 @@ This project now has two Modbus surfaces:
 
 The display firmware uses the RTU map in `firmware/lpg_controller/include/ModbusRegisterMap.h`, with 0-based holding register addresses. Do not use the older `0x1001` prototype map for the display firmware.
 
+Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell HMI, Modbus Poll verification, or current SCADA integration.
+
 Known-good RTU settings:
 
 | Item | Display | Controller |
@@ -42,7 +44,7 @@ Delivery debugging rule: if the display says "Controller offline Check RS485" du
 
 ## Legacy Modbus TCP Prototype Map
 
-Legacy reference only. The `0x1001` map below is the older Modbus TCP/prototype integration map. It is retained only for third-party clients that already use it. The display firmware does not use this map, and new HMI/SCADA clients should use the active `0x0000..0x0050` map below.
+Legacy reference only. The `0x1001` map below is the older Modbus TCP/prototype integration map. It is retained only for third-party clients that already use it. The display firmware does not use this map, and new HMI/SCADA clients should use the active `0x0000..0x0077` map below.
 
 Supported functions in the older TCP map:
 
@@ -155,6 +157,28 @@ FLOAT32 values are IEEE-754 high word first.
 | `0x004E` | Calibration Valid | UINT16 | R | `1` = calibration valid |
 | `0x004F` | Simulation Active | UINT16 | R | `1` = simulated weight active |
 | `0x0050` | Alarm Source | UINT16 | R | `0` none, `1` safety, `2` scale, `3` process, `4` operator/comms |
+| `0x0051..0x0052` | Application Load Percent | FLOAT32 | R | Main-loop load estimate percent, not true CPU load |
+| `0x0053..0x0054` | Main Loop Average Time | FLOAT32 | R | milliseconds |
+| `0x0055..0x0056` | Main Loop Maximum Time | FLOAT32 | R | milliseconds |
+| `0x0057..0x0058` | Heap Total Memory | UINT32 | R | bytes |
+| `0x0059..0x005A` | Heap Free Memory | UINT32 | R | bytes |
+| `0x005B..0x005C` | Heap Minimum Free Memory | UINT32 | R | bytes |
+| `0x005D..0x005E` | Heap Free Percent | FLOAT32 | R | percent |
+| `0x005F..0x0060` | PSRAM Total Memory | UINT32 | R | bytes |
+| `0x0061..0x0062` | PSRAM Free Memory | UINT32 | R | bytes |
+| `0x0063..0x0064` | PSRAM Free Percent | FLOAT32 | R | percent |
+| `0x0065..0x0066` | Flash Size | UINT32 | R | bytes |
+| `0x0067..0x0068` | Firmware Sketch Size | UINT32 | R | bytes |
+| `0x0069..0x006A` | Free Sketch Space | UINT32 | R | bytes |
+| `0x006B..0x006C` | ESP32 Internal Chip Temperature | FLOAT32 | R | die temperature, not ambient |
+| `0x006D` | WiFi RSSI | INT16 | R | dBm |
+| `0x006E` | WiFi Status | UINT16 | R | ESP32 WiFi.status() value |
+| `0x006F` | MQTT Client State | INT16 | R | `0` disconnected, `1` connected |
+| `0x0070` | Last Reset Reason | UINT16 | R | esp_reset_reason value |
+| `0x0071` | Firmware Build Mode | UINT16 | R | `0` production, `1` prototype, `2` development |
+| `0x0072..0x0073` | Modbus RTU Request Count | UINT32 | R | valid handled RTU requests |
+| `0x0074..0x0075` | Modbus RTU Error Count | UINT32 | R | CRC/exception error count |
+| `0x0076..0x0077` | Controller Heartbeat Counter | UINT32 | R | increments from main loop |
 
 Alarm codes:
 
@@ -180,7 +204,8 @@ Display START sequence:
 1. Write target weight FLOAT32 to `0x0006..0x0007` using FC16.
 2. Write rate FLOAT32 to `0x0008..0x0009` using FC16.
 3. Write amount FLOAT32 to `0x000A..0x000B` using FC16.
-4. Write command `1` to `0x0017` using FC06.
+4. Read back target/rate/amount from `0x0006`, `0x0008`, and `0x000A`.
+5. Write command `1` to `0x0017` using FC06 only after readback matches.
 
 The display must hold the Modbus bus mutex across the whole sequence so background polling cannot interleave with START writes.
 
@@ -197,7 +222,7 @@ Controller START prerequisites:
 - Scale calibration valid.
 - Transaction log can create a record.
 
-Readiness icons on the display cover visible safety inputs and stability, while the alarm panel now shows controller diagnostics from `0x0048..0x0050`. If START is rejected, first read `Alarm Code`, `Blocker Mask`, `Scale Initialized`, `Scale Read Error`, `Calibration Valid`, and `Simulation Active`; then use controller serial `hx` and `start 12 250` only if the register values are not enough.
+Readiness icons on the display cover visible safety inputs and stability, while the alarm panel now shows controller diagnostics from `0x0048..0x0050`. Controller resource registers are available from `0x0051..0x0077`. If START is rejected, first read `Alarm Code`, `Blocker Mask`, `Scale Initialized`, `Scale Read Error`, `Calibration Valid`, and `Simulation Active`; then use controller serial `hx` and `start 12 250` only if the register values are not enough.
 
 ## HTTP API
 

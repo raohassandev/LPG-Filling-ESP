@@ -1,5 +1,6 @@
 #include "ModbusRtuService.h"
 #include "ModbusRegisterMap.h"
+#include "ResourceMonitor.h"
 
 using namespace ModbusRegisterMap;
 
@@ -16,6 +17,24 @@ uint32_t serialConfig(uint8_t parity, uint8_t stopBits) {
     const uint8_t si = (stopBits == 2) ? 1 : 0;
     const uint8_t pi = (parity  >  2)  ? 0 : parity;
     return kSerialConfig[si][pi];
+}
+
+uint16_t expectedRequestLength(const uint8_t* buf, uint16_t len) {
+    if (len < 2) return 0;
+    switch (buf[1]) {
+        case 0x01:
+        case 0x02:
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+            return 8;
+        case 0x10:
+            if (len < 7) return 0;
+            return static_cast<uint16_t>(9 + buf[6]);
+        default:
+            return 0;
+    }
 }
 
 }  // namespace
@@ -57,9 +76,25 @@ void ModbusRtuService::handleClient() {
         if (rxLen_ < kRxBufSize) {
             rxBuf_[rxLen_++] = static_cast<uint8_t>(uart_.read());
         } else {
-            uart_.read(); // overflow — discard
+            uart_.read(); // overflow - discard
+            ResourceMonitor::instance().incrementRtuError();
         }
         lastByteMs_ = millis();
+    }
+
+    while (true) {
+        const uint16_t expected = expectedRequestLength(rxBuf_, rxLen_);
+        if (expected == 0 || rxLen_ < expected) break;
+
+        const uint16_t savedLen = rxLen_;
+        rxLen_ = expected;
+        processFrame();
+
+        const uint16_t remaining = static_cast<uint16_t>(savedLen - expected);
+        if (remaining > 0) {
+            memmove(rxBuf_, rxBuf_ + expected, remaining);
+        }
+        rxLen_ = remaining;
     }
 
     // Frame ends after kFrameGapMs silence and minimum 4 bytes (addr+FC+CRC16)
@@ -82,6 +117,7 @@ void ModbusRtuService::processFrame() {
     const uint16_t calcCrc  = crc16(rxBuf_, rxLen_ - 2);
     if (rxCrc != calcCrc) {
         Serial.printf("[RTU] CRC error: rx=0x%04X calc=0x%04X\n", rxCrc, calcCrc);
+        ResourceMonitor::instance().incrementRtuError();
         return;
     }
 
@@ -96,6 +132,7 @@ void ModbusRtuService::processFrame() {
     bool ok = dispatchFC(fc, pduReq, pduLen, &respBuf[2], respPduLen);
 
     if (!ok) {
+        ResourceMonitor::instance().incrementRtuError();
         // Exception response: addr(1) + (FC|0x80)(1) + exCode(1) + CRC(2)
         // respBuf[2] already holds the exception code written by the handler via resp[0]
         respBuf[1] = fc | 0x80;
@@ -105,6 +142,8 @@ void ModbusRtuService::processFrame() {
         if (addr != kBroadcastAddr) sendResponse(respBuf, 5);
         return;
     }
+
+    ResourceMonitor::instance().incrementRtuRequest();
 
     respBuf[1] = fc;
     const uint16_t totalLen = 2 + respPduLen; // addr + FC + pdu
@@ -259,7 +298,11 @@ bool ModbusRtuService::handleFC16(const uint8_t* req, uint8_t* resp, uint16_t& r
     for (uint16_t i = 0; i < qty; i++) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
         const uint16_t val  = (static_cast<uint16_t>(data[i*2]) << 8) | data[i*2+1];
-        writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_);
+        if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
+            resp[0] = 0x03;
+            respLen = 1;
+            return false;
+        }
     }
     resp[0] = req[0]; resp[1] = req[1]; resp[2] = req[2]; resp[3] = req[3];
     respLen = 4;

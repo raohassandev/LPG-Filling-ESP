@@ -104,6 +104,7 @@ private:
                                 uint8_t attempts = 0);
     bool     writeRegistersRetry(uint16_t startReg, const uint16_t* values,
                                  uint16_t count, uint8_t attempts = 0);
+    bool     readPresetRegisters(float& targetWeightKg, float& ratePerKg, float& targetAmount);
     bool     confirmFillStarted(uint32_t waitMs = 900);
     void     noteCommOk();
     void     noteCommFail();

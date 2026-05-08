@@ -214,6 +214,9 @@ static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b
       || fne(a.liveWeightKg, b.liveWeightKg)
       || fne(a.tareWeightKg, b.tareWeightKg)
       || fne(a.netWeightKg,  b.netWeightKg)
+      || fne(a.targetWeightKg, b.targetWeightKg, 0.01f)
+      || fne(a.ratePerKg, b.ratePerKg, 0.05f)
+      || fne(a.targetAmount, b.targetAmount, 0.5f)
       || fne(a.currentAmount, b.currentAmount, 0.5f)
       || a.rtcHour         != b.rtcHour
       || a.rtcMinute       != b.rtcMinute
@@ -438,14 +441,10 @@ void DashboardScreen::build(ModbusClient& mbus) {
     lv_label_set_long_mode(*fpVals[i], LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_font(*fpVals[i], TF::xl(), 0);
     lv_obj_set_style_text_color(*fpVals[i], i < 2 ? TC::active() : TC::ready(), 0);
-    lv_label_set_text(*fpVals[i], i == 0 ? "12.0" : i == 1 ? "250" : "0");
+    lv_label_set_text(*fpVals[i], "0");
     lv_obj_align(*fpVals[i], LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    if (i < 2) {
-      lv_obj_add_flag(*fpCells[i], LV_OBJ_FLAG_CLICKABLE);
-      lv_obj_set_user_data(*fpCells[i], (void*)(uintptr_t)i);
-      lv_obj_add_event_cb(*fpCells[i], onFpCellTapped, LV_EVENT_CLICKED, this);
-    }
+    lv_obj_clear_flag(*fpCells[i], LV_OBJ_FLAG_CLICKABLE);
   }
 
   // ── Left column: Today stats card (x=16, y=334) ───────────────────────────
@@ -646,9 +645,10 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   display_label_setf(lblTodayAmt_,  "%.0f",    snap.todayAmount);
   if (snap.ratePerKg > 0.0f) lastRatePerKg_ = snap.ratePerKg;
 
+  display_label_setf(lblTarget_, "%.1f", sanitizeDisplayKg(snap.targetWeightKg));
+  display_label_setf(lblRate_, "%.0f", snap.ratePerKg);
   if (lblAmount_) {
-    display_label_setf(lblAmount_, "%.0f",
-                       snap.currentAmount > 0.0f ? snap.currentAmount : snap.todayAmount);
+    display_label_setf(lblAmount_, "%.0f/%.0f", snap.currentAmount, snap.targetAmount);
   }
 
   updateAlert(snap, fullRefresh);
@@ -812,10 +812,6 @@ void DashboardScreen::updateDialogLabels() {
     display_label_setf(lblDialogTarget_, "%.0f kg", dialogTargetKg_);
   if (lblDialogRate_)
     display_label_setf(lblDialogRate_, "%.0f PKR", dialogRatePerKg_);
-  if (lblTarget_)
-    display_label_setf(lblTarget_, "%.1f", dialogTargetKg_);
-  if (lblRate_)
-    display_label_setf(lblRate_, "%.0f", dialogRatePerKg_);
 }
 
 void DashboardScreen::closeStartDialog() {
@@ -1040,14 +1036,13 @@ void DashboardScreen::onNumKbEvent(lv_event_t* e) {
     if (self->numField_ == 0) {
       if (val > 0.0f) {
         self->dialogTargetKg_ = val;
-        if (self->lblTarget_) display_label_setf(self->lblTarget_, "%.1f", val);
       }
     } else {
       if (val > 0.0f) {
         self->dialogRatePerKg_ = val;
-        if (self->lblRate_) display_label_setf(self->lblRate_, "%.0f", val);
       }
     }
+    self->updateDialogLabels();
   }
   self->closeNumOverlay();
 }

@@ -39,7 +39,7 @@ The immediate goal is a minimal, demonstrable prototype. Full cloud, multi-site 
 
 - Active display/HMI integration uses Modbus RTU over RS485.
 - Active register addresses are 0-based and live in `firmware/lpg_controller/include/ModbusRegisterMap.h`.
-- Live, tare, net, target, rate, amount, state, readiness, RTC, stats, and alarm diagnostics are exposed in the `0x0000..0x0050` range.
+- Live, tare, net, target, rate, amount, state, readiness, RTC, stats, alarm diagnostics, and controller resource/status values are exposed in the `0x0000..0x0077` range.
 - The old `0x1001..0x1006` TCP prototype map is legacy reference only and must not be used for current display firmware.
 - The firmware also serves optional Modbus TCP on port `502`.
 
