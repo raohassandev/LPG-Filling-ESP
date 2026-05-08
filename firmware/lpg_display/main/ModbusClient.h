@@ -32,6 +32,14 @@ struct ControllerSnapshot {
     uint16_t  rtcHour         = 0;
     uint16_t  rtcMinute       = 0;
     uint16_t  rtcSecond       = 0;
+    uint16_t  rtcYear         = 0;
+    uint16_t  rtcMonth        = 0;
+    uint16_t  rtcDay          = 0;
+
+    uint16_t  alarmCode       = 0;
+    uint16_t  alarmSeverity   = 0;
+    uint16_t  readinessMask   = 0;
+    uint16_t  blockerMask     = 0;
 
     bool      valid           = false;
     bool      connected       = false;
@@ -60,10 +68,12 @@ private:
     int64_t lastFastUs_ = 0;
     int64_t lastSlowUs_ = 0;
     int64_t lastStatUs_ = 0;
+    int64_t lastDiagUs_ = 0;
 
     static constexpr int64_t kFastUs = 200000;
     static constexpr int64_t kSlowUs = 2000000;
     static constexpr int64_t kStatUs = 5000000;
+    static constexpr int64_t kDiagUs = 1000000;
     static constexpr int     kTimeoutMs = 150;
 
     bool     readHR(uint16_t start, uint16_t count, uint16_t* out);

@@ -886,25 +886,58 @@ String WebPortal::statusJson() const {
   // Composite readiness for UI — mirrors FillController::startFill() checks
   {
     bool ready = true;
+    uint16_t readinessMask = 0;
+    uint16_t blockerMask = 0;
     String blockers = "[";
     bool first = true;
-    auto addBlocker = [&](const char* b) {
+    auto addBlocker = [&](const char* b, uint16_t bit) {
       if (!first) blockers += ",";
       blockers += "\""; blockers += b; blockers += "\"";
+      blockerMask |= bit;
       first = false; ready = false;
     };
-    if (status.state == ProcessState::Fault)        addBlocker("active_fault");
-    if (!status.emergencyStopOk)                    addBlocker("estop_active");
-    if (!status.cylinderPresent)                    addBlocker("cylinder_missing");
-    if (!status.nozzleEngaged)                      addBlocker("nozzle_not_engaged");
-    if (!weightService_.initialized())              addBlocker("scale_not_initialized");
-    if (weightService_.readFailed())                addBlocker("scale_read_error");
-    if (!status.weightStable)                       addBlocker("scale_unstable");
-    if (!weightService_.calibrationValid())         addBlocker("scale_not_calibrated");
-    if (weightService_.simActive())                 addBlocker("simulation_active");
+    if (status.emergencyStopOk)             readinessMask |= (1U << 0);
+    if (status.cylinderPresent)             readinessMask |= (1U << 1);
+    if (status.nozzleEngaged)               readinessMask |= (1U << 2);
+    if (status.weightStable)                readinessMask |= (1U << 3);
+    if (weightService_.calibrationValid())  readinessMask |= (1U << 4);
+    if (weightService_.initialized() && !weightService_.readFailed()) readinessMask |= (1U << 5);
+    if (status.state == ProcessState::Fault)        addBlocker("active_fault",          1U << 0);
+    if (!status.emergencyStopOk)                    addBlocker("estop_active",          1U << 1);
+    if (!status.cylinderPresent)                    addBlocker("cylinder_missing",      1U << 2);
+    if (!status.nozzleEngaged)                      addBlocker("nozzle_not_engaged",    1U << 3);
+    if (!weightService_.initialized())              addBlocker("scale_not_initialized", 1U << 4);
+    if (weightService_.readFailed())                addBlocker("scale_read_error",      1U << 5);
+    if (!status.weightStable)                       addBlocker("scale_unstable",        1U << 6);
+    if (!weightService_.calibrationValid())         addBlocker("scale_not_calibrated",  1U << 7);
+    if (weightService_.simActive())                 addBlocker("simulation_active",     1U << 8);
     blockers += "]";
+    const bool readinessRequired = status.state == ProcessState::Idle ||
+                                   status.state == ProcessState::Ready ||
+                                   status.state == ProcessState::Validating ||
+                                   status.state == ProcessState::FillingFast ||
+                                   status.state == ProcessState::FillingSlow ||
+                                   status.state == ProcessState::Settling;
+    uint16_t alarmCode = 0;
+    if (!status.emergencyStopOk) alarmCode = 1;
+    else if (status.lastReasonCode == "nozzle_disengaged" || (readinessRequired && !status.nozzleEngaged)) alarmCode = 2;
+    else if (readinessRequired && !status.cylinderPresent) alarmCode = 3;
+    else if (weightService_.readFailed()) alarmCode = 4;
+    else if (readinessRequired && !status.weightStable && (status.state == ProcessState::Idle || status.state == ProcessState::Ready)) alarmCode = 5;
+    else if (readinessRequired && !weightService_.calibrationValid()) alarmCode = 6;
+    else if (status.lastReasonCode == "overfill") alarmCode = 7;
+    else if (status.lastReasonCode == "fill_timeout") alarmCode = 8;
+    else if (status.lastReasonCode == "no_flow") alarmCode = 9;
+    else if (status.lastReasonCode == "transaction_log_failed") alarmCode = 10;
+    else if (status.lastReasonCode == "operator_stop" || status.lastReasonCode == "serial_stop" || status.lastReasonCode == "modbus_stop") alarmCode = 11;
+    else if (status.state == ProcessState::Fault) alarmCode = 12;
+    const uint16_t alarmSeverity = (alarmCode == 0) ? 0 : ((alarmCode == 1 || alarmCode == 4 || alarmCode >= 7) ? 3 : 2);
     body += "\"readyToFill\":" + jsonBool(ready) + ",";
     body += "\"blockers\":" + blockers + ",";
+    body += "\"readinessMask\":" + String(readinessMask) + ",";
+    body += "\"blockerMask\":" + String(blockerMask) + ",";
+    body += "\"alarmCode\":" + String(alarmCode) + ",";
+    body += "\"alarmSeverity\":" + String(alarmSeverity) + ",";
   }
   body += "\"relays\":[";
   for (uint8_t i = 0; i < 6; ++i) {

@@ -351,6 +351,8 @@ void loop() {
   inputExpander.poll();
   weightService.poll();
   statusStore.setWeightStable(weightService.stable());
+  statusStore.setScaleHealth(weightService.initialized(), weightService.readFailed(),
+                             weightService.calibrationValid(), weightService.simActive());
 
   const ProcessState prevState = statusStore.snapshot().state;
   fillController.tick();

@@ -48,6 +48,78 @@ bool isFillActive(ProcessState s) {
 }
 
 // Day-of-week from Y/M/D (Tomohiko Sakamoto's algorithm), returns 0=Sun…6=Sat
+uint16_t alarmCode(const StatusSnapshot& s) {
+    using namespace ModbusRegisterMap;
+    const bool readinessRequired =
+        s.state == ProcessState::Idle ||
+        s.state == ProcessState::Ready ||
+        s.state == ProcessState::Validating ||
+        s.state == ProcessState::FillingFast ||
+        s.state == ProcessState::FillingSlow ||
+        s.state == ProcessState::Settling;
+    if (!s.emergencyStopOk || s.lastReasonCode == "emergency_stop") return kAlarm_EmergencyStop;
+    if (s.lastReasonCode == "nozzle_disengaged" || (readinessRequired && !s.nozzleEngaged)) return kAlarm_NozzleDisengaged;
+    if (readinessRequired && !s.cylinderPresent) return kAlarm_CylinderMissing;
+    if (s.lastReasonCode == "scale_read_error" || s.weightReadError) return kAlarm_ScaleReadError;
+    if (readinessRequired && !s.weightStable && (s.state == ProcessState::Idle || s.state == ProcessState::Ready)) return kAlarm_ScaleNotStable;
+    if (readinessRequired && !s.calibrationValid) return kAlarm_ScaleNotCalibrated;
+    if (s.lastReasonCode == "overfill") return kAlarm_Overfill;
+    if (s.lastReasonCode == "fill_timeout") return kAlarm_FillTimeout;
+    if (s.lastReasonCode == "no_flow") return kAlarm_NoFlow;
+    if (s.lastReasonCode == "transaction_log_failed") return kAlarm_TransactionLog;
+    if (s.lastReasonCode == "operator_stop" || s.lastReasonCode == "serial_stop" || s.lastReasonCode == "modbus_stop") return kAlarm_OperatorStop;
+    if (s.state == ProcessState::Fault) return kAlarm_ActiveFault;
+    return kAlarm_None;
+}
+
+uint16_t alarmSeverity(const StatusSnapshot& s) {
+    const uint16_t code = alarmCode(s);
+    if (code == ModbusRegisterMap::kAlarm_None) return 0;
+    if (s.state == ProcessState::Fault || code == ModbusRegisterMap::kAlarm_EmergencyStop ||
+        code == ModbusRegisterMap::kAlarm_Overfill || code == ModbusRegisterMap::kAlarm_NoFlow ||
+        code == ModbusRegisterMap::kAlarm_FillTimeout) return 3;
+    if (s.state == ProcessState::Complete) return 1;
+    return 2;
+}
+
+uint16_t readinessMask(const StatusSnapshot& s) {
+    uint16_t m = 0;
+    if (s.emergencyStopOk)    m |= (1u << 0);
+    if (s.cylinderPresent)    m |= (1u << 1);
+    if (s.nozzleEngaged)      m |= (1u << 2);
+    if (s.weightStable)       m |= (1u << 3);
+    if (s.calibrationValid)   m |= (1u << 4);
+    if (s.weightInitialized && !s.weightReadError) m |= (1u << 5);
+    return m;
+}
+
+uint16_t blockerMask(const StatusSnapshot& s) {
+    uint16_t m = 0;
+    if (s.state == ProcessState::Fault) m |= (1u << 0);
+    if (!s.emergencyStopOk)             m |= (1u << 1);
+    if (!s.cylinderPresent)             m |= (1u << 2);
+    if (!s.nozzleEngaged)               m |= (1u << 3);
+    if (!s.weightInitialized)           m |= (1u << 4);
+    if (s.weightReadError)              m |= (1u << 5);
+    if (!s.weightStable)                m |= (1u << 6);
+    if (!s.calibrationValid)            m |= (1u << 7);
+    if (s.simulationActive)             m |= (1u << 8);
+    return m;
+}
+
+uint16_t alarmSource(const StatusSnapshot& s) {
+    const uint16_t code = alarmCode(s);
+    if (code == ModbusRegisterMap::kAlarm_None) return 0;
+    if (code == ModbusRegisterMap::kAlarm_EmergencyStop ||
+        code == ModbusRegisterMap::kAlarm_NozzleDisengaged ||
+        code == ModbusRegisterMap::kAlarm_CylinderMissing) return 1;
+    if (code == ModbusRegisterMap::kAlarm_ScaleReadError ||
+        code == ModbusRegisterMap::kAlarm_ScaleNotStable ||
+        code == ModbusRegisterMap::kAlarm_ScaleNotCalibrated) return 2;
+    if (code == ModbusRegisterMap::kAlarm_OperatorStop) return 4;
+    return 3;
+}
+
 uint8_t dayOfWeek(uint16_t y, uint8_t m, uint8_t d) {
     static const int t[] = {0,3,2,5,0,3,5,1,4,6,2,4};
     if (m < 3) y--;
@@ -170,6 +242,16 @@ uint16_t ModbusRegisterMap::readHR(uint16_t addr, const StatusSnapshot& status,
         case kHR_StatYearKgLo:   floatToRegs(txnLog.computeStats().yearKg,     hi, lo); return lo;
         case kHR_StatYearAmtHi:  floatToRegs(txnLog.computeStats().yearAmount, hi, lo); return hi;
         case kHR_StatYearAmtLo:  floatToRegs(txnLog.computeStats().yearAmount, hi, lo); return lo;
+
+        case kHR_AlarmCode:        return alarmCode(status);
+        case kHR_AlarmSeverity:    return alarmSeverity(status);
+        case kHR_ReadinessMask:    return readinessMask(status);
+        case kHR_BlockerMask:      return blockerMask(status);
+        case kHR_ScaleInitialized: return status.weightInitialized ? 1 : 0;
+        case kHR_ScaleReadError:   return status.weightReadError ? 1 : 0;
+        case kHR_CalibrationValid: return status.calibrationValid ? 1 : 0;
+        case kHR_SimulationActive: return status.simulationActive ? 1 : 0;
+        case kHR_AlarmSource:      return alarmSource(status);
 
         default: return 0;
     }

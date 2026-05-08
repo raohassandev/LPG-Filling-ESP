@@ -71,9 +71,24 @@ void ModbusClient::poll() {
         lastSlowUs_ = now;
         uint16_t r[6] = {};
         if (readHR(0x0020, 6, r)) {
+            snap_.rtcYear   = r[0];
+            snap_.rtcMonth  = r[1];
+            snap_.rtcDay    = r[2];
             snap_.rtcHour   = r[3];
             snap_.rtcMinute = r[4];
             snap_.rtcSecond = r[5];
+        }
+    }
+
+    // Diagnostics / alarm summary (regs 0x0048-0x004B)
+    if (now - lastDiagUs_ >= kDiagUs) {
+        lastDiagUs_ = now;
+        uint16_t r[4] = {};
+        if (readHR(0x0048, 4, r)) {
+            snap_.alarmCode     = r[0];
+            snap_.alarmSeverity = r[1];
+            snap_.readinessMask = r[2];
+            snap_.blockerMask   = r[3];
         }
     }
 

@@ -55,6 +55,13 @@ void StatusStore::setEmergencyStopOk(bool ok) { status_.emergencyStopOk = ok; }
 
 void StatusStore::setWeightStable(bool stable) { status_.weightStable = stable; }
 
+void StatusStore::setScaleHealth(bool initialized, bool readError, bool calibrationValid, bool simulationActive) {
+  status_.weightInitialized = initialized;
+  status_.weightReadError = readError;
+  status_.calibrationValid = calibrationValid;
+  status_.simulationActive = simulationActive;
+}
+
 void StatusStore::setReasonCode(const String& code) { status_.lastReasonCode = code; }
 
 StatusSnapshot StatusStore::snapshot() const {

@@ -281,6 +281,39 @@ PDU addresses are **0x0000-based**. In Modbus Poll "4-digit" mode the display of
 
 ---
 
+### Section 5e - Diagnostics and Alarms (0x0048-0x0050)
+
+| MP | PDU | Name | Type | Description |
+|----|-----|------|------|-------------|
+| 40073 | 0x0048 | Alarm Code | UINT16 | See alarm-code table below |
+| 40074 | 0x0049 | Alarm Severity | UINT16 | 0=None, 1=Info, 2=Warning, 3=Alarm/Fault |
+| 40075 | 0x004A | Readiness Mask | UINT16 | bit0 E-stop OK, bit1 Cylinder, bit2 Nozzle, bit3 Stable, bit4 Calibrated, bit5 Scale ready |
+| 40076 | 0x004B | Blocker Mask | UINT16 | bit0 Fault, bit1 E-stop, bit2 Cylinder, bit3 Nozzle, bit4 Scale init, bit5 Scale read, bit6 Stable, bit7 Calibration, bit8 Simulation |
+| 40077 | 0x004C | Scale Initialized | UINT16 | 1=HX711 initialized |
+| 40078 | 0x004D | Scale Read Error | UINT16 | 1=Scale read failed |
+| 40079 | 0x004E | Calibration Valid | UINT16 | 1=Calibration factor is valid |
+| 40080 | 0x004F | Simulation Active | UINT16 | 1=Simulated weight mode active |
+| 40081 | 0x0050 | Alarm Source | UINT16 | 0=None, 1=Safety, 2=Scale, 3=Process, 4=Operator/Comms |
+
+| Code | Alarm | Severity | Meaning |
+|------|-------|----------|---------|
+| 0 | None | 0 | No active alarm |
+| 1 | Emergency stop active | 3 | Emergency push button is pressed |
+| 2 | Nozzle disengaged | 2 | Nozzle lock/engage input is not active |
+| 3 | Cylinder missing | 2 | Cylinder-present input is not active |
+| 4 | Scale read error | 3 | HX711/load cell read failed |
+| 5 | Scale not stable | 2 | Weight must settle before START |
+| 6 | Scale not calibrated | 2 | Calibration factor is missing or invalid |
+| 7 | Overfill | 3 | Fill exceeded target/safety limit |
+| 8 | Fill timeout | 3 | Fill ran beyond allowed time |
+| 9 | No flow | 3 | Fill active but weight did not increase |
+| 10 | Transaction log fault | 3 | Controller could not record transaction |
+| 11 | Operator stop | 3 | Stop command came from operator, serial, or Modbus |
+| 12 | Active controller fault | 3 | Fault state without a more specific reason |
+| 13 | Controller offline | 3 | Display-local alarm when controller polling fails |
+
+---
+
 ### 6.2 Command Register (40024 / 0x0017)
 
 Write a command value using FC06. The register always reads back 0.

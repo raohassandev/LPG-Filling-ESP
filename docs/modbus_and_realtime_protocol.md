@@ -146,6 +146,34 @@ FLOAT32 values are IEEE-754 high word first.
 | `0x001D` | RTU Stop Bits | UINT16 | R/W | `1` or `2` |
 | `0x0020..0x0025` | RTC Y/M/D/H/M/S | UINT16 | R/W | writing second commits date/time |
 | `0x0030..0x0035` | Today Stats | mixed | R | completed, failed, kg, amount |
+| `0x0048` | Alarm Code | UINT16 | R | see alarm table below |
+| `0x0049` | Alarm Severity | UINT16 | R | `0` none, `1` info, `2` warning, `3` alarm/fault |
+| `0x004A` | Readiness Mask | UINT16 | R | bit0 E-stop OK, bit1 cylinder, bit2 nozzle, bit3 stable, bit4 calibrated, bit5 scale ready |
+| `0x004B` | Blocker Mask | UINT16 | R | bit0 fault, bit1 E-stop, bit2 cylinder, bit3 nozzle, bit4 scale init, bit5 read, bit6 stable, bit7 calibration, bit8 simulation |
+| `0x004C` | Scale Initialized | UINT16 | R | `1` = HX711 initialized |
+| `0x004D` | Scale Read Error | UINT16 | R | `1` = scale read failed |
+| `0x004E` | Calibration Valid | UINT16 | R | `1` = calibration valid |
+| `0x004F` | Simulation Active | UINT16 | R | `1` = simulated weight active |
+| `0x0050` | Alarm Source | UINT16 | R | `0` none, `1` safety, `2` scale, `3` process, `4` operator/comms |
+
+Alarm codes:
+
+| Code | Meaning | Typical cause / display text |
+| --- | --- | --- |
+| `0` | None | System ready or no active alarm |
+| `1` | Emergency stop active | Emergency push button is pressed |
+| `2` | Nozzle disengaged | Nozzle lock/engage input is not active |
+| `3` | Cylinder missing | Cylinder-present input is not active |
+| `4` | Scale read error | HX711/load cell read failed |
+| `5` | Scale not stable | Weight is still settling before start |
+| `6` | Scale not calibrated | Calibration factor invalid or missing |
+| `7` | Overfill | Fill exceeded target/safety limit |
+| `8` | Fill timeout | Fill ran beyond allowed time |
+| `9` | No flow | Fill active but weight did not increase |
+| `10` | Transaction log fault | Controller could not create/update transaction |
+| `11` | Operator stop | Fill was stopped by operator, serial, or Modbus |
+| `12` | Active controller fault | Controller is in fault state without a more specific code |
+| `13` | Controller offline | Display-local alarm when RS485/TCP polling fails |
 
 Display START sequence:
 
@@ -169,7 +197,7 @@ Controller START prerequisites:
 - Scale calibration valid.
 - Transaction log can create a record.
 
-Readiness icons on the display cover only the visible safety inputs and stability. They do not prove calibration validity or transaction-log health; use controller serial `hx` and `start 12 250` when START is rejected.
+Readiness icons on the display cover visible safety inputs and stability, while the alarm panel now shows controller diagnostics from `0x0048..0x0050`. If START is rejected, first read `Alarm Code`, `Blocker Mask`, `Scale Initialized`, `Scale Read Error`, `Calibration Valid`, and `Simulation Active`; then use controller serial `hx` and `start 12 250` only if the register values are not enough.
 
 ## HTTP API
 

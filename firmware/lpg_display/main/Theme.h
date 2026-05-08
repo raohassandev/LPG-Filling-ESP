@@ -2,19 +2,19 @@
 #include "lvgl.h"
 
 namespace TC {
-    static inline lv_color_t bg()       { return lv_color_hex(0x0f1117); }
-    static inline lv_color_t surface()  { return lv_color_hex(0x1a1d27); }
-    static inline lv_color_t surface2() { return lv_color_hex(0x222633); }
-    static inline lv_color_t border()   { return lv_color_hex(0x2a2d3a); }
-    static inline lv_color_t text()     { return lv_color_hex(0xf0f2f5); }
-    static inline lv_color_t textSub()  { return lv_color_hex(0x9ca3af); }
-    static inline lv_color_t muted()    { return lv_color_hex(0x6b7280); }
-    static inline lv_color_t ready()    { return lv_color_hex(0x10b981); }
+    static inline lv_color_t bg()       { return lv_color_hex(0x111315); }
+    static inline lv_color_t surface()  { return lv_color_hex(0x1b2024); }
+    static inline lv_color_t surface2() { return lv_color_hex(0x252b30); }
+    static inline lv_color_t border()   { return lv_color_hex(0x3a424a); }
+    static inline lv_color_t text()     { return lv_color_hex(0xf4f6f8); }
+    static inline lv_color_t textSub()  { return lv_color_hex(0xb8c0c8); }
+    static inline lv_color_t muted()    { return lv_color_hex(0x717b85); }
+    static inline lv_color_t ready()    { return lv_color_hex(0x22c55e); }
     static inline lv_color_t warning()  { return lv_color_hex(0xf59e0b); }
-    static inline lv_color_t danger()   { return lv_color_hex(0xef4444); }
-    static inline lv_color_t active()   { return lv_color_hex(0x3b82f6); }
-    static inline lv_color_t settling() { return lv_color_hex(0x8b5cf6); }
-    static inline lv_color_t complete() { return lv_color_hex(0x10b981); }
+    static inline lv_color_t danger()   { return lv_color_hex(0xdc2626); }
+    static inline lv_color_t active()   { return lv_color_hex(0x0f9f8f); }
+    static inline lv_color_t settling() { return lv_color_hex(0x7c3aed); }
+    static inline lv_color_t complete() { return lv_color_hex(0x14b8a6); }
     static inline lv_color_t white()    { return lv_color_hex(0xffffff); }
     static inline lv_color_t black()    { return lv_color_hex(0x000000); }
 }

@@ -33,7 +33,23 @@ static const char* stateLabel(FillState s) {
 
 static const char* alertTitle(const ControllerSnapshot& s) {
   if (!s.connected) return "Controller link lost";
+  switch (s.alarmCode) {
+    case 1:  return "Emergency stop active";
+    case 2:  return "Nozzle disengaged";
+    case 3:  return "Cylinder not detected";
+    case 4:  return "Scale read error";
+    case 5:  return "Scale is still settling";
+    case 6:  return "Scale not calibrated";
+    case 7:  return "Overfill alarm";
+    case 8:  return "Fill timeout";
+    case 9:  return "No flow detected";
+    case 10: return "Transaction log fault";
+    case 11: return "Fill stopped";
+    case 12: return "Controller fault active";
+    default: break;
+  }
   if (!s.eStopOk) return "Emergency stop active";
+  if (s.state == FillState::Complete) return "Fill complete";
   if (!s.cylinderPresent) return "Cylinder not detected";
   if (!s.nozzleEngaged) return "Nozzle not engaged";
   if (!s.weightStable && (s.state == FillState::Idle || s.state == FillState::Ready))
@@ -48,7 +64,23 @@ static const char* alertTitle(const ControllerSnapshot& s) {
 
 static const char* alertBody(const ControllerSnapshot& s) {
   if (!s.connected) return "Check RS485 wiring and controller power.";
+  switch (s.alarmCode) {
+    case 1:  return "Release emergency push button, then press RESET.";
+    case 2:  return "Lock the nozzle before starting or continuing fill.";
+    case 3:  return "Place cylinder correctly on the platform.";
+    case 4:  return "Check HX711 wiring, load cell and calibration.";
+    case 5:  return "Wait until the scale is stable before starting.";
+    case 6:  return "Run scale calibration before delivery operation.";
+    case 7:  return "Outputs are safe. Inspect cylinder and reset.";
+    case 8:  return "Fill exceeded allowed time. Inspect flow path.";
+    case 9:  return "No weight gain detected. Check valve, nozzle and supply.";
+    case 10: return "Storage could not record transaction. Check SPIFFS/SD.";
+    case 11: return "Press RESET to return the controller to idle.";
+    case 12: return "Inspect the active controller fault, then press RESET.";
+    default: break;
+  }
   if (!s.eStopOk) return "Release the emergency push button, then press RESET.";
+  if (s.state == FillState::Complete) return "Transaction closed. Press RESET before the next fill if needed.";
   if (!s.cylinderPresent) return "Place cylinder correctly on the platform.";
   if (!s.nozzleEngaged) return "Connect nozzle securely before filling.";
   if (!s.weightStable && (s.state == FillState::Idle || s.state == FillState::Ready))
@@ -63,6 +95,8 @@ static const char* alertBody(const ControllerSnapshot& s) {
 
 static lv_color_t alertColor(const ControllerSnapshot& s) {
   if (!s.connected || s.state == FillState::Fault || !s.eStopOk) return TC::danger();
+  if (s.alarmSeverity >= 3) return TC::danger();
+  if (s.alarmSeverity == 2 || s.alarmCode != 0) return TC::warning();
   if (s.state == FillState::Aborted || !s.cylinderPresent || !s.nozzleEngaged || !s.weightStable) return TC::warning();
   if (s.state == FillState::Complete) return TC::complete();
   return TC::ready();
@@ -178,6 +212,13 @@ static bool snapChanged(const ControllerSnapshot& a, const ControllerSnapshot& b
       || a.rtcHour         != b.rtcHour
       || a.rtcMinute       != b.rtcMinute
       || a.rtcSecond       != b.rtcSecond
+      || a.rtcYear         != b.rtcYear
+      || a.rtcMonth        != b.rtcMonth
+      || a.rtcDay          != b.rtcDay
+      || a.alarmCode       != b.alarmCode
+      || a.alarmSeverity   != b.alarmSeverity
+      || a.readinessMask   != b.readinessMask
+      || a.blockerMask     != b.blockerMask
       || a.todayFills      != b.todayFills
       || fne(a.todayKg,     b.todayKg, 0.05f)
       || fne(a.todayAmount, b.todayAmount, 0.5f);
@@ -246,13 +287,13 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_add_event_cb(btnWifi, onWifiPressed, LV_EVENT_CLICKED, this);
 
   lblTime_ = lv_label_create(bar);
-  lv_label_set_text(lblTime_, "--:--");
-  lv_obj_set_size(lblTime_, 76, 28);
+  lv_label_set_text(lblTime_, "--/-- --:--");
+  lv_obj_set_size(lblTime_, 108, 28);
   lv_label_set_long_mode(lblTime_, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(lblTime_, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_font(lblTime_, TF::lg(), 0);
+  lv_obj_set_style_text_font(lblTime_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblTime_, TC::textSub(), 0);
-  lv_obj_set_pos(lblTime_, 500, 15);
+  lv_obj_set_pos(lblTime_, 496, 18);
 
   lblMbus_ = lv_label_create(bar);
   lv_label_set_text(lblMbus_, LV_SYMBOL_CLOSE " RTU");
@@ -261,12 +302,12 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_obj_set_style_text_align(lblMbus_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(lblMbus_, TF::sm(), 0);
   lv_obj_set_style_text_color(lblMbus_, TC::danger(), 0);
-  lv_obj_set_pos(lblMbus_, 576, 18);
+  lv_obj_set_pos(lblMbus_, 606, 18);
 
   // Role button (password-protected role selector)
   btnRole_ = Theme::button(bar, LV_SYMBOL_SETTINGS,
-                            TC::surface2(), TC::textSub(), 138, 34);
-  lv_obj_set_pos(btnRole_, 644, 12);
+                            TC::surface2(), TC::textSub(), 118, 34);
+  lv_obj_set_pos(btnRole_, 666, 12);
   lv_obj_add_event_cb(btnRole_, onRolePressed, LV_EVENT_CLICKED, this);
   // Update the button label text after creation (child 0 of btn is the label)
   lblRoleBtn_ = lv_obj_get_child(btnRole_, 0);
@@ -535,17 +576,21 @@ void DashboardScreen::update(const ControllerSnapshot& snap) {
   }
 
   // Time
-  if (fullRefresh || snap.rtcHour != prev.rtcHour || snap.rtcMinute != prev.rtcMinute || snap.rtcSecond != prev.rtcSecond) {
-    if (snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
+  if (fullRefresh || snap.rtcYear != prev.rtcYear || snap.rtcMonth != prev.rtcMonth ||
+      snap.rtcDay != prev.rtcDay || snap.rtcHour != prev.rtcHour ||
+      snap.rtcMinute != prev.rtcMinute || snap.rtcSecond != prev.rtcSecond) {
+    if (snap.rtcMonth >= 1 && snap.rtcMonth <= 12 && snap.rtcDay >= 1 && snap.rtcDay <= 31 &&
+        snap.rtcHour <= 23 && snap.rtcMinute <= 59 &&
         (snap.rtcHour != 0 || snap.rtcMinute != 0 || snap.rtcSecond != 0)) {
-      setLabelFmtIfChanged(lblTime_, "%02u:%02u:%02u", snap.rtcHour, snap.rtcMinute, snap.rtcSecond);
+      setLabelFmtIfChanged(lblTime_, "%02u/%02u %02u:%02u",
+                           snap.rtcDay, snap.rtcMonth, snap.rtcHour, snap.rtcMinute);
     } else {
-      setLabelTextIfChanged(lblTime_, "--:--:--");
+      setLabelTextIfChanged(lblTime_, "--/-- --:--");
     }
   }
 
   if (fullRefresh || snap.connected != prev.connected) {
-    setLabelTextIfChanged(lblMbus_, snap.connected ? LV_SYMBOL_OK " RTU" : LV_SYMBOL_CLOSE " RTU");
+    setLabelTextIfChanged(lblMbus_, snap.connected ? LV_SYMBOL_OK " MB" : LV_SYMBOL_CLOSE " MB");
     lv_obj_set_style_text_color(lblMbus_, snap.connected ? TC::ready() : TC::danger(), 0);
   }
 

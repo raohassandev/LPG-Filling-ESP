@@ -113,8 +113,19 @@ constexpr uint16_t kHR_StatYearKgLo      = 0x0045;
 constexpr uint16_t kHR_StatYearAmtHi     = 0x0046;
 constexpr uint16_t kHR_StatYearAmtLo     = 0x0047;
 
+// Diagnostics / alarm summary
+constexpr uint16_t kHR_AlarmCode         = 0x0048;  // UINT16 R  see kAlarm_* values
+constexpr uint16_t kHR_AlarmSeverity     = 0x0049;  // UINT16 R  0=none 1=info 2=warning 3=alarm/fault
+constexpr uint16_t kHR_ReadinessMask     = 0x004A;  // UINT16 R  bit0 estop bit1 cyl bit2 nozzle bit3 stable bit4 cal bit5 scale ready
+constexpr uint16_t kHR_BlockerMask       = 0x004B;  // UINT16 R  bit0 fault bit1 estop bit2 cyl bit3 nozzle bit4 scale init bit5 read bit6 stable bit7 cal bit8 sim
+constexpr uint16_t kHR_ScaleInitialized  = 0x004C;  // UINT16 R  1=HX711 initialized
+constexpr uint16_t kHR_ScaleReadError    = 0x004D;  // UINT16 R  1=read error
+constexpr uint16_t kHR_CalibrationValid  = 0x004E;  // UINT16 R  1=calibration valid
+constexpr uint16_t kHR_SimulationActive  = 0x004F;  // UINT16 R  1=simulated weight active
+constexpr uint16_t kHR_AlarmSource       = 0x0050;  // UINT16 R  0=none 1=safety 2=scale 3=process 4=operator/comms
+
 constexpr uint16_t kHR_Base  = kHR_LiveWeightHi;
-constexpr uint16_t kHR_Count = 0x0048;  // 72 registers (0x0000–0x0047)
+constexpr uint16_t kHR_Count = 0x0051;  // 81 registers (0x0000-0x0050)
 
 // ── Coil PDU addresses (FC01/FC05) ───────────────────────────────────────
 constexpr uint16_t kCoil_EstopOk        = 0x0000;  // R   emergency stop OK
@@ -154,6 +165,22 @@ constexpr uint16_t kFillState_Complete  = 6;
 constexpr uint16_t kFillState_Aborted   = 7;
 constexpr uint16_t kFillState_Fault     = 8;
 constexpr uint16_t kFillState_Maintenance = 9;
+
+// kHR_AlarmCode values
+constexpr uint16_t kAlarm_None               = 0;
+constexpr uint16_t kAlarm_EmergencyStop      = 1;
+constexpr uint16_t kAlarm_NozzleDisengaged   = 2;
+constexpr uint16_t kAlarm_CylinderMissing    = 3;
+constexpr uint16_t kAlarm_ScaleReadError     = 4;
+constexpr uint16_t kAlarm_ScaleNotStable     = 5;
+constexpr uint16_t kAlarm_ScaleNotCalibrated = 6;
+constexpr uint16_t kAlarm_Overfill           = 7;
+constexpr uint16_t kAlarm_FillTimeout        = 8;
+constexpr uint16_t kAlarm_NoFlow             = 9;
+constexpr uint16_t kAlarm_TransactionLog     = 10;
+constexpr uint16_t kAlarm_OperatorStop       = 11;
+constexpr uint16_t kAlarm_ActiveFault        = 12;
+constexpr uint16_t kAlarm_ControllerOffline  = 13; // display-local only
 
 // ── Register access functions ─────────────────────────────────────────────
 

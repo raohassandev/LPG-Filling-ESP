@@ -32,6 +32,10 @@ struct StatusSnapshot {
   bool cylinderPresent = false;
   bool emergencyStopOk = true;
   bool weightStable = false;
+  bool weightInitialized = false;
+  bool weightReadError = false;
+  bool calibrationValid = false;
+  bool simulationActive = false;
   String lastReasonCode;
   unsigned long uptimeMs = 0;
 };
@@ -50,6 +54,7 @@ class StatusStore {
   void setCylinderPresent(bool present);
   void setEmergencyStopOk(bool ok);
   void setWeightStable(bool stable);
+  void setScaleHealth(bool initialized, bool readError, bool calibrationValid, bool simulationActive);
   void setReasonCode(const String& code);
   StatusSnapshot snapshot() const;
 
