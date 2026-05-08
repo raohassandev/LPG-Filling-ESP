@@ -320,6 +320,28 @@ void DashboardScreen::build(ModbusClient& mbus) {
   lv_label_set_text(lblRoleBtn_, LV_SYMBOL_SETTINGS " OPERATOR");
   lv_obj_set_style_text_font(lblRoleBtn_, TF::sm(), 0);
 
+  // Physical touch can be slightly offset near the top edge. Add transparent
+  // hit zones after all header labels so WiFi/role taps are always on top.
+  lv_obj_t* wifiHit = lv_obj_create(bar);
+  lv_obj_set_size(wifiHit, 64, 58);
+  lv_obj_set_pos(wifiHit, 432, 0);
+  lv_obj_set_style_bg_opa(wifiHit, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(wifiHit, 0, 0);
+  lv_obj_set_style_pad_all(wifiHit, 0, 0);
+  lv_obj_clear_flag(wifiHit, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(wifiHit, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(wifiHit, onWifiPressed, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* roleHit = lv_obj_create(bar);
+  lv_obj_set_size(roleHit, 146, 58);
+  lv_obj_set_pos(roleHit, 646, 0);
+  lv_obj_set_style_bg_opa(roleHit, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(roleHit, 0, 0);
+  lv_obj_set_style_pad_all(roleHit, 0, 0);
+  lv_obj_clear_flag(roleHit, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(roleHit, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(roleHit, onRolePressed, LV_EVENT_CLICKED, this);
+
   // ── Left column: Weight card (x=16, y=68, 460×258) ──────────────────────────
   lv_obj_t* wCard = lv_obj_create(scr_);
   lv_obj_set_size(wCard, 460, 198);

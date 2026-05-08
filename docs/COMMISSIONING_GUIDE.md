@@ -80,3 +80,18 @@ GET /api/commissioning
 ```
 
 The export intentionally excludes WiFi and MQTT passwords.
+
+## 6. Relay Pulse Test
+
+For maintenance-only output verification:
+
+```text
+POST /api/relay/test-pulse?relay=1&durationMs=500
+```
+
+Rules:
+
+- `relay` is 1-based: `1..6`.
+- `durationMs` defaults to `500` and is capped at `2000`.
+- The request is rejected during active fill, validation, or settling.
+- All relays are forced off after the pulse.

@@ -135,6 +135,7 @@ void WebPortal::registerRoutes() {
   server_.on("/api/transactions", HTTP_GET, [this]() { handleTransactions(); });
   server_.on("/api/transactions.csv", HTTP_GET, [this]() { handleTransactionsCsv(); });
   server_.on("/api/relay", HTTP_POST, [this]() { handleSetRelay(); });
+  server_.on("/api/relay/test-pulse", HTTP_POST, [this]() { handleRelayTestPulse(); });
   server_.on("/api/start", HTTP_POST, [this]() { handleStart(); });
   server_.on("/api/stop", HTTP_POST, [this]() { handleStop(); });
   server_.on("/api/reset", HTTP_POST, [this]() { handleReset(); });
@@ -413,6 +414,43 @@ void WebPortal::handleSetRelay() {
   }
 
   sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+void WebPortal::handleRelayTestPulse() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  const StatusSnapshot status = statusStore_.snapshot();
+  if (status.state == ProcessState::FillingFast || status.state == ProcessState::FillingSlow ||
+      status.state == ProcessState::Settling || status.state == ProcessState::Validating) {
+    sendJson(409, "{\"ok\":false,\"message\":\"relay pulse blocked during active fill\"}");
+    return;
+  }
+
+  const int index = server_.arg("relay").toInt() - 1;
+  uint16_t durationMs = static_cast<uint16_t>(server_.arg("durationMs").toInt());
+  if (index < 0 || index >= BoardConfig::kRelayCount) {
+    sendJson(400, "{\"ok\":false,\"message\":\"invalid relay; use 1-6\"}");
+    return;
+  }
+  if (durationMs == 0) durationMs = 500;
+  if (durationMs > 2000) {
+    sendJson(400, "{\"ok\":false,\"message\":\"durationMs max is 2000\"}");
+    return;
+  }
+
+  const uint8_t relay = static_cast<uint8_t>(index);
+  bool ok = relayBank_.writeAllSafe();
+  for (uint8_t i = 0; i < BoardConfig::kRelayCount; ++i) statusStore_.setRelay(i, false);
+  ok = ok && relayBank_.writeRelay(relay, true);
+  statusStore_.setRelay(relay, ok);
+  if (ok) delay(durationMs);
+  relayBank_.writeAllSafe();
+  for (uint8_t i = 0; i < BoardConfig::kRelayCount; ++i) statusStore_.setRelay(i, false);
+  eventLog_.append("WARN", "relay_test", "Relay " + String(relay + 1) + " pulse " + String(durationMs) + "ms");
+
+  String body = "{\"ok\":";
+  body += jsonBool(ok);
+  body += ",\"relay\":" + String(relay + 1) + ",\"durationMs\":" + String(durationMs) + "}";
+  sendJson(ok ? 200 : 500, body);
 }
 
 void WebPortal::handleStart() {

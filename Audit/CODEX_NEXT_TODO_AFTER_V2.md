@@ -125,7 +125,7 @@ Acceptance:
 
 Goal: make RS485 status visible and serviceable from display UI.
 
-**Status:** Pending. ModbusClient now supports saved RTU settings and runtime apply/reconnect, but the Admin UI screen is not built yet.
+**Status:** Implemented. The tab is available under Admin Settings -> Controller Link, with status, RTU fields, Save & Reconnect, and Test Link.
 
 Minimum UI:
 
@@ -308,3 +308,5 @@ Do after Phase 2 builds cleanly:
 - `POST /api/io/mapping`.
 - Relay pulse test with safety locks.
 - RTC validity/lost-power Modbus flags after current map end only.
+
+**Status update:** Relay pulse test with safety locks is implemented as `POST /api/relay/test-pulse`. Configurable input mapping, HX711 wizard polish, and RTC status Modbus flags remain pending.

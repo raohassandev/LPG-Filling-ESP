@@ -52,6 +52,7 @@ class WebPortal {
   void handleTransactions();
   void handleTransactionsCsv();
   void handleSetRelay();
+  void handleRelayTestPulse();
   void handleStart();
   void handleStop();
   void handleReset();
