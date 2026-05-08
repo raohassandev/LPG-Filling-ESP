@@ -85,6 +85,9 @@ private:
     int64_t lastSlowUs_ = 0;
     int64_t lastStatUs_ = 0;
     int64_t lastDiagUs_ = 0;
+    bool    bootDeviceIdChecked_ = false;
+    CommHealth lastLoggedHealth_ = CommHealth::Offline;
+    bool    healthLogged_ = false;
 
     static constexpr int64_t kFastUs = 200000;
     static constexpr int64_t kSlowUs = 2000000;
@@ -105,6 +108,7 @@ private:
     void     noteCommOk();
     void     noteCommFail();
     void     updateCommHealth();
+    void     logHealthIfChanged();
     bool     sendRecv(const uint8_t* req, int reqLen, uint8_t* resp, int expectLen);
     uint16_t crc16(const uint8_t* data, int len);
     static float regsToFloat(uint16_t hi, uint16_t lo);

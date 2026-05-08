@@ -72,6 +72,8 @@ void ModbusClient::applySettings(const DisplayRtuSettings& rtu) {
     snap_.connected = false;
     snap_.valid = false;
     snap_.commHealth = CommHealth::Offline;
+    bootDeviceIdChecked_ = false;
+    healthLogged_ = false;
 
     if (locked && busMutex_) xSemaphoreGiveRecursive(busMutex_);
     ESP_LOGI(TAG, "Applied RTU slave=%u baud=%lu parity=%u stop=%u timeout=%u retries=%u",
@@ -103,6 +105,7 @@ void ModbusClient::updateCommHealth() {
     if (snap_.lastOkUs == 0 || (now - snap_.lastOkUs) > offlineUs) {
         snap_.connected = false;
         snap_.commHealth = CommHealth::Offline;
+        logHealthIfChanged();
         return;
     }
     snap_.connected = true;
@@ -110,10 +113,34 @@ void ModbusClient::updateCommHealth() {
                        (snap_.lastFailUs > 0 && (now - snap_.lastFailUs) < unstableUs))
                        ? CommHealth::Unstable
                        : CommHealth::Online;
+    logHealthIfChanged();
+}
+
+void ModbusClient::logHealthIfChanged() {
+    if (healthLogged_ && snap_.commHealth == lastLoggedHealth_) return;
+    lastLoggedHealth_ = snap_.commHealth;
+    healthLogged_ = true;
+    const char* text = "OFFLINE";
+    if (snap_.commHealth == CommHealth::Online) text = "ONLINE";
+    else if (snap_.commHealth == CommHealth::Unstable) text = "UNSTABLE";
+    ESP_LOGI(TAG, "RTU health=%s ok=%u fail=%u last_ok_us=%lld last_fail_us=%lld",
+             text, snap_.commOkStreak, snap_.commFailStreak,
+             static_cast<long long>(snap_.lastOkUs),
+             static_cast<long long>(snap_.lastFailUs));
 }
 
 void ModbusClient::poll() {
     const int64_t now = now_us();
+
+    if (!bootDeviceIdChecked_ && now > 3000000) {
+        bootDeviceIdChecked_ = true;
+        uint16_t id = 0;
+        if (readDeviceId(id)) {
+            ESP_LOGI(TAG, "Device ID test: read 0x%04X (%s)", id, id == 0xA601 ? "OK" : "MISMATCH");
+        } else {
+            ESP_LOGW(TAG, "Device ID test: no response from register 0x0018");
+        }
+    }
 
     // Fast — weights, state, flags (regs 0x0000–0x0017, 24 regs)
     if (now - lastFastUs_ >= kFastUs) {
