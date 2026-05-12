@@ -38,6 +38,7 @@ class ModbusRtuService {
  private:
     void processFrame();
     void sendResponse(const uint8_t* buf, uint16_t len);
+    void reloadSettings();
 
     bool  dispatchFC(uint8_t fc, const uint8_t* req, uint16_t reqLen,
                      uint8_t* resp, uint16_t& respLen);
@@ -59,6 +60,14 @@ class ModbusRtuService {
     ModbusRegisterCache&  registerCache_;
     HardwareSerial&       uart_;
     bool                  mqttConnected_{false};
+
+    // Cached RTU settings — updated in begin() and reloadSettings().
+    // Hot path reads these instead of calling settingsStore_.rtuSnapshot().
+    uint8_t  cachedSlaveAddr_{1};
+    uint32_t cachedBaud_{115200};
+    uint8_t  cachedParity_{0};
+    uint8_t  cachedStopBits_{1};
+    bool     cachedEnabled_{true};
 
     static constexpr uint16_t kRxBufSize    = 264;
     static constexpr uint32_t kFrameGapMs   = 5;   // inter-frame silence to detect end-of-frame

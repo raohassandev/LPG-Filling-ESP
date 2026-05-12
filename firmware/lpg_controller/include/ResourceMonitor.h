@@ -26,6 +26,14 @@ struct ResourceSnapshot {
   uint32_t modbusRtuRequestCount = 0;
   uint32_t modbusRtuErrorCount = 0;
   uint32_t heartbeatCounter = 0;
+  uint32_t rtuLastUs = 0;
+  uint32_t rtuMaxUs = 0;
+  uint32_t rtuAvgUs = 0;
+  uint32_t modbusTcpRequestCount = 0;
+  uint32_t modbusTcpErrorCount = 0;
+  uint32_t tcpLastUs = 0;
+  uint32_t tcpMaxUs = 0;
+  uint32_t tcpAvgUs = 0;
 };
 
 class ResourceMonitor {
@@ -37,6 +45,10 @@ public:
   void recordLoop(uint32_t elapsedUs);
   void incrementRtuRequest();
   void incrementRtuError();
+  void recordRtuTiming(uint32_t us);
+  void incrementTcpRequest();
+  void incrementTcpError();
+  void recordTcpTiming(uint32_t us);
 
   ResourceSnapshot snapshot() const;
 

@@ -4,6 +4,7 @@
 
 #include "BoardConfig.h"
 #include "ModbusRegisterMap.h"
+#include "ResourceMonitor.h"
 
 namespace {
 String jsonBool(bool value) { return value ? "true" : "false"; }
@@ -1309,7 +1310,18 @@ void WebPortal::handleGetModbusRtu() {
   body += "\"stopBits\":"     + String(rtu.stopBits)     + ",";
   body += "\"rxPin\":"        + String(BoardConfig::kRtuRxPin) + ",";
   body += "\"txPin\":"        + String(BoardConfig::kRtuTxPin) + ",";
-  body += "\"dePin\":"        + String(BoardConfig::kRtuDePin);
+  body += "\"dePin\":"        + String(BoardConfig::kRtuDePin) + ",";
+  const ResourceSnapshot res = ResourceMonitor::instance().snapshot();
+  body += "\"rtuLastUs\":"    + String(res.rtuLastUs)               + ",";
+  body += "\"rtuMaxUs\":"     + String(res.rtuMaxUs)                + ",";
+  body += "\"rtuAvgUs\":"     + String(res.rtuAvgUs)                + ",";
+  body += "\"rtuReqCount\":"  + String(res.modbusRtuRequestCount)   + ",";
+  body += "\"rtuErrCount\":"  + String(res.modbusRtuErrorCount)     + ",";
+  body += "\"tcpLastUs\":"    + String(res.tcpLastUs)               + ",";
+  body += "\"tcpMaxUs\":"     + String(res.tcpMaxUs)                + ",";
+  body += "\"tcpAvgUs\":"     + String(res.tcpAvgUs)                + ",";
+  body += "\"tcpReqCount\":"  + String(res.modbusTcpRequestCount)   + ",";
+  body += "\"tcpErrCount\":"  + String(res.modbusTcpErrorCount);
   body += "}";
   sendJson(200, body);
 }

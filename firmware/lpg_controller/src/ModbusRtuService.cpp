@@ -51,14 +51,17 @@ ModbusRtuService::ModbusRtuService(StatusStore& statusStore, SettingsStore& sett
       uart_(Serial2) {}
 
 void ModbusRtuService::begin() {
-    const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
-    if (!rtu.enabled) {
+    reloadSettings();
+    if (!cachedEnabled_) {
         Serial.println(F("[RTU] Modbus RTU disabled"));
         return;
     }
 
-    const uint32_t cfg = serialConfig(rtu.parity, rtu.stopBits);
-    uart_.begin(rtu.baudRate, cfg, BoardConfig::kRtuRxPin, BoardConfig::kRtuTxPin);
+    uart_.setRxBufferSize(1024);
+    uart_.setTxBufferSize(512);
+
+    const uint32_t cfg = serialConfig(cachedParity_, cachedStopBits_);
+    uart_.begin(cachedBaud_, cfg, BoardConfig::kRtuRxPin, BoardConfig::kRtuTxPin);
 
     if (BoardConfig::kRtuDePin != 255) {
         pinMode(BoardConfig::kRtuDePin, OUTPUT);
@@ -67,13 +70,11 @@ void ModbusRtuService::begin() {
 
     active_ = true;
     Serial.printf("[RTU] Modbus RTU started: addr=%u baud=%u parity=%u stop=%u\n",
-                  rtu.slaveAddress, rtu.baudRate, rtu.parity, rtu.stopBits);
+                  cachedSlaveAddr_, cachedBaud_, cachedParity_, cachedStopBits_);
 }
 
 void ModbusRtuService::handleClient() {
     if (!active_) return;
-
-    const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
 
     while (uart_.available()) {
         if (rxLen_ < kRxBufSize) {
@@ -86,7 +87,7 @@ void ModbusRtuService::handleClient() {
     }
 
     while (true) {
-        while (rxLen_ > 0 && rxBuf_[0] != rtu.slaveAddress && rxBuf_[0] != kBroadcastAddr) {
+        while (rxLen_ > 0 && rxBuf_[0] != cachedSlaveAddr_ && rxBuf_[0] != kBroadcastAddr) {
             memmove(rxBuf_, rxBuf_ + 1, rxLen_ - 1);
             rxLen_--;
             ResourceMonitor::instance().incrementRtuError();
@@ -125,10 +126,9 @@ void ModbusRtuService::handleClient() {
 
 void ModbusRtuService::processFrame() {
     const uint8_t addr = rxBuf_[0];
-    const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
 
     // Ignore frames not addressed to us (broadcast 0 is still handled but no response sent)
-    if (addr != rtu.slaveAddress && addr != kBroadcastAddr) return;
+    if (addr != cachedSlaveAddr_ && addr != kBroadcastAddr) return;
 
     // Validate CRC — last two bytes are CRC16 LE
     const uint16_t rxCrc    = static_cast<uint16_t>(rxBuf_[rxLen_ - 2]) |
@@ -149,8 +149,10 @@ void ModbusRtuService::processFrame() {
     uint8_t  respBuf[256 + 5]; // addr(1) + FC(1) + data(≤252) + CRC(2)
     uint16_t respPduLen = 0;
 
-    respBuf[0] = rtu.slaveAddress; // echo address
+    respBuf[0] = cachedSlaveAddr_; // echo address
+    const uint32_t t0 = micros();
     bool ok = dispatchFC(fc, pduReq, pduLen, &respBuf[2], respPduLen);
+    ResourceMonitor::instance().recordRtuTiming(micros() - t0);
 
     if (!ok) {
         ResourceMonitor::instance().incrementRtuError();
@@ -286,10 +288,13 @@ bool ModbusRtuService::handleFC06(const uint8_t* req, uint8_t* resp, uint16_t& r
     if (regAddr < kHR_Base || regAddr >= kHR_Base + kHR_Count) {
         resp[0] = 0x02; respLen = 1; return false;
     }
-    if (!writeHR(static_cast<uint16_t>(regAddr - kHR_Base), regValue,
+    const uint16_t regIdx = static_cast<uint16_t>(regAddr - kHR_Base);
+    if (!writeHR(regIdx, regValue,
                  statusStore_, settingsStore_, fillController_, rtcService_)) {
         resp[0] = 0x03; respLen = 1; return false;
     }
+    registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
+    if (regIdx >= kHR_RtuSlaveAddr && regIdx <= kHR_RtuStopBits) reloadSettings();
     resp[0] = req[0]; resp[1] = req[1]; resp[2] = req[2]; resp[3] = req[3];
     respLen = 4;
     return true;
@@ -307,6 +312,7 @@ bool ModbusRtuService::handleFC16(const uint8_t* req, uint8_t* resp, uint16_t& r
         resp[0] = 0x02; respLen = 1; return false;
     }
     const uint8_t* data = req + 5;
+    bool rtuCfgChanged = false;
     for (uint16_t i = 0; i < qty; i++) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
         const uint16_t val  = (static_cast<uint16_t>(data[i*2]) << 8) | data[i*2+1];
@@ -315,7 +321,10 @@ bool ModbusRtuService::handleFC16(const uint8_t* req, uint8_t* resp, uint16_t& r
             respLen = 1;
             return false;
         }
+        if (addr >= kHR_RtuSlaveAddr && addr <= kHR_RtuStopBits) rtuCfgChanged = true;
     }
+    registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
+    if (rtuCfgChanged) reloadSettings();
     resp[0] = req[0]; resp[1] = req[1]; resp[2] = req[2]; resp[3] = req[3];
     respLen = 4;
     return true;
@@ -336,4 +345,13 @@ uint16_t ModbusRtuService::crc16(const uint8_t* data, uint16_t len) {
 
 uint16_t ModbusRtuService::readU16BE(const uint8_t* p) {
     return (static_cast<uint16_t>(p[0]) << 8) | p[1];
+}
+
+void ModbusRtuService::reloadSettings() {
+    const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
+    cachedEnabled_   = rtu.enabled;
+    cachedSlaveAddr_ = rtu.slaveAddress;
+    cachedBaud_      = rtu.baudRate;
+    cachedParity_    = rtu.parity;
+    cachedStopBits_  = rtu.stopBits;
 }

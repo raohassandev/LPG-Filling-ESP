@@ -83,6 +83,26 @@ void ResourceMonitor::incrementRtuError() {
   snap_.modbusRtuErrorCount++;
 }
 
+void ResourceMonitor::recordRtuTiming(uint32_t us) {
+  snap_.rtuLastUs = us;
+  if (us > snap_.rtuMaxUs) snap_.rtuMaxUs = us;
+  snap_.rtuAvgUs = static_cast<uint32_t>(snap_.rtuAvgUs * 0.95f + us * 0.05f);
+}
+
+void ResourceMonitor::incrementTcpRequest() {
+  snap_.modbusTcpRequestCount++;
+}
+
+void ResourceMonitor::incrementTcpError() {
+  snap_.modbusTcpErrorCount++;
+}
+
+void ResourceMonitor::recordTcpTiming(uint32_t us) {
+  snap_.tcpLastUs = us;
+  if (us > snap_.tcpMaxUs) snap_.tcpMaxUs = us;
+  snap_.tcpAvgUs = static_cast<uint32_t>(snap_.tcpAvgUs * 0.95f + us * 0.05f);
+}
+
 ResourceSnapshot ResourceMonitor::snapshot() const {
   return snap_;
 }

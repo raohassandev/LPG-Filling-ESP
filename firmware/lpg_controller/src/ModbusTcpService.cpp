@@ -1,5 +1,6 @@
 #include "ModbusTcpService.h"
 #include "ModbusRegisterMap.h"
+#include "ResourceMonitor.h"
 
 // ────────────────────────────────────────────────────────────────────────────
 //  Modbus TCP service — FC01/02/03/04/05/06/16
@@ -122,7 +123,10 @@ void ModbusTcpService::handleClient() {
     const uint8_t  fc     = rxBuf_[7];
     const uint8_t* pdu    = &rxBuf_[7];
     const uint16_t pduLen = static_cast<uint16_t>(declaredLen - 1);  // strip UnitID byte
+    const uint32_t t0 = micros();
     dispatchPdu(activeClient_, rxBuf_, fc, pdu, pduLen);
+    ResourceMonitor::instance().recordTcpTiming(micros() - t0);
+    ResourceMonitor::instance().incrementTcpRequest();
 
     // Consume processed frame, keep any trailing bytes
     const uint16_t remaining = static_cast<uint16_t>(rxLen_ - totalFrame);
@@ -275,6 +279,7 @@ void ModbusTcpService::handleFC06(WiFiClient& client, const uint8_t* mbap,
         sendException(client, mbap, kFC_WriteHR, kEx_IllegalValue);
         return;
     }
+    registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
 
     // Echo: same 12-byte pattern
     uint8_t resp[12] = {0};
@@ -306,6 +311,7 @@ void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
             return;
         }
     }
+    registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
 
     // Response: MBAP(7) + FC(1) + startAddr(2) + qty(2) = 12 bytes
     uint8_t resp[12] = {0};
@@ -319,6 +325,7 @@ void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
 // ── sendException ─────────────────────────────────────────────────────────
 void ModbusTcpService::sendException(WiFiClient& client, const uint8_t* mbap,
                                       uint8_t fc, uint8_t exCode) {
+    ResourceMonitor::instance().incrementTcpError();
     uint8_t resp[9] = {0};
     setMbap(resp, mbap, 3);  // UnitID(1) + error-FC(1) + exCode(1) = 3
     resp[7] = static_cast<uint8_t>(fc | 0x80);
