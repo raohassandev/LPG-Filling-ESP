@@ -13,8 +13,10 @@ h1{font-size:1.35rem;margin-bottom:12px}h2{font-size:1rem;margin-bottom:10px}
 .row{display:flex;gap:8px;flex-wrap:wrap}.note{color:#647282;font-weight:600;line-height:1.35}
 input,select{border:1px solid #d7dee8;border-radius:8px;padding:10px;min-width:160px}
 button{border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:10px 12px;cursor:pointer}
+.btn-warn{background:#b42318}
 table{width:100%;border-collapse:collapse;font-size:.82rem}th,td{text-align:left;padding:7px 5px;border-bottom:1px solid #edf1f5;vertical-align:top}
 th{color:#647282}.mono{font-family:Consolas,monospace;font-weight:800}.live{font-family:Consolas,monospace;color:#0f766e;font-weight:800}
+.warn{color:#b42318;font-weight:700}
 .msg{display:none;margin-top:10px;padding:10px;border-radius:8px;font-weight:700}.err{background:#fdebea;color:#b42318}.ok{background:#e8f6ee;color:#14823f}
 </style>
 </head>
@@ -32,27 +34,35 @@ th{color:#647282}.mono{font-family:Consolas,monospace;font-weight:800}.live{font
   <p class="note">Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell HMI, Modbus Poll verification, or current SCADA integration.</p>
   <table><tbody id="conn">
     <tr><td>TCP</td><td class="mono">Port 502, Unit ID 1 recommended, FC01/02/03/04/05/06/16</td></tr>
-    <tr><td>RTU</td><td class="mono">Loading...</td></tr>
+    <tr><td>RTU</td><td class="mono" id="connRtu">Loading...</td></tr>
     <tr><td>Word order</td><td class="mono">Float32/UINT32 use two registers, high word first.</td></tr>
     <tr><td>Writes</td><td class="mono">Production builds reject Modbus writes unless explicitly enabled. Prototype builds can write preset and command registers.</td></tr>
   </tbody></table>
 </div>
+<div class="card" style="border-left:4px solid #0d5e8a">
+  <h2>Active RTU Configuration</h2>
+  <table><tbody id="activeRtuBody"><tr><td colspan="2" class="note">Loading active configuration...</td></tr></tbody></table>
+  <p class="note" style="margin-top:8px" id="rtuSourceNote"></p>
+</div>
 <div class="card" style="border-left:4px solid #0f766e">
   <h2>Recommended RTU Settings (Commercial / HMI)</h2>
-  <p class="note" style="margin-bottom:8px"><strong>Default for new installations: 115200 8N1, Slave 1.</strong></p>
-  <p class="note">Supported compatibility baud rates: 9600, 19200, 38400, 57600, 115200.<br>
+  <p class="note" style="margin-bottom:8px"><strong>Factory default for new / erased devices: 115200 8N1, Slave 1.</strong></p>
+  <p class="note">Existing devices preserve their saved NVS baud rate after a firmware update. If this device still shows 9600, the NVS contains a previously saved 9600 setting.<br>
+  Supported compatibility baud rates: 9600, 19200, 38400, 57600, 115200.<br>
   Lower baud rates are supported for compatibility but result in longer physical wire time for large register reads.<br>
   At 115200 a 19-register read takes ~3 ms of wire time. At 9600 the same frame takes ~35 ms.<br>
   Internal firmware processing reads from RAM cache — firmware processing latency is deterministic regardless of baud.<br>
-  Application Load Percent is a main-loop utilisation estimate, not guaranteed FreeRTOS CPU load.</p>
+  Application Load Percent is a main-loop utilisation estimate, not guaranteed FreeRTOS CPU load.<br>
+  Firmware update does not overwrite saved RTU settings. To apply 115200, use the Apply Recommended button below (requires login).</p>
 </div>
 <div class="card">
   <h2>Performance Diagnostics</h2>
-  <table><tbody id="perfBody"><tr><td colspan="2" class="note">Loading...</td></tr></tbody></table>
+  <table><tbody id="perfBody"><tr><td colspan="3" class="note">Loading...</td></tr></tbody></table>
   <p class="note" style="margin-top:8px">Processing time = firmware dispatch only (RAM cache lookup + response assembly). Wire time is not included. Counts reset on power cycle.</p>
 </div>
 <div class="card">
   <h2>Protocol Settings</h2>
+  <p class="note" style="margin-bottom:10px">Reading active settings above does not require login. Changing settings requires a Maintenance token.</p>
   <div class="row">
     <select id="rtuEnabled"><option value="1">RTU Enabled</option><option value="0">RTU Disabled</option></select>
     <input id="slaveAddress" type="number" min="1" max="247" placeholder="Slave ID">
@@ -60,8 +70,9 @@ th{color:#647282}.mono{font-family:Consolas,monospace;font-weight:800}.live{font
     <select id="parity"><option value="0">None</option><option value="1">Even</option><option value="2">Odd</option></select>
     <select id="stopBits"><option value="1">1 stop bit</option><option value="2">2 stop bits</option></select>
     <button onclick="saveRtu()">Save RTU Settings</button>
+    <button class="btn-warn" onclick="applyRecommended()">Apply Recommended 115200 8N1</button>
   </div>
-  <div class="note" style="margin-top:8px">Data bits fixed at 8. TCP port fixed at 502. Restart controller to apply serial-port baud/parity changes.</div>
+  <div class="note" style="margin-top:8px">Data bits fixed at 8. TCP port fixed at 502. Baud/parity changes take effect immediately on RTU (UART reinitialized after response). Slave address change takes effect immediately.</div>
 </div>
 <div class="card">
   <h2>Holding Registers</h2>
@@ -98,16 +109,103 @@ const HR=[
 ];
 const COILS=[[0,'0x0000','E-Stop OK','R'],[1,'0x0001','Cylinder Present','R'],[2,'0x0002','Nozzle Engaged','R'],[3,'0x0003','Weight Stable','R'],[4,'0x0004','Fill Active','R'],[5,'0x0005','Relay 1','RW'],[6,'0x0006','Relay 2','RW'],[7,'0x0007','Relay 3','RW'],[8,'0x0008','Relay 4','RW'],[9,'0x0009','Relay 5','RW'],[10,'0x000A','Relay 6','RW']];
 const DI=[[0,'0x0000','Input 1'],[1,'0x0001','Input 2'],[2,'0x0002','Input 3'],[3,'0x0003','Input 4'],[4,'0x0004','Input 5'],[5,'0x0005','Input 6']];
-function saveToken(){token=document.getElementById('token').value.trim();localStorage.setItem('lpgToken',token);refresh()}
+function saveToken(){token=document.getElementById('token').value.trim();localStorage.setItem('lpgToken',token);refresh();loadRtu()}
 function msg(t,c='ok'){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+c;m.style.display='block'}
 function live(map,key){return map&&map[key]!==undefined?map[key]:'-'}
 function dec(n){return String(n).padStart(4,'0')}
+function us(v){return v===undefined||v===0?'-':v<1000?v+'µs':+(v/1000).toFixed(2)+'ms'}
 function render(d){d=d||{};document.querySelector('#hr tbody').innerHTML=HR.map(r=>'<tr><td class="mono">'+dec(r[0])+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+r[6]+'</td><td>'+r[7]+'</td></tr>').join('');document.querySelector('#coils tbody').innerHTML=COILS.map(r=>'<tr><td class="mono">'+dec(r[0])+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td class="live">'+live(d.coils,r[1])+'</td></tr>').join('');document.querySelector('#di tbody').innerHTML=DI.map(r=>'<tr><td class="mono">'+dec(r[0])+'</td><td class="mono">'+r[1]+'</td><td>'+r[2]+'</td><td class="live">'+live(d.discreteInputs,r[1])+'</td></tr>').join('')}
-function us(v){return v===undefined?'-':v<1000?v+'µs':+(v/1000).toFixed(2)+'ms'}
-async function loadRtu(){try{const r=await fetch('/api/modbus-rtu',{headers:{Authorization:'Bearer '+token}});const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);document.getElementById('rtuEnabled').value=d.enabled?'1':'0';document.getElementById('slaveAddress').value=d.slaveAddress;document.getElementById('baudRate').value=d.baudRate;document.getElementById('parity').value=d.parity;document.getElementById('stopBits').value=d.stopBits;document.querySelector('#conn tr:nth-child(2) td:nth-child(2)').textContent='RS485 RX GPIO'+d.rxPin+', TX GPIO'+d.txPin+', slave '+d.slaveAddress+', '+d.baudRate+' 8'+(['N','E','O'][d.parity]||'N')+d.stopBits+', '+(d.enabled?'enabled':'disabled');document.getElementById('perfBody').innerHTML='<tr><th>Metric</th><th>RTU</th><th>TCP</th></tr><tr><td>Last processing time</td><td class="live">'+us(d.rtuLastUs)+'</td><td class="live">'+us(d.tcpLastUs)+'</td></tr><tr><td>Max processing time</td><td class="live">'+us(d.rtuMaxUs)+'</td><td class="live">'+us(d.tcpMaxUs)+'</td></tr><tr><td>Avg processing time (EWMA)</td><td class="live">'+us(d.rtuAvgUs)+'</td><td class="live">'+us(d.tcpAvgUs)+'</td></tr><tr><td>Successful requests</td><td class="live">'+(d.rtuReqCount||0)+'</td><td class="live">'+(d.tcpReqCount||0)+'</td></tr><tr><td>Errors</td><td class="live">'+(d.rtuErrCount||0)+'</td><td class="live">'+(d.tcpErrCount||0)+'</td></tr>'}catch(e){msg(e.message,'err')}}
-async function saveRtu(){const q='?enabled='+document.getElementById('rtuEnabled').value+'&slaveAddress='+document.getElementById('slaveAddress').value+'&baudRate='+document.getElementById('baudRate').value+'&dataBits=8&parity='+document.getElementById('parity').value+'&stopBits='+document.getElementById('stopBits').value;try{const r=await fetch('/api/modbus-rtu'+q,{method:'POST',headers:{Authorization:'Bearer '+token}});const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);msg('RTU settings saved. Restart controller to apply serial-port changes.');loadRtu()}catch(e){msg(e.message,'err')}}
-async function refresh(){try{const r=await fetch('/api/modbus',{headers:{Authorization:'Bearer '+token}});const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);render(d);msg('Live Modbus data loaded');loadRtu()}catch(e){render();msg(e.message,'err');loadRtu()}}
-render();if(token)refresh();
+
+// Public status — no token required.
+async function loadPublicStatus(){
+  try{
+    const r=await fetch('/api/modbus-public');
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||r.status);
+    // Connection row
+    document.getElementById('connRtu').textContent='RS485 RX GPIO'+d.rtuRxPin+', TX GPIO'+d.rtuTxPin+', slave '+d.activeSlaveAddress+', '+d.activeBaud+' 8'+(['N','E','O'][d.activeParity]||'N')+d.activeStopBits+', '+(d.activeEnabled?'enabled':'disabled');
+    // Active config table
+    const srcLabel={'NVS':'NVS (saved settings — firmware update preserved this value)','FACTORY_DEFAULT':'Factory default (no NVS key; 115200 8N1 applied)','INVALID_FALLBACK':'Invalid NVS value overridden to 115200 fallback'}[d.configSource]||d.configSource;
+    const baudWarn=d.activeBaud!==115200?' <span class="warn">⚠ not 115200 — recommended: 115200</span>':'';
+    document.getElementById('activeRtuBody').innerHTML=
+      '<tr><th>Parameter</th><th>Active value</th></tr>'+
+      '<tr><td>Slave address</td><td class="live">'+d.activeSlaveAddress+'</td></tr>'+
+      '<tr><td>Baud rate</td><td class="live">'+d.activeBaud+baudWarn+'</td></tr>'+
+      '<tr><td>Parity</td><td class="live">'+(['None','Even','Odd'][d.activeParity]||d.activeParity)+'</td></tr>'+
+      '<tr><td>Stop bits</td><td class="live">'+d.activeStopBits+'</td></tr>'+
+      '<tr><td>RTU enabled</td><td class="live">'+(d.activeEnabled?'Yes':'No')+'</td></tr>'+
+      '<tr><td>Settings source</td><td class="live">'+srcLabel+'</td></tr>';
+    document.getElementById('rtuSourceNote').textContent=d.recommendation;
+    // Perf table
+    document.getElementById('perfBody').innerHTML=
+      '<tr><th>Metric</th><th>RTU</th><th>TCP</th></tr>'+
+      '<tr><td>Last processing time</td><td class="live">'+us(d.rtuLastUs)+'</td><td class="live">'+us(d.tcpLastUs)+'</td></tr>'+
+      '<tr><td>Max processing time</td><td class="live">'+us(d.rtuMaxUs)+'</td><td class="live">'+us(d.tcpMaxUs)+'</td></tr>'+
+      '<tr><td>Avg processing time (EWMA)</td><td class="live">'+us(d.rtuAvgUs)+'</td><td class="live">'+us(d.tcpAvgUs)+'</td></tr>'+
+      '<tr><td>Successful requests</td><td class="live">'+(d.rtuReqCount||0)+'</td><td class="live">'+(d.tcpReqCount||0)+'</td></tr>'+
+      '<tr><td>Errors</td><td class="live">'+(d.rtuErrCount||0)+'</td><td class="live">'+(d.tcpErrCount||0)+'</td></tr>';
+    // Pre-fill settings form from active values (user can then edit and save)
+    document.getElementById('rtuEnabled').value=d.activeEnabled?'1':'0';
+    document.getElementById('slaveAddress').value=d.activeSlaveAddress;
+    document.getElementById('baudRate').value=d.activeBaud;
+    document.getElementById('parity').value=d.activeParity;
+    document.getElementById('stopBits').value=d.activeStopBits;
+  }catch(e){
+    document.getElementById('activeRtuBody').innerHTML='<tr><td colspan="2" style="color:#b42318;font-weight:700">Unable to read active RTU settings: '+e.message+'</td></tr>';
+  }
+}
+
+// Authenticated RTU settings load — only for refreshing form after save.
+async function loadRtu(){
+  if(!token)return;
+  try{
+    const r=await fetch('/api/modbus-rtu',{headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||r.status);
+    document.getElementById('rtuEnabled').value=d.enabled?'1':'0';
+    document.getElementById('slaveAddress').value=d.slaveAddress;
+    document.getElementById('baudRate').value=d.baudRate;
+    document.getElementById('parity').value=d.parity;
+    document.getElementById('stopBits').value=d.stopBits;
+  }catch(e){msg(e.message,'err')}
+}
+
+async function saveRtu(){
+  if(!token){msg('Login required to change RTU settings','err');return}
+  const q='?enabled='+document.getElementById('rtuEnabled').value+'&slaveAddress='+document.getElementById('slaveAddress').value+'&baudRate='+document.getElementById('baudRate').value+'&dataBits=8&parity='+document.getElementById('parity').value+'&stopBits='+document.getElementById('stopBits').value;
+  try{
+    const r=await fetch('/api/modbus-rtu'+q,{method:'POST',headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||r.status);
+    msg('RTU settings saved.');
+    setTimeout(()=>loadPublicStatus(),500);
+  }catch(e){msg(e.message,'err')}
+}
+
+async function applyRecommended(){
+  if(!token){msg('Login required to apply recommended settings','err');return}
+  if(!confirm('Set RTU to 115200 8N1 slave 1?\nThe controller will restart in ~1 second to apply the change.'))return;
+  try{
+    const r=await fetch('/api/modbus-rtu/apply-recommended',{method:'POST',headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||r.status);
+    msg(d.message||'Settings applied. Controller restarting...');
+  }catch(e){msg(e.message,'err')}
+}
+
+async function refresh(){
+  if(!token){msg('Token required for live register data','err');return}
+  try{
+    const r=await fetch('/api/modbus',{headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||r.status);
+    render(d);msg('Live Modbus data loaded');
+  }catch(e){render();msg(e.message,'err')}
+}
+
+render();
+loadPublicStatus();
+if(token)refresh();
 </script>
 </body>
 </html>

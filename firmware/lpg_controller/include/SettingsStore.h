@@ -53,12 +53,23 @@ struct ModbusRtuSettings {
   uint8_t  stopBits     = 1;       // 1 or 2
 };
 
+// Tracks where the active RTU settings came from.
+// FactoryDefault: NVS had no saved value — hardcoded 115200 8N1 used.
+// NVS:           NVS had a valid saved value (may be 9600 from a previous save).
+// Invalid:       NVS had an out-of-range value — overridden to 115200 fallback.
+enum class RtuConfigSource : uint8_t {
+  FactoryDefault = 0,
+  NVS            = 1,
+  Invalid        = 2,
+};
+
 class SettingsStore {
  public:
   void begin();
   SettingsSnapshot     snapshot()     const;
   MqttSettingsSnapshot mqttSnapshot() const;
-  ModbusRtuSettings    rtuSnapshot()  const;
+  ModbusRtuSettings    rtuSnapshot()      const;
+  RtuConfigSource      rtuConfigSource()  const;
 
   bool setRatePerKg(float value);
   bool setSlowFillThreshold(float value);
@@ -79,4 +90,5 @@ class SettingsStore {
   SettingsSnapshot     settings_;
   MqttSettingsSnapshot mqtt_;
   ModbusRtuSettings    rtu_;
+  RtuConfigSource      rtuConfigSource_{RtuConfigSource::FactoryDefault};
 };

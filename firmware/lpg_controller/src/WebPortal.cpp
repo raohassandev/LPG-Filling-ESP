@@ -175,8 +175,10 @@ void WebPortal::registerRoutes() {
   server_.on("/api/stats",         HTTP_GET,    [this]() { handleGetStats(); });
   server_.on("/api/time",          HTTP_GET,    [this]() { handleGetTime(); });
   server_.on("/api/time",          HTTP_POST,   [this]() { handleSetTime(); });
-  server_.on("/api/modbus-rtu",    HTTP_GET,    [this]() { handleGetModbusRtu(); });
-  server_.on("/api/modbus-rtu",    HTTP_POST,   [this]() { handleSetModbusRtu(); });
+  server_.on("/api/modbus-rtu",              HTTP_GET,  [this]() { handleGetModbusRtu(); });
+  server_.on("/api/modbus-rtu",              HTTP_POST, [this]() { handleSetModbusRtu(); });
+  server_.on("/api/modbus-public",           HTTP_GET,  [this]() { handleModbusPublic(); });
+  server_.on("/api/modbus-rtu/apply-recommended", HTTP_POST, [this]() { handleApplyRecommendedRtu(); });
   server_.on("/api/sd/months",        HTTP_GET, [this]() { handleGetSdMonths(); });
   server_.on("/api/sd/transactions",  HTTP_GET, [this]() { handleGetSdTransactions(); });
 }
@@ -1311,6 +1313,13 @@ void WebPortal::handleGetModbusRtu() {
   body += "\"rxPin\":"        + String(BoardConfig::kRtuRxPin) + ",";
   body += "\"txPin\":"        + String(BoardConfig::kRtuTxPin) + ",";
   body += "\"dePin\":"        + String(BoardConfig::kRtuDePin) + ",";
+  const char* srcStr;
+  switch (settingsStore_.rtuConfigSource()) {
+    case RtuConfigSource::NVS:            srcStr = "NVS"; break;
+    case RtuConfigSource::FactoryDefault: srcStr = "FACTORY_DEFAULT"; break;
+    default:                              srcStr = "INVALID_FALLBACK"; break;
+  }
+  body += "\"configSource\":\"" + String(srcStr) + "\",";
   const ResourceSnapshot res = ResourceMonitor::instance().snapshot();
   body += "\"rtuLastUs\":"    + String(res.rtuLastUs)               + ",";
   body += "\"rtuMaxUs\":"     + String(res.rtuMaxUs)                + ",";
@@ -1324,6 +1333,84 @@ void WebPortal::handleGetModbusRtu() {
   body += "\"tcpErrCount\":"  + String(res.modbusTcpErrorCount);
   body += "}";
   sendJson(200, body);
+}
+
+// ── GET /api/modbus-public — read-only RTU status + diagnostics (no auth) ────
+void WebPortal::handleModbusPublic() {
+  sendCorsHeaders();
+  const ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
+  const ResourceSnapshot  res = ResourceMonitor::instance().snapshot();
+  const char* srcStr;
+  const char* srcNote;
+  switch (settingsStore_.rtuConfigSource()) {
+    case RtuConfigSource::NVS:
+      srcStr  = "NVS";
+      srcNote = "Settings loaded from NVS (saved by a previous configuration). "
+                "Firmware updates do not overwrite NVS. "
+                "If baud is not 115200 it was saved before the 115200 factory default was adopted.";
+      break;
+    case RtuConfigSource::FactoryDefault:
+      srcStr  = "FACTORY_DEFAULT";
+      srcNote = "No saved NVS settings found. Using factory default: 115200 8N1 slave 1.";
+      break;
+    default:
+      srcStr  = "INVALID_FALLBACK";
+      srcNote = "NVS contained an invalid value. Overridden to 115200 fallback.";
+      break;
+  }
+  String body = "{";
+  body += "\"activeSlaveAddress\":" + String(rtu.slaveAddress) + ",";
+  body += "\"activeBaud\":"         + String(rtu.baudRate)     + ",";
+  body += "\"activeParity\":"       + String(rtu.parity)       + ",";
+  body += "\"activeStopBits\":"     + String(rtu.stopBits)     + ",";
+  body += "\"activeEnabled\":"      + jsonBool(rtu.enabled)    + ",";
+  body += "\"configSource\":\""     + String(srcStr)           + "\",";
+  body += "\"configSourceNote\":\""   + String(srcNote)         + "\",";
+  body += "\"recommendedBaud\":115200,";
+  body += "\"recommendation\":\"Factory default is 115200 8N1. "
+          "If this device shows a different baud, NVS has a saved value from before the "
+          "115200 default was adopted. Login and use Apply Recommended 115200 on the "
+          "Modbus page, or factory-reset RTU communication settings.\",";
+  body += "\"rtuRxPin\":" + String(BoardConfig::kRtuRxPin) + ",";
+  body += "\"rtuTxPin\":" + String(BoardConfig::kRtuTxPin) + ",";
+  body += "\"rtuLastUs\":"   + String(res.rtuLastUs) + ",";
+  body += "\"rtuMaxUs\":"    + String(res.rtuMaxUs)  + ",";
+  body += "\"rtuAvgUs\":"    + String(res.rtuAvgUs)  + ",";
+  body += "\"rtuReqCount\":" + String(res.modbusRtuRequestCount) + ",";
+  body += "\"rtuErrCount\":" + String(res.modbusRtuErrorCount)   + ",";
+  body += "\"tcpLastUs\":"   + String(res.tcpLastUs) + ",";
+  body += "\"tcpMaxUs\":"    + String(res.tcpMaxUs)  + ",";
+  body += "\"tcpAvgUs\":"    + String(res.tcpAvgUs)  + ",";
+  body += "\"tcpReqCount\":" + String(res.modbusTcpRequestCount) + ",";
+  body += "\"tcpErrCount\":" + String(res.modbusTcpErrorCount)   + ",";
+  body += "\"hrBase\":0,\"hrCount\":" + String(ModbusRegisterMap::kHR_Count) + ",";
+  body += "\"note\":\"Addresses are 0-based PDU addresses. 0x1001 map is legacy only.\",";
+  body += "\"firmwareBuildMode\":" + String(res.firmwareBuildMode) + ",";
+  body += "\"deviceId\":\"0xA601\"";
+  body += "}";
+  sendJson(200, body);
+}
+
+// ── POST /api/modbus-rtu/apply-recommended — set 115200 8N1 + restart ────────
+void WebPortal::handleApplyRecommendedRtu() {
+  if (!requireAuth(UserRole::Maintenance)) return;
+  ModbusRtuSettings recommended;
+  recommended.enabled      = true;
+  recommended.slaveAddress = 1;
+  recommended.baudRate     = 115200;
+  recommended.parity       = 0;
+  recommended.stopBits     = 1;
+  if (!settingsStore_.setModbusRtu(recommended)) {
+    sendJson(400, "{\"ok\":false,\"message\":\"Failed to save recommended RTU settings.\"}");
+    return;
+  }
+  sendJson(200, "{\"ok\":true,\"message\":"
+               "\"Recommended settings saved (115200 8N1 slave 1). "
+               "Controller restarting in 1 second to apply.\","
+               "\"baud\":115200}");
+  server_.client().flush();
+  delay(1000);
+  ESP.restart();
 }
 
 // ── POST /api/modbus-rtu — save RTU config (Maintenance) ─────────────────────

@@ -106,7 +106,7 @@ Fill sequence:
 Active Modbus/HMI register map:
 
 - Active display path: Modbus RTU over RS485 using 0-based holding register addresses in `include/ModbusRegisterMap.h`.
-- Known-good RTU settings: slave `1`, `9600`, `8N1`.
+- Recommended RTU settings: slave `1`, `115200`, `8N1`. Factory default (no NVS key) uses 115200. Devices with a previously saved NVS baud (e.g. 9600) retain that value across firmware updates — use the "Apply Recommended 115200" action on the Modbus page to reset to 115200 and restart.
 - Display reads live/tare/net/target/rate/amount/state/readiness from `0x0000..0x0017`.
 - Display reads diagnostics from `0x0048..0x0050`.
 - Optional Modbus TCP remains available on port `502` for integration clients.

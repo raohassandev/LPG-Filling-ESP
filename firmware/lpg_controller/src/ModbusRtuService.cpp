@@ -69,8 +69,19 @@ void ModbusRtuService::begin() {
     }
 
     active_ = true;
-    Serial.printf("[RTU] Modbus RTU started: addr=%u baud=%u parity=%u stop=%u\n",
-                  cachedSlaveAddr_, cachedBaud_, cachedParity_, cachedStopBits_);
+    const char* src;
+    switch (settingsStore_.rtuConfigSource()) {
+        case RtuConfigSource::NVS:            src = "NVS"; break;
+        case RtuConfigSource::FactoryDefault: src = "FACTORY_DEFAULT"; break;
+        default:                              src = "INVALID_FALLBACK"; break;
+    }
+    Serial.printf("[RTU] RTU config active: slave=%u baud=%u parity=%u stop=%u source=%s\n",
+                  cachedSlaveAddr_, cachedBaud_, cachedParity_, cachedStopBits_, src);
+    if (settingsStore_.rtuConfigSource() == RtuConfigSource::NVS &&
+        cachedBaud_ != 115200) {
+        Serial.println(F("[RTU] Note: active baud is NOT 115200 (saved NVS value). "
+                         "Use Apply Recommended 115200 on the Modbus page to upgrade."));
+    }
 }
 
 void ModbusRtuService::handleClient() {
@@ -175,6 +186,21 @@ void ModbusRtuService::processFrame() {
     respBuf[totalLen + 1] = static_cast<uint8_t>(crc >> 8);
 
     if (addr != kBroadcastAddr) sendResponse(respBuf, totalLen + 2);
+
+    // If RTU config registers were written this frame, reinitialize UART now —
+    // after the success response has been fully sent at the old baud rate.
+    if (pendingUartReinit_) {
+        pendingUartReinit_ = false;
+        uart_.flush();
+        delayMicroseconds(2000);  // ~2 ms: ensure last byte clears shift register
+        uart_.end();
+        const uint32_t cfg = serialConfig(cachedParity_, cachedStopBits_);
+        uart_.begin(cachedBaud_, cfg, BoardConfig::kRtuRxPin, BoardConfig::kRtuTxPin);
+        uart_.setRxBufferSize(1024);
+        uart_.setTxBufferSize(512);
+        Serial.printf("[RTU] UART reinitialized: baud=%u parity=%u stop=%u\n",
+                      cachedBaud_, cachedParity_, cachedStopBits_);
+    }
 }
 
 void ModbusRtuService::sendResponse(const uint8_t* buf, uint16_t len) {
@@ -294,7 +320,15 @@ bool ModbusRtuService::handleFC06(const uint8_t* req, uint8_t* resp, uint16_t& r
         resp[0] = 0x03; respLen = 1; return false;
     }
     registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
-    if (regIdx >= kHR_RtuSlaveAddr && regIdx <= kHR_RtuStopBits) reloadSettings();
+    if (regIdx >= kHR_RtuSlaveAddr && regIdx <= kHR_RtuStopBits) {
+        const uint32_t oldBaud = cachedBaud_; const uint8_t oldSlave = cachedSlaveAddr_;
+        const uint8_t oldPar  = cachedParity_; const uint8_t oldStop = cachedStopBits_;
+        reloadSettings();
+        if (cachedBaud_ != oldBaud || cachedSlaveAddr_ != oldSlave ||
+            cachedParity_ != oldPar || cachedStopBits_ != oldStop) {
+            pendingUartReinit_ = true;
+        }
+    }
     resp[0] = req[0]; resp[1] = req[1]; resp[2] = req[2]; resp[3] = req[3];
     respLen = 4;
     return true;
@@ -324,7 +358,15 @@ bool ModbusRtuService::handleFC16(const uint8_t* req, uint8_t* resp, uint16_t& r
         if (addr >= kHR_RtuSlaveAddr && addr <= kHR_RtuStopBits) rtuCfgChanged = true;
     }
     registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
-    if (rtuCfgChanged) reloadSettings();
+    if (rtuCfgChanged) {
+        const uint32_t oldBaud = cachedBaud_; const uint8_t oldSlave = cachedSlaveAddr_;
+        const uint8_t oldPar  = cachedParity_; const uint8_t oldStop = cachedStopBits_;
+        reloadSettings();
+        if (cachedBaud_ != oldBaud || cachedSlaveAddr_ != oldSlave ||
+            cachedParity_ != oldPar || cachedStopBits_ != oldStop) {
+            pendingUartReinit_ = true;
+        }
+    }
     resp[0] = req[0]; resp[1] = req[1]; resp[2] = req[2]; resp[3] = req[3];
     respLen = 4;
     return true;

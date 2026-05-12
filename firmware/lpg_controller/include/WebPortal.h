@@ -89,6 +89,8 @@ class WebPortal {
   void handleSetTime();
   void handleGetModbusRtu();
   void handleSetModbusRtu();
+  void handleModbusPublic();
+  void handleApplyRecommendedRtu();
   void handleGetSdMonths();
   void handleGetSdTransactions();
   String statusJson() const;

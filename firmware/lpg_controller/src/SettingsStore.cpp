@@ -95,27 +95,38 @@ void SettingsStore::begin() {
   if (mqtt_.preset > 3) mqtt_.preset = 1;
 
   // RTU settings stored in a separate NVS namespace.
-  // Factory default baud is 115200 8N1; existing saved settings are preserved.
+  // Factory default for a fresh/erased device is 115200 8N1 slave 1.
+  // Firmware updates do NOT erase NVS — existing saved settings are preserved.
   Preferences rtuPref;
-  rtuPref.begin("lpgrtu", true);
+  const bool nvsOpen    = rtuPref.begin("lpgrtu", true);  // read-only
+  const bool hasNvsBaud = nvsOpen && rtuPref.isKey("baud");
   rtu_.enabled      = rtuPref.getBool("enabled",  true);
   rtu_.slaveAddress = rtuPref.getUChar("addr",    1);
   rtu_.baudRate     = rtuPref.getUInt("baud",     115200);
   rtu_.parity       = rtuPref.getUChar("parity",  0);
   rtu_.stopBits     = rtuPref.getUChar("stops",   1);
-  rtuPref.end();
+  if (nvsOpen) rtuPref.end();
+
   if (rtu_.slaveAddress < 1 || rtu_.slaveAddress > 247) rtu_.slaveAddress = 1;
   const uint32_t validBaud[] = {1200,2400,4800,9600,19200,38400,57600,115200};
   bool baudOk = false;
   for (auto v : validBaud) { if (rtu_.baudRate == v) { baudOk = true; break; } }
-  if (!baudOk)                                             rtu_.baudRate = 115200;
-  if (rtu_.parity > 2)                                  rtu_.parity = 0;
-  if (rtu_.stopBits != 1 && rtu_.stopBits != 2)         rtu_.stopBits = 1;
+  if (!baudOk) {
+    rtu_.baudRate    = 115200;
+    rtuConfigSource_ = RtuConfigSource::Invalid;
+  } else if (hasNvsBaud) {
+    rtuConfigSource_ = RtuConfigSource::NVS;
+  } else {
+    rtuConfigSource_ = RtuConfigSource::FactoryDefault;
+  }
+  if (rtu_.parity > 2)                          rtu_.parity = 0;
+  if (rtu_.stopBits != 1 && rtu_.stopBits != 2) rtu_.stopBits = 1;
 }
 
-SettingsSnapshot     SettingsStore::snapshot()     const { return settings_; }
-MqttSettingsSnapshot SettingsStore::mqttSnapshot() const { return mqtt_; }
-ModbusRtuSettings    SettingsStore::rtuSnapshot()  const { return rtu_; }
+SettingsSnapshot     SettingsStore::snapshot()          const { return settings_; }
+MqttSettingsSnapshot SettingsStore::mqttSnapshot()      const { return mqtt_; }
+ModbusRtuSettings    SettingsStore::rtuSnapshot()       const { return rtu_; }
+RtuConfigSource      SettingsStore::rtuConfigSource()   const { return rtuConfigSource_; }
 
 bool SettingsStore::setWifi(const String& staSsid, const String& staPassword) {
   if (staSsid.isEmpty() || staPassword.length() < 8) return false;

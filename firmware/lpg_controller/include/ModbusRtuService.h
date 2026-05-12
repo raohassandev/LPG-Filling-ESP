@@ -68,6 +68,9 @@ class ModbusRtuService {
     uint8_t  cachedParity_{0};
     uint8_t  cachedStopBits_{1};
     bool     cachedEnabled_{true};
+    // Set by handleFC06/FC16 when RTU config registers change; processFrame()
+    // reinitializes UART after sending the success response at the old baud.
+    bool     pendingUartReinit_{false};
 
     static constexpr uint16_t kRxBufSize    = 264;
     static constexpr uint32_t kFrameGapMs   = 5;   // inter-frame silence to detect end-of-frame
