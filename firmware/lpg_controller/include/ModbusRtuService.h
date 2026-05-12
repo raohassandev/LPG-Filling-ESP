@@ -4,6 +4,7 @@
 
 #include "BoardConfig.h"
 #include "FillController.h"
+#include "HmiOperationService.h"
 #include "ModbusRegisterCache.h"
 #include "RtcService.h"
 #include "SettingsStore.h"
@@ -34,6 +35,7 @@ class ModbusRtuService {
     void begin();
     void handleClient();
     void setMqttConnected(bool v) { mqttConnected_ = v; }
+    void setHmiService(HmiOperationService* svc) { hmiService_ = svc; }
 
  private:
     void processFrame();
@@ -58,6 +60,7 @@ class ModbusRtuService {
     TransactionLog&       transactionLog_;
     RtcService&           rtcService_;
     ModbusRegisterCache&  registerCache_;
+    HmiOperationService*  hmiService_{nullptr};
     HardwareSerial&       uart_;
     bool                  mqttConnected_{false};
 

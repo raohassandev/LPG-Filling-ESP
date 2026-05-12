@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calibration - LPG Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Segoe UI,Arial,sans-serif;background:#eef2f6;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:14px}
+h1{font-size:1.35rem;margin-bottom:4px}
+.sub{color:#647282;font-size:.88rem;margin-bottom:14px}
+h2{font-size:1rem;margin-bottom:10px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:16px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{color:#647282;font-weight:600;line-height:1.4}
+input[type=text],input[type=password],input[type=number]{border:1px solid #d7dee8;border-radius:8px;padding:10px;min-width:140px}
+select{border:1px solid #d7dee8;border-radius:8px;padding:10px}
+button{border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:10px 16px;cursor:pointer}
+.btn-warn{background:#b42318}
+.live{font-family:Consolas,monospace;color:#0f766e;font-weight:800;font-size:1.05rem}
+.label{font-weight:600;color:#647282;font-size:.85rem}
+.val-row{display:flex;flex-direction:column;padding:8px 0;min-width:120px}
+.step-num{background:#0f766e;color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;margin-right:8px}
+.msg{display:none;margin-top:10px;padding:10px;border-radius:8px;font-weight:700}
+.err{background:#fdebea;color:#b42318}.ok{background:#e8f6ee;color:#14823f}
+</style>
+</head>
+<body>
+<a href="/">&#8592; Back</a>
+<h1>Load Cell Calibration</h1>
+<p class="sub">Live status updates every 2 s without login. Calibration actions require the Manufacturing PIN printed on the unit label.</p>
+
+<div class="card">
+  <h2>Live Scale Status</h2>
+  <div class="row" style="gap:20px;flex-wrap:wrap">
+    <div class="val-row"><span class="label">Live Weight</span><span class="live" id="liveKg">--</span></div>
+    <div class="val-row"><span class="label">Tare Weight</span><span class="live" id="tareKg">--</span></div>
+    <div class="val-row"><span class="label">Net Weight</span><span class="live" id="netKg">--</span></div>
+    <div class="val-row"><span class="label">Cal Factor</span><span class="live" id="calFactor">--</span></div>
+    <div class="val-row"><span class="label">Cal Valid</span><span class="live" id="calValid">--</span></div>
+    <div class="val-row"><span class="label">Stable</span><span class="live" id="stable">--</span></div>
+    <div class="val-row"><span class="label">Taring</span><span class="live" id="isTaring">--</span></div>
+    <div class="val-row"><span class="label">Fill Active</span><span class="live" id="fillActive">--</span></div>
+    <div class="val-row"><span class="label">Two-Point</span><span class="live" id="twoPoint">--</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Manufacturing PIN</h2>
+  <p class="note" style="margin-bottom:10px">Rate-limited: 5 attempts per 60 seconds.</p>
+  <div class="row">
+    <input id="pin" type="password" placeholder="6-digit PIN" maxlength="6" style="max-width:160px">
+    <button onclick="savePin()">Remember PIN</button>
+  </div>
+  <div id="msg" class="msg"></div>
+</div>
+
+<div class="card">
+  <h2><span class="step-num">1</span>Hardware Tare</h2>
+  <p class="note" style="margin-bottom:10px">Remove all weight from the scale (empty platform). Click to zero the raw ADC output. Wait for <strong>Stable: Yes</strong> first.</p>
+  <button onclick="doTare()">Hardware Tare</button>
+</div>
+
+<div class="card">
+  <h2><span class="step-num">2</span>Set Calibration Point</h2>
+  <p class="note" style="margin-bottom:10px">Place a known reference weight on the scale. Wait for it to stabilize, enter the exact weight (kg), then click Set. Point must be 1 or 2.</p>
+  <div class="row">
+    <input id="knownKg" type="number" step="0.001" min="0.1" placeholder="Known weight (kg)" style="max-width:180px">
+    <select id="calPoint">
+      <option value="1">Point 1 (primary)</option>
+      <option value="2">Point 2 (span check)</option>
+    </select>
+    <button onclick="doSetPoint()">Set Calibration Point</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step-num">3</span>Save or Revert</h2>
+  <p class="note" style="margin-bottom:10px">Save persists the calibration to NVS (survives power cycle). Cancel clears the two-point cal and reverts to the previous single-point factor.</p>
+  <div class="row">
+    <button onclick="doSave()">Save to NVS</button>
+    <button class="btn-warn" onclick="doCancel()">Clear Two-Point Cal</button>
+  </div>
+</div>
+
+<script>
+let pin=localStorage.getItem('lpgMfgPin')||'';
+if(pin)document.getElementById('pin').value=pin;
+function savePin(){pin=document.getElementById('pin').value.trim();localStorage.setItem('lpgMfgPin',pin);showMsg('PIN saved for this session','ok')}
+function showMsg(t,c='ok'){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+c;m.style.display='block'}
+function fmt3(v){return typeof v==='number'?v.toFixed(3):'--'}
+
+async function loadStatus(){
+  try{
+    const r=await fetch('/api/modbus-live');
+    if(!r.ok)return;
+    const d=await r.json();
+    document.getElementById('liveKg').textContent=fmt3(d.liveWeightKg)+' kg';
+    document.getElementById('tareKg').textContent=fmt3(d.tareWeightKg)+' kg';
+    document.getElementById('netKg').textContent=fmt3(d.netWeightKg)+' kg';
+    document.getElementById('calFactor').textContent=typeof d.calFactor==='number'?d.calFactor.toFixed(2):'--';
+    document.getElementById('calValid').textContent=d.calibValid?'Yes':'No';
+    document.getElementById('stable').textContent=d.weightStable?'Yes':'No';
+    document.getElementById('isTaring').textContent=d.isTaring?'YES':'No';
+    document.getElementById('fillActive').textContent=d.fillActive?'YES':'No';
+    document.getElementById('twoPoint').textContent=d.hasTwoPoints?'Yes':'No';
+  }catch(e){}
+}
+
+async function postPin(url){
+  if(!pin){showMsg('Enter Manufacturing PIN first','err');return false}
+  const r=await fetch(url,{method:'POST',headers:{'X-MFG-PIN':pin,'Content-Type':'application/json'},body:'{}'});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){showMsg(d.message||'Error '+r.status,'err');return false}
+  showMsg(d.message||'OK','ok');loadStatus();return true;
+}
+
+async function doTare(){try{await postPin('/api/calibration/tare')}catch(e){showMsg(e.message,'err')}}
+async function doSave(){try{await postPin('/api/calibration/save')}catch(e){showMsg(e.message,'err')}}
+async function doCancel(){try{await postPin('/api/calibration/cancel')}catch(e){showMsg(e.message,'err')}}
+
+async function doSetPoint(){
+  const kg=parseFloat(document.getElementById('knownKg').value);
+  if(!isFinite(kg)||kg<=0){showMsg('Enter a valid known weight > 0 kg','err');return}
+  if(!pin){showMsg('Enter Manufacturing PIN first','err');return}
+  const pt=parseInt(document.getElementById('calPoint').value,10);
+  try{
+    const r=await fetch('/api/calibration/set-point?point='+pt+'&kg='+kg,{
+      method:'POST',
+      headers:{'X-MFG-PIN':pin}
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){showMsg(d.message||'Error '+r.status,'err');return}
+    showMsg('Point '+pt+' set at '+kg.toFixed(3)+' kg. Cal valid: '+d.calValid,'ok');loadStatus();
+  }catch(e){showMsg(e.message,'err')}
+}
+
+loadStatus();setInterval(loadStatus,2000);
+</script>
+</body>
+</html>

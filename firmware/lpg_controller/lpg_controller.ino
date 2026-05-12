@@ -25,6 +25,8 @@
 #include "MqttService.h"
 #include "SdService.h"
 #include "ResourceMonitor.h"
+#include "HmiOperationService.h"
+#include "MfgPinService.h"
 
 namespace {
 BoardConfig boardConfig;
@@ -46,7 +48,9 @@ FillController fillController(statusStore, relayBank, inputExpander, weightServi
 ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService, registerCache);
 ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService, registerCache);
 MqttService mqttService(networkManager, settingsStore, statusStore);
-WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService, mqttService);
+MfgPinService mfgPin;
+HmiOperationService hmiOperationService;
+WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService, mqttService, mfgPin, registerCache);
 
 void printStatusSnapshot() {
   const StatusSnapshot status = statusStore.snapshot();
@@ -358,6 +362,8 @@ void setup() {
   transactionLog.begin();
   authService.begin();
   fillController.begin();
+  mfgPin.begin();
+  hmiOperationService.begin();
   ResourceMonitor::instance().begin();
   ResourceMonitor::instance().setModbusWritesEnabled(ModbusRegisterMap::modbusWritesEnabled());
   networkManager.begin(settingsStore.snapshot());
@@ -366,7 +372,9 @@ void setup() {
   sdService.begin();
   webPortal.begin();
   modbusTcpService.begin();
+  modbusTcpService.setHmiService(&hmiOperationService);
   modbusRtuService.begin();
+  modbusRtuService.setHmiService(&hmiOperationService);
   mqttService.begin();
   updateOledStatus(true);
   printSerialHelp();
@@ -388,6 +396,7 @@ void loop() {
 
   const ProcessState prevState = statusStore.snapshot().state;
   fillController.tick();
+  hmiOperationService.tick(statusStore, fillController, weightService, settingsStore, registerCache);
   const ProcessState newState  = statusStore.snapshot().state;
 
   // MQTT state propagated before Modbus so kHR_MqttConnected reads correctly
@@ -426,6 +435,7 @@ void loop() {
 
   // ── Fill state transition side-effects ───────────────────────────────────
   if (prevState != ProcessState::Complete && newState == ProcessState::Complete) {
+    hmiOperationService.notifyFillComplete(true);
     const TransactionRecord rec = transactionLog.getLatestTransaction();
     if (rec.id > 0) {
       mqttService.publishTransaction(rec);
@@ -439,6 +449,7 @@ void loop() {
     lastStatsMs = millis();
   }
   if (prevState != ProcessState::Fault && newState == ProcessState::Fault) {
+    hmiOperationService.notifyFillComplete(false);
     const StatusSnapshot s = statusStore.snapshot();
     mqttService.publishAlert("fault", s.lastReasonCode);
   }

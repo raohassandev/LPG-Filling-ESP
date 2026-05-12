@@ -14,6 +14,9 @@
 #endif
 
 #include "AuthService.h"
+#include "HmiOperationService.h"
+#include "MfgPinService.h"
+#include "ModbusRegisterCache.h"
 #include "NetworkManager.h"
 #include "EventLog.h"
 #include "FillController.h"
@@ -31,7 +34,8 @@ class WebPortal {
   WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
             SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
             RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
-            RtcService& rtcService, SdService& sdService, MqttService& mqttService);
+            RtcService& rtcService, SdService& sdService, MqttService& mqttService,
+            MfgPinService& mfgPin, ModbusRegisterCache& registerCache);
 
   void begin();
   void handleClient();
@@ -93,9 +97,20 @@ class WebPortal {
   void handleApplyRecommendedRtu();
   void handleGetSdMonths();
   void handleGetSdTransactions();
+  // Calibration (Manufacturing PIN required for actions)
+  void handleCalibrationTare();
+  void handleCalibrationSetPoint();
+  void handleCalibrationSave();
+  void handleCalibrationCancel();
+  // OTA (Manufacturing PIN required)
+  void handleOtaStatus();
+  void handleOtaUpload();
+  // Public Modbus live-data (no auth)
+  void handleModbusLive();
   String statusJson() const;
   void broadcastStatus();
   bool requireAuth(UserRole minRole);
+  bool requireMfgPin();
   void sendCorsHeaders();
   void sendJson(int code, const String& body);
 
@@ -111,6 +126,10 @@ class WebPortal {
   RtcService& rtcService_;
   SdService& sdService_;
   MqttService& mqttService_;
+  MfgPinService& mfgPin_;
+  ModbusRegisterCache& registerCache_;
+  bool     otaActive_{false};
+  uint32_t otaHandle_{0};
   WebServer server_{80};
 #if LPG_WEBSOCKET_ENABLED
   WebSocketsServer wsServer_{81};

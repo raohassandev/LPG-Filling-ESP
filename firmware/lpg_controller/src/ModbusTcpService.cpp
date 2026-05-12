@@ -274,8 +274,14 @@ void ModbusTcpService::handleFC06(WiFiClient& client, const uint8_t* mbap,
         sendException(client, mbap, kFC_WriteHR, kEx_IllegalAddr);
         return;
     }
-    if (!writeHR(static_cast<uint16_t>(regAddr - kHR_Base), regValue,
-                 statusStore_, settingsStore_, fillController_, rtcService_)) {
+    const uint16_t pdAddr = static_cast<uint16_t>(regAddr - kHR_Base);
+    // Route HMI block writes to HmiOperationService (always allowed in any build)
+    if (pdAddr >= kHR_HmiBase && hmiService_) {
+        if (!hmiService_->pendWrite(pdAddr - kHR_HmiBase, regValue)) {
+            sendException(client, mbap, kFC_WriteHR, kEx_IllegalValue);
+            return;
+        }
+    } else if (!writeHR(pdAddr, regValue, statusStore_, settingsStore_, fillController_, rtcService_)) {
         sendException(client, mbap, kFC_WriteHR, kEx_IllegalValue);
         return;
     }
@@ -306,7 +312,13 @@ void ModbusTcpService::handleFC16(WiFiClient& client, const uint8_t* mbap,
     for (uint16_t i = 0; i < qty; ++i) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
         const uint16_t val  = readU16(&data[1 + i * 2]);
-        if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
+        // Route HMI block writes to HmiOperationService
+        if (addr >= kHR_HmiBase && hmiService_) {
+            if (!hmiService_->pendWrite(addr - kHR_HmiBase, val)) {
+                sendException(client, mbap, kFC_WriteMultiHR, kEx_IllegalValue);
+                return;
+            }
+        } else if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
             sendException(client, mbap, kFC_WriteMultiHR, kEx_IllegalValue);
             return;
         }

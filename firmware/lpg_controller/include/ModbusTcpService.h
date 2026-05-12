@@ -3,6 +3,7 @@
 #include <WiFi.h>
 
 #include "FillController.h"
+#include "HmiOperationService.h"
 #include "ModbusRegisterCache.h"
 #include "RtcService.h"
 #include "SettingsStore.h"
@@ -18,6 +19,7 @@ class ModbusTcpService {
     void begin();
     void handleClient();
     void setMqttConnected(bool v) { mqttConnected_ = v; }
+    void setHmiService(HmiOperationService* svc) { hmiService_ = svc; }
 
  private:
     void dispatchPdu(WiFiClient& client, const uint8_t* mbap, uint8_t fc,
@@ -39,6 +41,7 @@ class ModbusTcpService {
     TransactionLog&      transactionLog_;
     RtcService&          rtcService_;
     ModbusRegisterCache& registerCache_;
+    HmiOperationService* hmiService_{nullptr};
     WiFiServer           server_{502};
     WiFiClient      activeClient_;
     bool            mqttConnected_{false};

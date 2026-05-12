@@ -315,8 +315,11 @@ bool ModbusRtuService::handleFC06(const uint8_t* req, uint8_t* resp, uint16_t& r
         resp[0] = 0x02; respLen = 1; return false;
     }
     const uint16_t regIdx = static_cast<uint16_t>(regAddr - kHR_Base);
-    if (!writeHR(regIdx, regValue,
-                 statusStore_, settingsStore_, fillController_, rtcService_)) {
+    if (regIdx >= kHR_HmiBase && hmiService_) {
+        if (!hmiService_->pendWrite(regIdx - kHR_HmiBase, regValue)) {
+            resp[0] = 0x03; respLen = 1; return false;
+        }
+    } else if (!writeHR(regIdx, regValue, statusStore_, settingsStore_, fillController_, rtcService_)) {
         resp[0] = 0x03; respLen = 1; return false;
     }
     registerCache_.updateFast(statusStore_.snapshot(), settingsStore_, mqttConnected_);
@@ -350,7 +353,11 @@ bool ModbusRtuService::handleFC16(const uint8_t* req, uint8_t* resp, uint16_t& r
     for (uint16_t i = 0; i < qty; i++) {
         const uint16_t addr = static_cast<uint16_t>(startAddr + i - kHR_Base);
         const uint16_t val  = (static_cast<uint16_t>(data[i*2]) << 8) | data[i*2+1];
-        if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
+        if (addr >= kHR_HmiBase && hmiService_) {
+            if (!hmiService_->pendWrite(addr - kHR_HmiBase, val)) {
+                resp[0] = 0x03; respLen = 1; return false;
+            }
+        } else if (!writeHR(addr, val, statusStore_, settingsStore_, fillController_, rtcService_)) {
             resp[0] = 0x03;
             respLen = 1;
             return false;

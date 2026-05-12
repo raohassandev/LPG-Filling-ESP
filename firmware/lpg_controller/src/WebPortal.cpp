@@ -1,6 +1,9 @@
+#pragma GCC optimize("Os")
 #include "WebPortal.h"
 
 #include <SPIFFS.h>
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
 
 #include "BoardConfig.h"
 #include "ModbusRegisterMap.h"
@@ -25,7 +28,8 @@ String jsonStr(const String& s) {
 WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, WeightService& weightService,
                      SettingsStore& settingsStore, EventLog& eventLog, TransactionLog& transactionLog,
                      RelayBank& relayBank, AuthService& authService, LpgNetworkManager& networkManager,
-                     RtcService& rtcService, SdService& sdService, MqttService& mqttService)
+                     RtcService& rtcService, SdService& sdService, MqttService& mqttService,
+                     MfgPinService& mfgPin, ModbusRegisterCache& registerCache)
     : statusStore_(statusStore),
       fillController_(fillController),
       weightService_(weightService),
@@ -37,12 +41,14 @@ WebPortal::WebPortal(StatusStore& statusStore, FillController& fillController, W
       networkManager_(networkManager),
       rtcService_(rtcService),
       sdService_(sdService),
-      mqttService_(mqttService) {}
+      mqttService_(mqttService),
+      mfgPin_(mfgPin),
+      registerCache_(registerCache) {}
 
 void WebPortal::begin() {
-  // Collect Authorization header so requireAuth() can read Bearer tokens
-  const char* collectHeaders[] = { "Authorization" };
-  server_.collectHeaders(collectHeaders, 1);
+  // Collect auth headers
+  const char* collectHeaders[] = { "Authorization", "X-MFG-PIN" };
+  server_.collectHeaders(collectHeaders, 2);
 
   registerRoutes();
   server_.begin();
@@ -181,6 +187,32 @@ void WebPortal::registerRoutes() {
   server_.on("/api/modbus-rtu/apply-recommended", HTTP_POST, [this]() { handleApplyRecommendedRtu(); });
   server_.on("/api/sd/months",        HTTP_GET, [this]() { handleGetSdMonths(); });
   server_.on("/api/sd/transactions",  HTTP_GET, [this]() { handleGetSdTransactions(); });
+
+  // Calibration — PIN-protected actions
+  server_.on("/api/calibration/tare",            HTTP_POST, [this]() { handleCalibrationTare(); });
+  server_.on("/api/calibration/set-point",       HTTP_POST, [this]() { handleCalibrationSetPoint(); });
+  server_.on("/api/calibration/save",            HTTP_POST, [this]() { handleCalibrationSave(); });
+  server_.on("/api/calibration/cancel",          HTTP_POST, [this]() { handleCalibrationCancel(); });
+
+  // OTA — public status, PIN-protected upload
+  server_.on("/api/ota-status", HTTP_GET,  [this]() { handleOtaStatus(); });
+  server_.on("/api/ota/upload", HTTP_POST, [this]() { handleOtaUpload(); },
+                                           [this]() { handleOtaUpload(); });  // upload handler
+
+  // Public modbus live register values (no auth)
+  server_.on("/api/modbus-live", HTTP_GET, [this]() { handleModbusLive(); });
+
+  // Serve calibration and OTA pages from SPIFFS
+  server_.on("/calibration", HTTP_GET, [this]() {
+    File f = SPIFFS.open("/calibration.html","r");
+    if (!f) { sendJson(404,"{\"ok\":false,\"message\":\"calibration.html not found\"}"); return; }
+    sendCorsHeaders(); server_.streamFile(f, "text/html"); f.close();
+  });
+  server_.on("/ota", HTTP_GET, [this]() {
+    File f = SPIFFS.open("/ota.html","r");
+    if (!f) { sendJson(404,"{\"ok\":false,\"message\":\"ota.html not found\"}"); return; }
+    sendCorsHeaders(); server_.streamFile(f, "text/html"); f.close();
+  });
 }
 
 void WebPortal::handleRoot() {
@@ -340,10 +372,6 @@ void WebPortal::handleZeroNetWeight() {
 void WebPortal::handleModbusMap() {
   if (!requireAuth(UserRole::Maintenance)) return;
   using namespace ModbusRegisterMap;
-  const StatusSnapshot status = statusStore_.snapshot();
-  const RtcTime rtcTime = rtcService_.getTime();
-  // Expose raw 16-bit register values for all 25 holding registers (PDU 0x0000–0x0018).
-  // Addresses shown as Modbus Poll display numbers (40001 + PDU addr).
   char buf[32];
   String body = "{\"port\":502,\"protocol\":\"ModbusTCP\","
                 "\"hrBase\":0,\"hrCount\":" + String(kHR_Count) + ","
@@ -351,20 +379,19 @@ void WebPortal::handleModbusMap() {
                 "\"diBase\":10001,\"diCount\":" + String(kDI_Count) + ","
                 "\"registers\":{";
   for (uint16_t i = 0; i < kHR_Count; i++) {
-    const uint16_t val = readHR(i, status, transactionLog_, settingsStore_, rtcTime, mqttService_.isConnected());
-    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, val);
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, registerCache_.readReg(i));
     body += (i > 0 ? "," : "");
     body += buf;
   }
   body += "},\"coils\":{";
   for (uint16_t i = 0; i < kCoil_Count; i++) {
-    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, readCoil(i, status));
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, registerCache_.readCoil(i));
     body += (i > 0 ? "," : "");
     body += buf;
   }
   body += "},\"discreteInputs\":{";
   for (uint16_t i = 0; i < kDI_Count; i++) {
-    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, readDI(i, status));
+    snprintf(buf, sizeof(buf), "\"0x%04X\":%u", i, registerCache_.readDI(i));
     body += (i > 0 ? "," : "");
     body += buf;
   }
@@ -1395,7 +1422,7 @@ void WebPortal::handleModbusPublic() {
 
 // ── POST /api/modbus-rtu/apply-recommended — set 115200 8N1 + restart ────────
 void WebPortal::handleApplyRecommendedRtu() {
-  if (!requireAuth(UserRole::Maintenance)) return;
+  if (!requireMfgPin()) return;
   ModbusRtuSettings recommended;
   recommended.enabled      = true;
   recommended.slaveAddress = 1;
@@ -1415,9 +1442,9 @@ void WebPortal::handleApplyRecommendedRtu() {
   ESP.restart();
 }
 
-// ── POST /api/modbus-rtu — save RTU config (Maintenance) ─────────────────────
+// ── POST /api/modbus-rtu — save RTU config (Manufacturing PIN) ───────────────
 void WebPortal::handleSetModbusRtu() {
-  if (!requireAuth(UserRole::Maintenance)) return;
+  if (!requireMfgPin()) return;
   ModbusRtuSettings rtu = settingsStore_.rtuSnapshot();
   if (server_.hasArg("enabled"))      rtu.enabled      = server_.arg("enabled") == "1";
   if (server_.hasArg("slaveAddress")) rtu.slaveAddress = static_cast<uint8_t>(server_.arg("slaveAddress").toInt());
@@ -1433,4 +1460,182 @@ void WebPortal::handleSetModbusRtu() {
     return;
   }
   sendJson(200, "{\"message\":\"RTU settings saved. Changes take effect on next restart.\"}");
+}
+
+// ── Manufacturing PIN helper ───────────────────────────────────────────────────
+bool WebPortal::requireMfgPin() {
+  if (!mfgPin_.requirePin(server_)) return false;
+  return true;
+}
+
+// ── POST /api/calibration/tare — start non-blocking tare (PIN required) ──────
+void WebPortal::handleCalibrationTare() {
+  if (!requireMfgPin()) return;
+  const StatusSnapshot s = statusStore_.snapshot();
+  if (s.state == ProcessState::FillingFast || s.state == ProcessState::FillingSlow ||
+      s.state == ProcessState::Settling    || s.state == ProcessState::Validating) {
+    sendJson(409, F("{\"ok\":false,\"message\":\"Cannot tare during active fill.\"}"));
+    return;
+  }
+  weightService_.requestTare();
+  sendJson(200, F("{\"ok\":true,\"message\":\"Tare started.\"}"));
+}
+
+// ── POST /api/calibration/set-point — set cal point 1 or 2 (PIN required) ───
+// Params: point=1|2&kg=<float>  (query string or form body)
+void WebPortal::handleCalibrationSetPoint() {
+  if (!requireMfgPin()) return;
+  const StatusSnapshot s = statusStore_.snapshot();
+  if (s.state == ProcessState::FillingFast || s.state == ProcessState::FillingSlow ||
+      s.state == ProcessState::Settling    || s.state == ProcessState::Validating) {
+    sendJson(409, F("{\"ok\":false,\"message\":\"Cannot calibrate during active fill.\"}"));
+    return;
+  }
+  const int point   = server_.arg("point").toInt();
+  const float kg    = server_.arg("kg").toFloat();
+  if (point < 1 || point > 2) {
+    sendJson(400, F("{\"ok\":false,\"message\":\"point must be 1 or 2.\"}"));
+    return;
+  }
+  if (kg <= 0.0f || kg > 500.0f) {
+    sendJson(400, F("{\"ok\":false,\"message\":\"kg out of range.\"}"));
+    return;
+  }
+  weightService_.setCalPoint(static_cast<uint8_t>(point), kg);
+  sendJson(200, "{\"ok\":true,\"calValid\":" +
+               jsonBool(weightService_.calibrationValid()) +
+               ",\"hasTwoPoints\":" + jsonBool(weightService_.hasTwoPoints()) + "}");
+}
+
+// ── POST /api/calibration/save — acknowledge saved calibration (PIN) ─────────
+void WebPortal::handleCalibrationSave() {
+  if (!requireMfgPin()) return;
+  if (!weightService_.calibrationValid()) {
+    sendJson(409, F("{\"ok\":false,\"message\":\"No valid calibration to save.\"}"));
+    return;
+  }
+  sendJson(200, "{\"ok\":true,\"factor\":" +
+               String(weightService_.calibrationFactor(), 2) + "}");
+}
+
+// ── POST /api/calibration/cancel — clear two-point cal (PIN required) ────────
+void WebPortal::handleCalibrationCancel() {
+  if (!requireMfgPin()) return;
+  weightService_.clearCalPoints();
+  sendJson(200, "{\"ok\":true,\"message\":\"Two-point calibration cleared.\"}");
+}
+
+// ── GET /api/ota-status — no auth ─────────────────────────────────────────────
+void WebPortal::handleOtaStatus() {
+  sendCorsHeaders();
+  const StatusSnapshot s = statusStore_.snapshot();
+  const bool fa = s.state == ProcessState::FillingFast || s.state == ProcessState::FillingSlow ||
+                  s.state == ProcessState::Settling    || s.state == ProcessState::Validating;
+  const ResourceSnapshot res = ResourceMonitor::instance().snapshot();
+  String body = "{";
+  body += "\"otaActive\":"        + jsonBool(otaActive_) + ",";
+  body += "\"fillActive\":"       + jsonBool(fa)         + ",";
+  body += "\"otaAllowed\":"       + jsonBool(!fa)        + ",";
+  body += "\"freeSketchBytes\":"  + String(res.freeSketchBytes)    + ",";
+  body += "\"firmwareBuildMode\":" + String(res.firmwareBuildMode) + "}";
+  sendJson(200, body);
+}
+
+// ── POST /api/ota/upload — streaming OTA via IDF esp_ota_ops (PIN required) ──
+void WebPortal::handleOtaUpload() {
+  HTTPUpload& upload = server_.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    if (!mfgPin_.requirePin(server_)) { otaActive_ = false; return; }
+
+    const StatusSnapshot s = statusStore_.snapshot();
+    const bool fillActive = s.state == ProcessState::FillingFast  ||
+                            s.state == ProcessState::FillingSlow  ||
+                            s.state == ProcessState::Settling     ||
+                            s.state == ProcessState::Validating;
+    if (fillActive) {
+      server_.send(409, "application/json",
+                   F("{\"ok\":false,\"message\":\"Cannot OTA during active fill.\"}"));
+      otaActive_ = false;
+      return;
+    }
+
+    const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
+    if (!part) {
+      server_.send(500, "application/json",
+                   F("{\"ok\":false,\"message\":\"No OTA partition found.\"}"));
+      otaActive_ = false;
+      return;
+    }
+
+    esp_ota_handle_t handle = 0;
+    const esp_err_t err = esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &handle);
+    if (err != ESP_OK) {
+      Serial.printf("[OTA] begin failed: 0x%x\n", err);
+      otaActive_ = false;
+      return;
+    }
+    otaHandle_ = static_cast<uint32_t>(handle);
+    otaActive_ = true;
+    Serial.printf("[OTA] Upload started: %s\n", upload.filename.c_str());
+
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (otaActive_) {
+      const esp_err_t err = esp_ota_write(
+          static_cast<esp_ota_handle_t>(otaHandle_), upload.buf, upload.currentSize);
+      if (err != ESP_OK) {
+        Serial.printf("[OTA] write failed: 0x%x\n", err);
+        esp_ota_abort(static_cast<esp_ota_handle_t>(otaHandle_));
+        otaActive_ = false;
+      }
+    }
+
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (otaActive_) {
+      esp_err_t err = esp_ota_end(static_cast<esp_ota_handle_t>(otaHandle_));
+      if (err == ESP_OK) {
+        const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
+        err = esp_ota_set_boot_partition(part);
+      }
+      if (err == ESP_OK) {
+        Serial.printf("[OTA] Success (%u bytes). Rebooting.\n", upload.totalSize);
+        server_.send(200, "application/json",
+                     "{\"ok\":true,\"message\":\"OTA complete. Rebooting in 2 s.\","
+                     "\"bytes\":" + String(upload.totalSize) + "}");
+        server_.client().flush();
+        otaActive_ = false;
+        delay(2000);
+        ESP.restart();
+      } else {
+        Serial.printf("[OTA] end/boot failed: 0x%x\n", err);
+        otaActive_ = false;
+        server_.send(500, "application/json",
+                     F("{\"ok\":false,\"message\":\"OTA failed. See serial log.\"}"));
+      }
+    }
+  }
+}
+
+// ── GET /api/modbus-live — public live register snapshot (no auth) ────────────
+void WebPortal::handleModbusLive() {
+  sendCorsHeaders();
+  const StatusSnapshot s = statusStore_.snapshot();
+  const bool fa = s.state == ProcessState::FillingFast || s.state == ProcessState::FillingSlow ||
+                  s.state == ProcessState::Settling    || s.state == ProcessState::Validating;
+  String body = "{";
+  body += "\"liveWeightKg\":"      + String(s.liveWeightKg, 3)   + ",";
+  body += "\"tareWeightKg\":"      + String(s.tareWeightKg, 3)   + ",";
+  body += "\"netWeightKg\":"       + String(s.netWeightKg, 3)    + ",";
+  body += "\"targetWeightKg\":"    + String(s.targetWeightKg, 3) + ",";
+  body += "\"fillState\":"         + String(static_cast<int>(s.state)) + ",";
+  body += "\"fillStateLabel\":\""  + s.stateLabel                + "\",";
+  body += "\"fillActive\":"        + jsonBool(fa)                 + ",";
+  body += "\"weightStable\":"      + jsonBool(s.weightStable)    + ",";
+  body += "\"calibValid\":"        + jsonBool(s.calibrationValid) + ",";
+  body += "\"estopOk\":"           + jsonBool(s.emergencyStopOk) + ",";
+  body += "\"isTaring\":"          + jsonBool(weightService_.isTaring()) + ",";
+  body += "\"calFactor\":"         + String(weightService_.calibrationFactor(), 2) + ",";
+  body += "\"hasTwoPoints\":"      + jsonBool(weightService_.hasTwoPoints()) + ",";
+  body += "\"calibAllowed\":"      + jsonBool(!fa) + "}";
+  sendJson(200, body);
 }

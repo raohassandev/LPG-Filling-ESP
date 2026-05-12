@@ -341,7 +341,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TareWeightLo: {
             const float kg = regsToFloat(sHi_TareWeight, value);
             if (kg < 0.0f || kg > 500.0f) {
-                ResourceMonitor::instance().recordWriteFail("tare_weight_out_of_range_0_500kg");
+                ResourceMonitor::instance().recordWriteFail("tare_range");
                 return false;
             }
             statusStore.setTareWeight(kg);
@@ -353,7 +353,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TargetWeightLo: {
             const float kg = regsToFloat(sHi_TargetWeight, value);
             if (kg < 0.0f || kg > 500.0f) {
-                ResourceMonitor::instance().recordWriteFail("target_weight_out_of_range_0_500kg");
+                ResourceMonitor::instance().recordWriteFail("tgt_range");
                 return false;
             }
             statusStore.setTargets(kg, snap.targetAmount, snap.ratePerKg);
@@ -365,7 +365,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_RatePerKgLo: {
             const float rate = regsToFloat(sHi_RatePerKg, value);
             if (rate <= 0.0f || rate > 100000.0f) {
-                ResourceMonitor::instance().recordWriteFail("rate_per_kg_out_of_range_gt0_le100000");
+                ResourceMonitor::instance().recordWriteFail("rate_range");
                 return false;
             }
             settingsStore.setRatePerKg(rate);
@@ -378,7 +378,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TargetAmountLo: {
             const float amount = regsToFloat(sHi_TargetAmount, value);
             if (amount < 0.0f) {
-                ResourceMonitor::instance().recordWriteFail("target_amount_negative");
+                ResourceMonitor::instance().recordWriteFail("amt_neg");
                 return false;
             }
             statusStore.setTargets(snap.targetWeightKg, amount, snap.ratePerKg);
@@ -394,7 +394,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
                 case 3: return fillController.resetToIdle(reason);
                 case 4: statusStore.setTareWeight(snap.liveWeightKg); return true;
                 default:
-                    ResourceMonitor::instance().recordWriteFail("command_unknown_value");
+                    ResourceMonitor::instance().recordWriteFail("cmd_unk");
                     return false;
             }
         }
@@ -472,7 +472,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         }
 
         default:
-            ResourceMonitor::instance().recordWriteFail("read_only_or_unknown_register");
+            ResourceMonitor::instance().recordWriteFail("ro_reg");
             return false;
     }
 #endif // LPG_MODBUS_WRITES_ENABLED

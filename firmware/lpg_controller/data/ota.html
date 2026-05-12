@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firmware Update - LPG Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Segoe UI,Arial,sans-serif;background:#eef2f6;color:#17212b;padding:16px}
+a{color:#0f766e;font-weight:700;text-decoration:none;display:inline-block;margin-bottom:14px}
+h1{font-size:1.35rem;margin-bottom:4px}
+.sub{color:#647282;font-size:.88rem;margin-bottom:14px}
+h2{font-size:1rem;margin-bottom:10px}
+.card{background:#fff;border:1px solid #d7dee8;border-radius:8px;padding:16px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{color:#647282;font-weight:600;line-height:1.4}
+.warn-card{border-left:4px solid #b42318}
+input[type=password]{border:1px solid #d7dee8;border-radius:8px;padding:10px;min-width:160px}
+input[type=file]{padding:6px 0}
+button{border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:10px 16px;cursor:pointer}
+.btn-danger{background:#b42318}
+.live{font-family:Consolas,monospace;color:#0f766e;font-weight:800}
+.live.warn{color:#b42318}
+.label{font-weight:600;color:#647282;font-size:.85rem}
+.val-row{display:flex;flex-direction:column;padding:8px 0;min-width:130px}
+.msg{display:none;margin-top:12px;padding:10px;border-radius:8px;font-weight:700}
+.err{background:#fdebea;color:#b42318}.ok{background:#e8f6ee;color:#14823f}
+#bar{display:none;margin-top:12px;width:100%;height:14px;border-radius:7px;background:#d7dee8;overflow:hidden}
+#fill{height:100%;background:#0f766e;width:0%;transition:width .15s}
+</style>
+</head>
+<body>
+<a href="/">&#8592; Back</a>
+<h1>Firmware OTA Update</h1>
+<p class="sub">Upload a compiled .bin image to update the controller over Wi-Fi. Status auto-refreshes every 3 s.</p>
+
+<div class="card warn-card">
+  <h2 style="color:#b42318">Before You Upload</h2>
+  <ul class="note" style="margin-left:16px;line-height:2.1">
+    <li><strong>OTA is blocked during an active fill.</strong> Stop or complete the fill first.</li>
+    <li>Do <strong>not</strong> power off the device during upload — firmware corruption may result.</li>
+    <li>The controller <strong>restarts automatically</strong> after a successful update.</li>
+    <li>Upload only a .bin built for KC868-A6 (ESP32, 4 MB flash, custom partition table).</li>
+    <li>Manufacturing PIN is required. It is printed on the unit label.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Controller Status</h2>
+  <div class="row" style="gap:28px">
+    <div class="val-row"><span class="label">Fill Active</span><span class="live" id="fillActive">--</span></div>
+    <div class="val-row"><span class="label">OTA Active</span><span class="live" id="otaActive">--</span></div>
+    <div class="val-row"><span class="label">OTA Allowed</span><span class="live" id="otaAllowed">--</span></div>
+    <div class="val-row"><span class="label">Build Mode</span><span class="live" id="buildMode">--</span></div>
+    <div class="val-row"><span class="label">Sketch Size</span><span class="live" id="sketchSize">--</span></div>
+    <div class="val-row"><span class="label">Free Space</span><span class="live" id="freeSketch">--</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Manufacturing PIN</h2>
+  <div class="row">
+    <input id="pin" type="password" placeholder="6-digit PIN" maxlength="6">
+    <button onclick="savePin()">Remember PIN</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Upload Firmware</h2>
+  <p class="note" style="margin-bottom:12px">Select the compiled firmware .bin file, then click Upload &amp; Flash.</p>
+  <div class="row">
+    <input type="file" id="binFile" accept=".bin">
+  </div>
+  <div style="margin-top:12px">
+    <button class="btn-danger" onclick="startUpload()">&#8593; Upload &amp; Flash</button>
+  </div>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="msg" class="msg"></div>
+</div>
+
+<script>
+let pin=localStorage.getItem('lpgMfgPin')||'';
+if(pin)document.getElementById('pin').value=pin;
+function savePin(){pin=document.getElementById('pin').value.trim();localStorage.setItem('lpgMfgPin',pin);showMsg('PIN saved for this session','ok')}
+function showMsg(t,c='ok'){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+c;m.style.display='block'}
+
+const BUILD_MODES=['Production','Prototype','Development'];
+async function loadStatus(){
+  try{
+    const r=await fetch('/api/ota-status');
+    if(!r.ok)return;
+    const d=await r.json();
+    const fa=document.getElementById('fillActive');
+    fa.textContent=d.fillActive?'YES':'No';fa.className='live'+(d.fillActive?' warn':'');
+    const oa=document.getElementById('otaActive');
+    oa.textContent=d.otaActive?'YES — in progress':'No';oa.className='live'+(d.otaActive?' warn':'');
+    document.getElementById('otaAllowed').textContent=d.otaAllowed?'Yes':'No (fill active)';
+    document.getElementById('buildMode').textContent=BUILD_MODES[d.firmwareBuildMode]||'--';
+    document.getElementById('sketchSize').textContent=d.sketchSizeBytes?Math.round(d.sketchSizeBytes/1024)+' KB':'--';
+    document.getElementById('freeSketch').textContent=d.freeSketchBytes?Math.round(d.freeSketchBytes/1024)+' KB':'--';
+  }catch(e){}
+}
+
+function startUpload(){
+  const file=document.getElementById('binFile').files[0];
+  if(!file){showMsg('Select a .bin file first','err');return}
+  if(!pin){showMsg('Enter Manufacturing PIN first','err');return}
+  if(!confirm('Flash "'+file.name+'" ('+Math.round(file.size/1024)+' KB)?\n\nThe controller will restart after a successful upload.'))return;
+
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/ota/upload');
+  xhr.setRequestHeader('X-MFG-PIN',pin);
+
+  const bar=document.getElementById('bar'),fill=document.getElementById('fill');
+  bar.style.display='block';fill.style.width='0%';
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)fill.style.width=Math.round(e.loaded/e.total*100)+'%'};
+
+  xhr.onload=()=>{
+    bar.style.display='none';
+    let d={};try{d=JSON.parse(xhr.responseText)}catch{}
+    const ok=xhr.status===200;
+    showMsg(d.message||(ok?'Update complete. Device restarting...':'Upload failed (HTTP '+xhr.status+')'),ok?'ok':'err');
+    if(ok)setTimeout(()=>{window.location.href='/'},8000);
+  };
+  xhr.onerror=()=>{bar.style.display='none';showMsg('Upload failed — network error','err')};
+  showMsg('Uploading '+file.name+' ('+Math.round(file.size/1024)+' KB)...','ok');
+  xhr.send(file);
+}
+
+loadStatus();setInterval(loadStatus,3000);
+</script>
+</body>
+</html>

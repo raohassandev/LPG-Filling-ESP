@@ -50,6 +50,9 @@ class ModbusRegisterCache {
     // Discrete input read (0/1).
     uint8_t readDI(uint16_t addr) const;
 
+    // Direct pointer to HMI block base for bulk writes from HmiOperationService.
+    uint16_t* hmiRegs() { return &regs_[ModbusRegisterMap::kHR_HmiBase]; }
+
  private:
     uint16_t regs_[ModbusRegisterMap::kHR_Count] = {};
     uint8_t  coils_[ModbusRegisterMap::kCoil_Count] = {};

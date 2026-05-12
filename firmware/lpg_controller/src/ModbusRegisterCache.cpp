@@ -281,3 +281,4 @@ uint8_t ModbusRegisterCache::readDI(uint16_t addr) const {
     if (addr >= kDI_Count) return 0;
     return di_[addr];
 }
+

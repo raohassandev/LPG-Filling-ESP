@@ -165,8 +165,42 @@ constexpr uint16_t kHR_RtuErrCountLo     = 0x0075;
 constexpr uint16_t kHR_HeartbeatHi       = 0x0076;  // UINT32 R
 constexpr uint16_t kHR_HeartbeatLo       = 0x0077;
 
+// ── Section 8: HMI operation block (0x0080–0x009B, 28 registers) ────────────
+// Registers 0x0078–0x007F are reserved (read as 0, writes ignored).
+constexpr uint16_t kHR_HmiBase             = 0x0080;
+constexpr uint16_t kHR_HmiCommandCode      = 0x0080;  // UINT16 R/W  command code (kHmiCmd_*)
+constexpr uint16_t kHR_HmiCommandSeq       = 0x0081;  // UINT16 R/W  increment per new command
+constexpr uint16_t kHR_HmiLastAcceptedSeq  = 0x0082;  // UINT16 R    echo of last accepted seq
+constexpr uint16_t kHR_HmiCommandResult    = 0x0083;  // UINT16 R    kHmiResult_*
+constexpr uint16_t kHR_HmiCommandErrCode   = 0x0084;  // UINT16 R    kHmiErr_*
+constexpr uint16_t kHR_HmiCommandBusy      = 0x0085;  // UINT16 R    1=controller processing
+constexpr uint16_t kHR_HmiFillMode         = 0x0086;  // UINT16 R/W  0=by-kg 1=by-amount
+constexpr uint16_t kHR_HmiPreparedFlag     = 0x0087;  // UINT16 R    1=preset validated, ready
+constexpr uint16_t kHR_HmiReadyToPrepare   = 0x0088;  // UINT16 R    1=safety+scale OK
+constexpr uint16_t kHR_HmiReadyToStart     = 0x0089;  // UINT16 R    1=prepared+safe+stable
+constexpr uint16_t kHR_HmiCanTare          = 0x008A;  // UINT16 R    1=tare safe now
+constexpr uint16_t kHR_HmiCanStop          = 0x008B;  // UINT16 R    1=fill active
+constexpr uint16_t kHR_HmiHeartbeat        = 0x008C;  // UINT16 R/W  HMI writes to prove alive
+constexpr uint16_t kHR_HmiWdtTimeoutSec    = 0x008D;  // UINT16 R/W  0=disabled watchdog sec
+constexpr uint16_t kHR_HmiHeartbeatAgeSec  = 0x008E;  // UINT16 R    seconds since last heartbeat
+constexpr uint16_t kHR_HmiReserved         = 0x008F;  // UINT16 R    reserved
+constexpr uint16_t kHR_HmiPresetTareHi     = 0x0090;  // FLOAT32 R/W tare weight kg
+constexpr uint16_t kHR_HmiPresetTareLo     = 0x0091;
+constexpr uint16_t kHR_HmiPresetTargetHi   = 0x0092;  // FLOAT32 R/W target fill weight kg
+constexpr uint16_t kHR_HmiPresetTargetLo   = 0x0093;
+constexpr uint16_t kHR_HmiPresetRateHi     = 0x0094;  // FLOAT32 R/W rate per kg (PKR/kg)
+constexpr uint16_t kHR_HmiPresetRateLo     = 0x0095;
+constexpr uint16_t kHR_HmiPresetAmountHi   = 0x0096;  // FLOAT32 R/W target amount (PKR)
+constexpr uint16_t kHR_HmiPresetAmountLo   = 0x0097;
+constexpr uint16_t kHR_HmiPresetValid      = 0x0098;  // UINT16 R    1=preset validated
+constexpr uint16_t kHR_HmiPresetErrCode    = 0x0099;  // UINT16 R    kHmiErr_* from last prepare
+constexpr uint16_t kHR_HmiLastFillResult   = 0x009A;  // UINT16 R    kHmiResult_* of last fill
+constexpr uint16_t kHR_HmiLastFillErrCode  = 0x009B;  // UINT16 R    kHmiErr_* of last fill
+
+constexpr uint16_t kHR_HmiCount = 0x001C;  // 28 HMI registers
+
 constexpr uint16_t kHR_Base  = kHR_LiveWeightHi;
-constexpr uint16_t kHR_Count = 0x0078;  // 120 registers (0x0000-0x0077)
+constexpr uint16_t kHR_Count = 0x009C;  // 156 registers (0x0000–0x009B; gap 0x0078–0x007F reserved)
 
 // ── Coil PDU addresses (FC01/FC05) ───────────────────────────────────────
 constexpr uint16_t kCoil_EstopOk        = 0x0000;  // R   emergency stop OK
