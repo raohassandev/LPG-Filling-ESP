@@ -1,6 +1,6 @@
 # LPG Controller Modbus TCP/RTU Protocol Reference
 
-Current date: 2026-05-12
+Current date: 2026-05-13
 
 Controller Modbus registers are the single source of truth for process and diagnostic values. The display dashboard, controller webpage, Modbus Poll, future HMI/SCADA, and this manual must match `firmware/lpg_controller/include/ModbusRegisterMap.h` and `firmware/lpg_controller/src/ModbusRegisterMap.cpp`.
 
@@ -136,6 +136,102 @@ Device ID register `0x0018` returns `0xA601`. If Modbus Poll signed decimal disp
 | 0116 | 0x0074 | Modbus RTU Error Count | UINT32 | R | 1 | 2 | 3 |
 | 0118 | 0x0076 | Controller Heartbeat Counter | UINT32 | R | 1 | 2 | 22050 |
 
+Addresses 0x0078–0x007F are reserved.
+
+## HMI Operation Block (0x0080–0x009B)
+
+Holding registers 0x0080–0x009B implement a structured command/response interface for Weintek HMI panels and similar operator terminals. The HMI writes commands and preset values; the controller executes them in the main loop and writes back status flags.
+
+Float32 registers in this block use the same big-endian high-word-first layout as the rest of the map.
+
+| Decimal | Hex | Description | Type | Access | Notes |
+|---:|---|---|---|---|---|
+| 0128 | 0x0080 | HMI Command Code | UINT16 | RW | kHmiCmd_* — write before updating Seq |
+| 0129 | 0x0081 | HMI Command Sequence | UINT16 | RW | Increment to trigger; echo in LastAcceptedSeq confirms execution |
+| 0130 | 0x0082 | HMI Last Accepted Seq | UINT16 | R | Mirrors CommandSeq after command is consumed |
+| 0131 | 0x0083 | HMI Command Result | UINT16 | R | kHmiResult_* — read after seq echo |
+| 0132 | 0x0084 | HMI Command Error Code | UINT16 | R | kHmiErr_* — non-zero on Rejected/Failed |
+| 0133 | 0x0085 | HMI Command Busy | UINT16 | R | 1 while controller is processing |
+| 0134 | 0x0086 | HMI Fill Mode | UINT16 | RW | 0 = by-kg, 1 = by-amount |
+| 0135 | 0x0087 | HMI Prepared Flag | UINT16 | R | 1 = preset validated, PrepareNext succeeded |
+| 0136 | 0x0088 | HMI Ready To Prepare | UINT16 | R | 1 = safety + scale OK, may call PrepareNext |
+| 0137 | 0x0089 | HMI Ready To Start | UINT16 | R | 1 = prepared + safe + weight stable |
+| 0138 | 0x008A | HMI Can Tare | UINT16 | R | 1 = tare safe (no fill active, no fault) |
+| 0139 | 0x008B | HMI Can Stop | UINT16 | R | 1 = fill is active, Stop command valid |
+| 0140 | 0x008C | HMI Heartbeat | UINT16 | RW | HMI writes any value to reset watchdog age |
+| 0141 | 0x008D | HMI WDT Timeout Sec | UINT16 | RW | 0 = watchdog disabled; default 30 s |
+| 0142 | 0x008E | HMI Heartbeat Age Sec | UINT16 | R | Seconds since last heartbeat write |
+| 0143 | 0x008F | HMI Reserved | UINT16 | R | Always 0 |
+| 0144 | 0x0090 | HMI Preset Tare | Float32 | RW | Tare weight in kg (high word first) |
+| 0146 | 0x0092 | HMI Preset Target Weight | Float32 | RW | Target fill weight in kg (by-kg mode) |
+| 0148 | 0x0094 | HMI Preset Rate Per Kg | Float32 | RW | Price per kg in PKR/kg (by-amount mode) |
+| 0150 | 0x0096 | HMI Preset Target Amount | Float32 | RW | Target amount in PKR (by-amount mode) |
+| 0152 | 0x0098 | HMI Preset Valid | UINT16 | R | 1 = last PrepareNext validated preset OK |
+| 0153 | 0x0099 | HMI Preset Error Code | UINT16 | R | kHmiErr_* from last PrepareNext |
+| 0154 | 0x009A | HMI Last Fill Result | UINT16 | R | kHmiResult_* of the most recent fill |
+| 0155 | 0x009B | HMI Last Fill Error Code | UINT16 | R | kHmiErr_* of the most recent fill |
+
+### HMI Command Codes
+
+| Value | Command | Description |
+|---:|---|---|
+| 0 | None | No-op |
+| 10 | PrepareNext | Validate preset values and set PreparedFlag. Requires: e-stop OK, no fault, scale ready, calibration valid. |
+| 11 | ApplyTare | Apply PresetTare to the tare register immediately (no fill required). |
+| 12 | ZeroNet | Set tare = current live weight (zero the net). |
+| 13 | RequestTare | Trigger non-blocking HX711 hardware tare. Only valid when Idle or Ready. |
+| 20 | ModeKg | Set fill mode to by-kg (uses Preset Target Weight). |
+| 21 | ModeAmount | Set fill mode to by-amount (uses Preset Rate + Target Amount). |
+| 30 | Start | Start fill using validated preset. Requires PreparedFlag=1, e-stop OK, weight stable. |
+| 31 | Stop | Stop an active fill. |
+| 32 | Reset | Reset controller to Idle. Clears PreparedFlag. |
+| 33 | AckComplete | Acknowledge fill complete and clear PreparedFlag. |
+| 40 | ClearResult | Reset CommandResult and CommandErrCode to idle/none. |
+
+### HMI Result Codes
+
+| Value | Result |
+|---:|---|
+| 0 | Idle |
+| 1 | Accepted — command queued |
+| 2 | Busy — processing |
+| 3 | Rejected — see ErrorCode |
+| 4 | Done |
+| 5 | Failed — see ErrorCode |
+
+### HMI Error Codes
+
+| Value | Error |
+|---:|---|
+| 0 | None |
+| 1 | Invalid command code |
+| 2 | Invalid sequence |
+| 3 | Controller busy |
+| 4 | Not prepared — call PrepareNext first |
+| 5 | Safety not ready (e-stop, cylinder, nozzle) |
+| 6 | Scale not ready (not initialized or read error) |
+| 7 | Weight not stable |
+| 8 | Calibration invalid |
+| 9 | Invalid preset values |
+| 10 | Command not allowed in current state |
+| 11 | Watchdog timeout — heartbeat expired |
+| 12 | Fill fault active |
+
+### HMI Command Workflow
+
+**By-kg fill:**
+1. Write Preset Tare (0x0090–0x0091) as Float32.
+2. Write Preset Target Weight (0x0092–0x0093) as Float32.
+3. Write FillMode=0 to 0x0086.
+4. Write CommandCode=10 to 0x0080, then increment CommandSeq at 0x0081.
+5. Wait for LastAcceptedSeq (0x0082) to echo the sequence value.
+6. Check CommandResult (0x0083): Done=4 means prepared, Rejected=3 means see ErrorCode.
+7. Poll ReadyToStart (0x0089); once 1, write CommandCode=30 + new seq.
+8. Confirm Fill State transitions (Idle→Ready→Validating→Fast→Slow→Settling→Complete).
+9. When Complete, write CommandCode=33 (AckComplete) + new seq.
+
+**Watchdog:** Write any value to HMI Heartbeat (0x008C) at least every WdtTimeout seconds to prevent watchdog rejection of Start/PrepareNext commands. Disable by writing 0 to WdtTimeout (0x008D).
+
 ## Resource Register Notes
 
 `Application Load Percent` is a main-loop load estimate based on observed loop execution time against the nominal 20 ms loop period. It is not true CPU load.
@@ -255,7 +351,9 @@ FC05 coil write values: `0xFF00 = on`, `0x0000 = off`.
 | 0004 | 0x0004 | Input 5 | R |
 | 0005 | 0x0005 | Input 6 | R |
 
-## Start Fill Sequence
+## Start Fill Sequence (legacy direct-write path)
+
+This sequence uses the raw Modbus write registers. For HMI panels, use the HMI Operation Block at 0x0080–0x009B instead.
 
 1. Write Target Weight to `0x0006` as Float32 with FC16.
 2. Write Rate Per Kg to `0x0008` as Float32 with FC16.
@@ -263,3 +361,20 @@ FC05 coil write values: `0xFF00 = on`, `0x0000 = off`.
 4. Read back `0x0006`, `0x0008`, and `0x000A`.
 5. Only after readback matches, write command `1` to `0x0017`.
 6. Confirm Fill State changes from Idle/Ready into Validating/Fast/Slow/Settling/Complete.
+
+## Manufacturing PIN
+
+Certain web portal actions require the Manufacturing PIN:
+
+- Load cell calibration (hardware tare, set calibration point, save/revert)
+- OTA firmware upload
+
+The Manufacturing PIN is a 6-digit number generated once on first boot and saved to NVS. It is printed to the serial console at boot-time and is labelled on the unit. It is not transmitted over Modbus and is never stored in query strings.
+
+Rate limiting: 5 failed attempts per 60-second window locks out further attempts. The device must remain powered for the window to expire.
+
+The PIN is passed in the `X-MFG-PIN` HTTP request header. It is stored in browser localStorage as `lpgMfgPin` by the calibration and OTA web pages.
+
+## OTA Firmware Update
+
+OTA firmware is uploaded via the web portal at `/ota.html` or via a direct `POST /api/ota/upload` with the binary `.bin` file and the `X-MFG-PIN` header. OTA is blocked while a fill is active. The device restarts automatically after a successful upload and boots the new firmware. The previous firmware slot is retained for rollback if the next boot fails.

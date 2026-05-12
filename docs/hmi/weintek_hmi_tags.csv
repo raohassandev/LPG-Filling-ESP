@@ -1,0 +1,28 @@
+Tag Name,Description,Device,Address Type,PDU Address (0-based hex),Weintek Address (40001+),Data Type,Read/Write,Notes
+HMI_CommandCode,HMI command to execute,LPG_Controller,Holding Register,0x0080,40129,16-bit Unsigned,R/W,kHmiCmd_* — write before CommandSeq
+HMI_CommandSeq,Command trigger — increment per new command,LPG_Controller,Holding Register,0x0081,40130,16-bit Unsigned,R/W,Write after CommandCode is set
+HMI_LastAcceptedSeq,Echo of last accepted sequence,LPG_Controller,Holding Register,0x0082,40131,16-bit Unsigned,R,Matches CommandSeq when command consumed
+HMI_CommandResult,Result of last command,LPG_Controller,Holding Register,0x0083,40132,16-bit Unsigned,R,0=Idle 1=Accepted 2=Busy 3=Rejected 4=Done 5=Failed
+HMI_CommandErrCode,Error detail for Rejected/Failed,LPG_Controller,Holding Register,0x0084,40133,16-bit Unsigned,R,0=None; see kHmiErr_* table
+HMI_CommandBusy,1 while controller is processing,LPG_Controller,Holding Register,0x0085,40134,16-bit Unsigned,R,Poll until 0 before reading Result
+HMI_FillMode,Fill mode selection,LPG_Controller,Holding Register,0x0086,40135,16-bit Unsigned,R/W,0=By-Kg 1=By-Amount
+HMI_PreparedFlag,Preset validated and ready to start,LPG_Controller,Holding Register,0x0087,40136,16-bit Unsigned,R,Set by PrepareNext(10); cleared by Start/Reset
+HMI_ReadyToPrepare,Safety and scale conditions met,LPG_Controller,Holding Register,0x0088,40137,16-bit Unsigned,R,1=may call PrepareNext; check before cmd 10
+HMI_ReadyToStart,All conditions met to start fill,LPG_Controller,Holding Register,0x0089,40138,16-bit Unsigned,R,1=prepared+safe+stable; check before cmd 30
+HMI_CanTare,Tare safe to perform,LPG_Controller,Holding Register,0x008A,40139,16-bit Unsigned,R,1=no fill active and no fault
+HMI_CanStop,Fill is active (stop valid),LPG_Controller,Holding Register,0x008B,40140,16-bit Unsigned,R,1=fill active; write cmd 31 to stop
+HMI_Heartbeat,HMI watchdog write — write any value,LPG_Controller,Holding Register,0x008C,40141,16-bit Unsigned,R/W,Write periodically to prevent WDT timeout
+HMI_WdtTimeoutSec,Watchdog timeout in seconds,LPG_Controller,Holding Register,0x008D,40142,16-bit Unsigned,R/W,0=disabled; default 30; affects cmds 10 and 30
+HMI_HeartbeatAgeSec,Seconds since last heartbeat,LPG_Controller,Holding Register,0x008E,40143,16-bit Unsigned,R,Exceeding WdtTimeout blocks PrepareNext/Start
+HMI_PresetTare_Hi,Preset tare weight high word,LPG_Controller,Holding Register,0x0090,40145,Float32 High,R/W,Tare kg — use FC16 to write both words together
+HMI_PresetTare_Lo,Preset tare weight low word,LPG_Controller,Holding Register,0x0091,40146,Float32 Low,R/W,
+HMI_PresetTargetKg_Hi,Preset target fill weight high word,LPG_Controller,Holding Register,0x0092,40147,Float32 High,R/W,By-kg mode; use FC16 to write both words
+HMI_PresetTargetKg_Lo,Preset target fill weight low word,LPG_Controller,Holding Register,0x0093,40148,Float32 Low,R/W,
+HMI_PresetRatePerKg_Hi,Preset price per kg high word,LPG_Controller,Holding Register,0x0094,40149,Float32 High,R/W,By-amount mode; PKR per kg
+HMI_PresetRatePerKg_Lo,Preset price per kg low word,LPG_Controller,Holding Register,0x0095,40150,Float32 Low,R/W,
+HMI_PresetAmount_Hi,Preset target amount high word,LPG_Controller,Holding Register,0x0096,40151,Float32 High,R/W,By-amount mode; PKR
+HMI_PresetAmount_Lo,Preset target amount low word,LPG_Controller,Holding Register,0x0097,40152,Float32 Low,R/W,
+HMI_PresetValid,Preset successfully validated,LPG_Controller,Holding Register,0x0098,40153,16-bit Unsigned,R,1=PrepareNext succeeded
+HMI_PresetErrCode,Error code from last PrepareNext,LPG_Controller,Holding Register,0x0099,40154,16-bit Unsigned,R,kHmiErr_* value; 0=none
+HMI_LastFillResult,Result of most recent fill,LPG_Controller,Holding Register,0x009A,40155,16-bit Unsigned,R,kHmiResult_* value
+HMI_LastFillErrCode,Error code of most recent fill,LPG_Controller,Holding Register,0x009B,40156,16-bit Unsigned,R,kHmiErr_* value; 0=none
