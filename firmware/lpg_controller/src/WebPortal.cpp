@@ -1386,6 +1386,8 @@ void WebPortal::handleModbusPublic() {
   body += "\"hrBase\":0,\"hrCount\":" + String(ModbusRegisterMap::kHR_Count) + ",";
   body += "\"note\":\"Addresses are 0-based PDU addresses. 0x1001 map is legacy only.\",";
   body += "\"firmwareBuildMode\":" + String(res.firmwareBuildMode) + ",";
+  body += "\"modbusWritesEnabled\":" + jsonBool(ModbusRegisterMap::modbusWritesEnabled()) + ",";
+  body += "\"lastWriteFailReason\":\"" + String(res.lastWriteFailReason) + "\",";
   body += "\"deviceId\":\"0xA601\"";
   body += "}";
   sendJson(200, body);

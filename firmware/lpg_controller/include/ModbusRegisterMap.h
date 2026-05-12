@@ -234,6 +234,9 @@ bool writeHR(uint16_t addr, uint16_t value,
              StatusStore& statusStore, SettingsStore& settingsStore, FillController& fillController,
              RtcService& rtcService);
 
+// Returns true if this build allows Modbus writes (LPG_MODBUS_WRITES_ENABLED=1 or LPG_PROTOTYPE_BUILD=1).
+bool modbusWritesEnabled();
+
 // Read one coil (returns 0 or 1). Returns 0 for unknown.
 uint8_t readCoil(uint16_t addr, const StatusSnapshot& status);
 

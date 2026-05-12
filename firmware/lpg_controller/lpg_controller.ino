@@ -7,6 +7,7 @@
 #include "FillController.h"
 #include "InputExpander.h"
 #include "ModbusRegisterCache.h"
+#include "ModbusRegisterMap.h"
 #include "RelayBank.h"
 #include "EventLog.h"
 #include "SettingsStore.h"
@@ -358,6 +359,7 @@ void setup() {
   authService.begin();
   fillController.begin();
   ResourceMonitor::instance().begin();
+  ResourceMonitor::instance().setModbusWritesEnabled(ModbusRegisterMap::modbusWritesEnabled());
   networkManager.begin(settingsStore.snapshot());
   networkManager.connectSTA(settingsStore.snapshot().staSsid, settingsStore.snapshot().staPassword);
   // mDNS is managed entirely by NetworkManager — started/restarted via poll() on every connection

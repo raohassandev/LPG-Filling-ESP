@@ -36,7 +36,9 @@ th{color:#647282}.mono{font-family:Consolas,monospace;font-weight:800}.live{font
     <tr><td>TCP</td><td class="mono">Port 502, Unit ID 1 recommended, FC01/02/03/04/05/06/16</td></tr>
     <tr><td>RTU</td><td class="mono" id="connRtu">Loading...</td></tr>
     <tr><td>Word order</td><td class="mono">Float32/UINT32 use two registers, high word first.</td></tr>
+    <tr><td>Float32 writes</td><td class="mono">Float32 registers (Tare, Target, Rate, Amount) span 2 registers. Use <b>FC16 Write Multiple Registers, quantity&nbsp;2</b>. FC06 writes only one 16-bit half and will not complete a Float32 value.</td></tr>
     <tr><td>Writes</td><td class="mono">Production builds reject Modbus writes unless explicitly enabled. Prototype builds can write preset and command registers.</td></tr>
+    <tr><td>Write status</td><td class="mono" id="writeStatus">Loading...</td></tr>
   </tbody></table>
 </div>
 <div class="card" style="border-left:4px solid #0d5e8a">
@@ -124,6 +126,10 @@ async function loadPublicStatus(){
     if(!r.ok)throw new Error(d.message||r.status);
     // Connection row
     document.getElementById('connRtu').textContent='RS485 RX GPIO'+d.rtuRxPin+', TX GPIO'+d.rtuTxPin+', slave '+d.activeSlaveAddress+', '+d.activeBaud+' 8'+(['N','E','O'][d.activeParity]||'N')+d.activeStopBits+', '+(d.activeEnabled?'enabled':'disabled');
+    // Write-enable status row
+    const modeLabel=['Production (read-only by default)','Prototype (writes enabled)','Development (writes enabled)'][d.firmwareBuildMode]||'Unknown';
+    const writesEl=document.getElementById('writeStatus');
+    if(writesEl){writesEl.innerHTML=(d.modbusWritesEnabled?'<span style="color:#14823f">Writes ENABLED</span>':'<span class="warn">Writes DISABLED — '+modeLabel+'</span>')+' | Last fail: '+(d.lastWriteFailReason||'none');}
     // Active config table
     const srcLabel={'NVS':'NVS (saved settings — firmware update preserved this value)','FACTORY_DEFAULT':'Factory default (no NVS key; 115200 8N1 applied)','INVALID_FALLBACK':'Invalid NVS value overridden to 115200 fallback'}[d.configSource]||d.configSource;
     const baudWarn=d.activeBaud!==115200?' <span class="warn">⚠ not 115200 — recommended: 115200</span>':'';

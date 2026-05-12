@@ -34,6 +34,8 @@ struct ResourceSnapshot {
   uint32_t tcpLastUs = 0;
   uint32_t tcpMaxUs = 0;
   uint32_t tcpAvgUs = 0;
+  bool     modbusWritesEnabled = false;
+  char     lastWriteFailReason[48] = "";
 };
 
 class ResourceMonitor {
@@ -49,6 +51,8 @@ public:
   void incrementTcpRequest();
   void incrementTcpError();
   void recordTcpTiming(uint32_t us);
+  void recordWriteFail(const char* reason);
+  void setModbusWritesEnabled(bool v);
 
   ResourceSnapshot snapshot() const;
 

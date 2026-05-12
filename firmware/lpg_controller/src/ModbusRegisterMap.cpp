@@ -308,6 +308,11 @@ uint16_t ModbusRegisterMap::readHR(uint16_t addr, const StatusSnapshot& status,
     }
 }
 
+// ── Modbus writes enabled flag ────────────────────────────────────────────────
+bool ModbusRegisterMap::modbusWritesEnabled() {
+    return LPG_MODBUS_WRITES_ENABLED != 0;
+}
+
 // ── Holding Register write ────────────────────────────────────────────────────
 bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
                                  StatusStore& statusStore, SettingsStore& settingsStore,
@@ -316,6 +321,7 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
     // Writes disabled in production. Define LPG_MODBUS_WRITES_ENABLED=1 to enable.
     (void)addr; (void)value; (void)statusStore; (void)settingsStore;
     (void)fillController; (void)rtcService;
+    ResourceMonitor::instance().recordWriteFail("writes_disabled_production_build");
     return false;
 #else
     static uint16_t sHi_TareWeight   = 0;
@@ -334,7 +340,10 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TareWeightHi: sHi_TareWeight = value; return true;
         case kHR_TareWeightLo: {
             const float kg = regsToFloat(sHi_TareWeight, value);
-            if (kg < 0.0f || kg > 500.0f) return false;
+            if (kg < 0.0f || kg > 500.0f) {
+                ResourceMonitor::instance().recordWriteFail("tare_weight_out_of_range_0_500kg");
+                return false;
+            }
             statusStore.setTareWeight(kg);
             return true;
         }
@@ -343,7 +352,10 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TargetWeightHi: sHi_TargetWeight = value; return true;
         case kHR_TargetWeightLo: {
             const float kg = regsToFloat(sHi_TargetWeight, value);
-            if (kg < 0.0f || kg > 500.0f) return false;
+            if (kg < 0.0f || kg > 500.0f) {
+                ResourceMonitor::instance().recordWriteFail("target_weight_out_of_range_0_500kg");
+                return false;
+            }
             statusStore.setTargets(kg, snap.targetAmount, snap.ratePerKg);
             return true;
         }
@@ -352,7 +364,10 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_RatePerKgHi: sHi_RatePerKg = value; return true;
         case kHR_RatePerKgLo: {
             const float rate = regsToFloat(sHi_RatePerKg, value);
-            if (rate <= 0.0f || rate > 100000.0f) return false;
+            if (rate <= 0.0f || rate > 100000.0f) {
+                ResourceMonitor::instance().recordWriteFail("rate_per_kg_out_of_range_gt0_le100000");
+                return false;
+            }
             settingsStore.setRatePerKg(rate);
             statusStore.setTargets(snap.targetWeightKg, snap.targetAmount, rate);
             return true;
@@ -362,7 +377,10 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
         case kHR_TargetAmountHi: sHi_TargetAmount = value; return true;
         case kHR_TargetAmountLo: {
             const float amount = regsToFloat(sHi_TargetAmount, value);
-            if (amount < 0.0f) return false;
+            if (amount < 0.0f) {
+                ResourceMonitor::instance().recordWriteFail("target_amount_negative");
+                return false;
+            }
             statusStore.setTargets(snap.targetWeightKg, amount, snap.ratePerKg);
             return true;
         }
@@ -375,7 +393,9 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
                 case 2: return fillController.stopFill("modbus_stop");
                 case 3: return fillController.resetToIdle(reason);
                 case 4: statusStore.setTareWeight(snap.liveWeightKg); return true;
-                default: return false;
+                default:
+                    ResourceMonitor::instance().recordWriteFail("command_unknown_value");
+                    return false;
             }
         }
 
@@ -451,7 +471,9 @@ bool ModbusRegisterMap::writeHR(uint16_t addr, uint16_t value,
             return true;
         }
 
-        default: return false;
+        default:
+            ResourceMonitor::instance().recordWriteFail("read_only_or_unknown_register");
+            return false;
     }
 #endif // LPG_MODBUS_WRITES_ENABLED
 }

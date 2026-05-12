@@ -103,6 +103,15 @@ void ResourceMonitor::recordTcpTiming(uint32_t us) {
   snap_.tcpAvgUs = static_cast<uint32_t>(snap_.tcpAvgUs * 0.95f + us * 0.05f);
 }
 
+void ResourceMonitor::recordWriteFail(const char* reason) {
+  strncpy(snap_.lastWriteFailReason, reason, sizeof(snap_.lastWriteFailReason) - 1);
+  snap_.lastWriteFailReason[sizeof(snap_.lastWriteFailReason) - 1] = '\0';
+}
+
+void ResourceMonitor::setModbusWritesEnabled(bool v) {
+  snap_.modbusWritesEnabled = v;
+}
+
 ResourceSnapshot ResourceMonitor::snapshot() const {
   return snap_;
 }
