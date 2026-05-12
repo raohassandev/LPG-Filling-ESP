@@ -73,32 +73,53 @@ void WeightService::poll()
         return;
     }
 
-    if (dataReady())
+    // Nothing to do until HX711 DOUT is ready (normal between conversions at 10/80 SPS)
+    if (!dataReady()) return;
+
+    long rawValue = 0;
+    if (!readRawFast(rawValue))
     {
-        long rawValue = 0;
-        if (!readRawHx711(rawValue, 100))
-        {
-            readError_ = true;
-            return;
-        }
-        readError_ = false;
-        lastRawValue_ = rawValue;
-
-        float weightKg;
-        if (hasTwoPoints_) {
-            const float span = static_cast<float>(calHigh_.rawAbs - calLow_.rawAbs);
-            weightKg = (span != 0.0f)
-                ? calLow_.kg + static_cast<float>(rawValue - calLow_.rawAbs) * (calHigh_.kg - calLow_.kg) / span
-                : 0.0f;
-        } else {
-            weightKg = static_cast<float>(rawValue - tareOffsetRaw_) / calibrationFactor_;
-        }
-
-        // Update history and check stability
-        liveWeightKg_ = weightKg;
-        isStable_ = checkStability(weightKg);
+        // DOUT went high before we could read — not a hard error, try next cycle
+        return;
     }
-    // else: HX711 is mid-conversion (DOUT HIGH is normal at 10 SPS) — not an error
+
+    // Non-blocking tare: collect this sample into the tare accumulator
+    if (tareState_ == TareState::Collecting)
+    {
+        tareSumAcc_ += rawValue;
+        tareSampleCount_++;
+        if (tareSampleCount_ >= kTareSamples)
+        {
+            tareOffsetRaw_ = tareSumAcc_ / kTareSamples;
+            liveWeightKg_  = 0.0f;
+            clearStabilityHistory(0.0f);
+            readError_    = false;
+            tareState_     = TareState::Idle;
+            Serial.printf("[WEIGHT] Non-blocking tare complete: raw offset = %ld\n", tareOffsetRaw_);
+        }
+        return;
+    }
+
+    applyRawSample(rawValue);
+}
+
+void WeightService::applyRawSample(long rawValue)
+{
+    readError_    = false;
+    lastRawValue_ = rawValue;
+
+    float weightKg;
+    if (hasTwoPoints_) {
+        const float span = static_cast<float>(calHigh_.rawAbs - calLow_.rawAbs);
+        weightKg = (span != 0.0f)
+            ? calLow_.kg + static_cast<float>(rawValue - calLow_.rawAbs) * (calHigh_.kg - calLow_.kg) / span
+            : 0.0f;
+    } else {
+        weightKg = static_cast<float>(rawValue - tareOffsetRaw_) / calibrationFactor_;
+    }
+
+    liveWeightKg_ = weightKg;
+    isStable_     = checkStability(weightKg);
 }
 
 long WeightService::readRawHx711()
@@ -128,8 +149,15 @@ bool WeightService::readRawHx711(long& value, uint16_t timeoutMs)
         }
         delay(1);
     }
+    return readRawFast(value);
+}
 
-    // Read 24-bit value
+bool WeightService::readRawFast(long& value)
+{
+    // Non-blocking read — caller must ensure dataReady() was true before calling.
+    // If DOUT has gone high in the meantime, return false immediately.
+    if (!dataReady()) return false;
+
     long result = 0;
     for (int i = 0; i < 24; i++)
     {
@@ -140,20 +168,13 @@ bool WeightService::readRawHx711(long& value, uint16_t timeoutMs)
         delayMicroseconds(1);
     }
 
-    // Send pulse for channel/gain selection (channel A, gain 128)
-    for (int i = 0; i < 1; i++)
-    {
-        digitalWrite(kHx711SckPin, HIGH);
-        delayMicroseconds(1);
-        digitalWrite(kHx711SckPin, LOW);
-        delayMicroseconds(1);
-    }
+    // Channel A, gain 128 select pulse
+    digitalWrite(kHx711SckPin, HIGH);
+    delayMicroseconds(1);
+    digitalWrite(kHx711SckPin, LOW);
+    delayMicroseconds(1);
 
-    // Convert from unsigned to signed
-    if (result & 0x800000)
-    {
-        result |= 0xFF000000;
-    }
+    if (result & 0x800000) result |= 0xFF000000;
 
     value = result;
     return true;
@@ -182,12 +203,13 @@ int WeightService::sckLevel() const
 
 void WeightService::tare()
 {
+    // Blocking tare — only safe to call during setup() before Modbus starts,
+    // or from serial console where a brief pause is acceptable.
     if (!hx711Initialized_)
     {
         return;
     }
 
-    static constexpr uint8_t kTareSamples = 15;
     long sum = 0;
     uint8_t samples = 0;
     while (samples < kTareSamples)
@@ -207,6 +229,20 @@ void WeightService::tare()
     readError_ = false;
     clearStabilityHistory(0.0f);
     Serial.printf("[WEIGHT] Tare completed: raw offset = %ld\n", tareOffsetRaw_);
+}
+
+void WeightService::requestTare()
+{
+    if (!hx711Initialized_) return;
+    tareSumAcc_      = 0;
+    tareSampleCount_ = 0;
+    tareState_       = TareState::Collecting;
+    Serial.printf("[WEIGHT] Non-blocking tare started (collecting %u samples)\n", kTareSamples);
+}
+
+bool WeightService::isTaring() const
+{
+    return tareState_ == TareState::Collecting;
 }
 
 void WeightService::setCalibrationFactor(float factor)

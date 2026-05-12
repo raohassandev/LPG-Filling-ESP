@@ -53,12 +53,13 @@ void setMbap(uint8_t* buf, const uint8_t* req, uint16_t afterLen) {
 // ── Constructor ───────────────────────────────────────────────────────────
 ModbusTcpService::ModbusTcpService(StatusStore& statusStore, SettingsStore& settingsStore,
                                     FillController& fillController, TransactionLog& transactionLog,
-                                    RtcService& rtcService)
+                                    RtcService& rtcService, ModbusRegisterCache& registerCache)
     : statusStore_(statusStore),
       settingsStore_(settingsStore),
       fillController_(fillController),
       transactionLog_(transactionLog),
-      rtcService_(rtcService) {}
+      rtcService_(rtcService),
+      registerCache_(registerCache) {}
 
 // ── begin ─────────────────────────────────────────────────────────────────
 void ModbusTcpService::begin() {
@@ -169,7 +170,7 @@ void ModbusTcpService::dispatchPdu(WiFiClient& client, const uint8_t* mbap, uint
     }
 }
 
-// ── FC01 — Read Coils ─────────────────────────────────────────────────────
+// ── FC01 — Read Coils (from cache) ────────────────────────────────────────
 void ModbusTcpService::handleFC01(WiFiClient& client, const uint8_t* mbap,
                                    uint16_t startAddr, uint16_t qty) {
     using namespace ModbusRegisterMap;
@@ -179,22 +180,20 @@ void ModbusTcpService::handleFC01(WiFiClient& client, const uint8_t* mbap,
         return;
     }
 
-    const StatusSnapshot status = statusStore_.snapshot();
     const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);
-
-    uint8_t resp[9 + 4] = {0};  // max 11 coils → 2 bytes
-    setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + byteCount));  // UnitID+FC+byteCount+data
+    uint8_t resp[9 + 4] = {0};
+    setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + byteCount));
     resp[7] = kFC_ReadCoils;
     resp[8] = byteCount;
     for (uint16_t i = 0; i < qty; ++i) {
-        if (readCoil(static_cast<uint16_t>(startAddr + i - kCoil_Base), status)) {
+        if (registerCache_.readCoil(static_cast<uint16_t>(startAddr + i - kCoil_Base))) {
             resp[9 + i / 8] |= static_cast<uint8_t>(1 << (i % 8));
         }
     }
     client.write(resp, static_cast<size_t>(9 + byteCount));
 }
 
-// ── FC02 — Read Discrete Inputs ───────────────────────────────────────────
+// ── FC02 — Read Discrete Inputs (from cache) ──────────────────────────────
 void ModbusTcpService::handleFC02(WiFiClient& client, const uint8_t* mbap,
                                    uint16_t startAddr, uint16_t qty) {
     using namespace ModbusRegisterMap;
@@ -204,22 +203,20 @@ void ModbusTcpService::handleFC02(WiFiClient& client, const uint8_t* mbap,
         return;
     }
 
-    const StatusSnapshot status = statusStore_.snapshot();
-    const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);  // 6 DIs → 1 byte
-
+    const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);
     uint8_t resp[9 + 1] = {0};
     setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + byteCount));
     resp[7] = kFC_ReadDI;
     resp[8] = byteCount;
     for (uint16_t i = 0; i < qty; ++i) {
-        if (readDI(static_cast<uint16_t>(startAddr + i - kDI_Base), status)) {
+        if (registerCache_.readDI(static_cast<uint16_t>(startAddr + i - kDI_Base))) {
             resp[9 + i / 8] |= static_cast<uint8_t>(1 << (i % 8));
         }
     }
     client.write(resp, static_cast<size_t>(9 + byteCount));
 }
 
-// ── FC03/FC04 — Read Holding / Input Registers ────────────────────────────
+// ── FC03/FC04 — Read Holding / Input Registers (from cache) ──────────────
 void ModbusTcpService::handleFC03(WiFiClient& client, const uint8_t* mbap, uint8_t fc,
                                    uint16_t startAddr, uint16_t qty) {
     using namespace ModbusRegisterMap;
@@ -229,18 +226,12 @@ void ModbusTcpService::handleFC03(WiFiClient& client, const uint8_t* mbap, uint8
         return;
     }
 
-    const StatusSnapshot status = statusStore_.snapshot();
-    const RtcTime rtcTime = rtcService_.getTime();
     // Response: 7(MBAP) + 1(FC) + 1(byteCount) + qty*2
     uint8_t resp[9 + 125 * 2] = {0};
     setMbap(resp, mbap, static_cast<uint16_t>(1 + 1 + 1 + qty * 2));
     resp[7] = fc;
     resp[8] = static_cast<uint8_t>(qty * 2);
-    for (uint16_t i = 0; i < qty; ++i) {
-        const uint16_t val = readHR(static_cast<uint16_t>(startAddr + i - kHR_Base),
-                                     status, transactionLog_, settingsStore_, rtcTime, mqttConnected_);
-        writeU16(&resp[9 + i * 2], val);
-    }
+    registerCache_.readBlock(static_cast<uint16_t>(startAddr - kHR_Base), qty, &resp[9]);
     client.write(resp, static_cast<size_t>(9 + qty * 2));
 }
 

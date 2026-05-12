@@ -4,12 +4,20 @@
 
 #include "BoardConfig.h"
 #include "FillController.h"
+#include "ModbusRegisterCache.h"
 #include "RtcService.h"
 #include "SettingsStore.h"
 #include "StatusStore.h"
 #include "TransactionLog.h"
 
+// Define LPG_RTU_DEBUG=1 to enable per-frame CRC/error Serial logs.
+// Default off so the RTU hot path is free of serial prints.
+#ifndef LPG_RTU_DEBUG
+  #define LPG_RTU_DEBUG 0
+#endif
+
 // Modbus RTU server — RS-485 half-duplex via UART2.
+// FC03/FC04 reads from ModbusRegisterCache (populated by main loop).
 // Supports FC01/02/03/05/06/16 with the same register map as ModbusTcpService.
 //
 // KC868-A6 RS485 wiring:
@@ -21,7 +29,7 @@ class ModbusRtuService {
  public:
     ModbusRtuService(StatusStore& statusStore, SettingsStore& settingsStore,
                      FillController& fillController, TransactionLog& transactionLog,
-                     RtcService& rtcService);
+                     RtcService& rtcService, ModbusRegisterCache& registerCache);
 
     void begin();
     void handleClient();
@@ -43,13 +51,14 @@ class ModbusRtuService {
     static uint16_t crc16(const uint8_t* data, uint16_t len);
     static uint16_t readU16BE(const uint8_t* p);
 
-    StatusStore&    statusStore_;
-    SettingsStore&  settingsStore_;
-    FillController& fillController_;
-    TransactionLog& transactionLog_;
-    RtcService&     rtcService_;
-    HardwareSerial& uart_;
-    bool            mqttConnected_{false};
+    StatusStore&          statusStore_;
+    SettingsStore&        settingsStore_;
+    FillController&       fillController_;
+    TransactionLog&       transactionLog_;
+    RtcService&           rtcService_;
+    ModbusRegisterCache&  registerCache_;
+    HardwareSerial&       uart_;
+    bool                  mqttConnected_{false};
 
     static constexpr uint16_t kRxBufSize    = 264;
     static constexpr uint32_t kFrameGapMs   = 5;   // inter-frame silence to detect end-of-frame

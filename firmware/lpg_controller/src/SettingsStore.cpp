@@ -94,12 +94,13 @@ void SettingsStore::begin() {
   // Validate MQTT preset range
   if (mqtt_.preset > 3) mqtt_.preset = 1;
 
-  // RTU settings stored in a separate NVS namespace
+  // RTU settings stored in a separate NVS namespace.
+  // Factory default baud is 115200 8N1; existing saved settings are preserved.
   Preferences rtuPref;
   rtuPref.begin("lpgrtu", true);
   rtu_.enabled      = rtuPref.getBool("enabled",  true);
   rtu_.slaveAddress = rtuPref.getUChar("addr",    1);
-  rtu_.baudRate     = rtuPref.getUInt("baud",     9600);
+  rtu_.baudRate     = rtuPref.getUInt("baud",     115200);
   rtu_.parity       = rtuPref.getUChar("parity",  0);
   rtu_.stopBits     = rtuPref.getUChar("stops",   1);
   rtuPref.end();
@@ -107,7 +108,7 @@ void SettingsStore::begin() {
   const uint32_t validBaud[] = {1200,2400,4800,9600,19200,38400,57600,115200};
   bool baudOk = false;
   for (auto v : validBaud) { if (rtu_.baudRate == v) { baudOk = true; break; } }
-  if (!baudOk)                                             rtu_.baudRate = 9600;
+  if (!baudOk)                                             rtu_.baudRate = 115200;
   if (rtu_.parity > 2)                                  rtu_.parity = 0;
   if (rtu_.stopBits != 1 && rtu_.stopBits != 2)         rtu_.stopBits = 1;
 }

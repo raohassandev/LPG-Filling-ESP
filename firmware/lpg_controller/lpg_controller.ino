@@ -6,6 +6,7 @@
 #include "BoardConfig.h"
 #include "FillController.h"
 #include "InputExpander.h"
+#include "ModbusRegisterCache.h"
 #include "RelayBank.h"
 #include "EventLog.h"
 #include "SettingsStore.h"
@@ -38,10 +39,11 @@ AuthService authService;
 OledDisplay oledDisplay(boardConfig);
 LpgNetworkManager networkManager;
 SdService sdService;
+ModbusRegisterCache registerCache;
 FillController fillController(statusStore, relayBank, inputExpander, weightService, settingsStore, eventLog,
                               transactionLog);
-ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService);
-ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService);
+ModbusTcpService modbusTcpService(statusStore, settingsStore, fillController, transactionLog, rtcService, registerCache);
+ModbusRtuService modbusRtuService(statusStore, settingsStore, fillController, transactionLog, rtcService, registerCache);
 MqttService mqttService(networkManager, settingsStore, statusStore);
 WebPortal webPortal(statusStore, fillController, weightService, settingsStore, eventLog, transactionLog, relayBank, authService, networkManager, rtcService, sdService, mqttService);
 
@@ -225,9 +227,8 @@ void handleSerialCommand(const String& line) {
   }
 
   if (command.startsWith("tare")) {
-    weightService.tare();
-    Serial.println(F("[SERIAL] scale tare completed"));
-    printStatusSnapshot();
+    weightService.requestTare();
+    Serial.println(F("[SERIAL] tare started (non-blocking, completes in ~1.5 s via poll)"));
     return;
   }
 
@@ -375,8 +376,10 @@ void setup() {
 
 void loop() {
   const uint32_t loopStartUs = micros();
+
+  // ── Fast control path ────────────────────────────────────────────────────
   inputExpander.poll();
-  weightService.poll();
+  weightService.poll();  // non-blocking: returns immediately when HX711 DOUT not ready
   statusStore.setWeightStable(weightService.stable());
   statusStore.setScaleHealth(weightService.initialized(), weightService.readFailed(),
                              weightService.calibrationValid(), weightService.simActive());
@@ -385,7 +388,41 @@ void loop() {
   fillController.tick();
   const ProcessState newState  = statusStore.snapshot().state;
 
-  // On fill completion: publish MQTT + mirror to SD depending on storageMode
+  // MQTT state propagated before Modbus so kHR_MqttConnected reads correctly
+  const bool mqttOk = mqttService.isConnected();
+  modbusTcpService.setMqttConnected(mqttOk);
+  modbusRtuService.setMqttConnected(mqttOk);
+
+  // ── Register cache: fast process/IO/comms/alarm update ───────────────────
+  registerCache.updateFast(statusStore.snapshot(), settingsStore, mqttOk);
+
+  // ── Modbus hot path — reads from RAM cache, must run early ───────────────
+  modbusRtuService.handleClient();
+  modbusTcpService.handleClient();
+
+  // ── Medium path (every ~500 ms): RTC + resource monitor ──────────────────
+  static uint32_t lastMediumMs = 0;
+  {
+    const uint32_t nowMs = millis();
+    if (nowMs - lastMediumMs >= 500) {
+      lastMediumMs = nowMs;
+      registerCache.updateRtc(rtcService.getTime());
+      registerCache.updateResource(ResourceMonitor::instance().snapshot());
+      networkManager.poll();
+    }
+  }
+
+  // ── Slow path (every ~5 s): transaction statistics ────────────────────────
+  static uint32_t lastStatsMs = 0;
+  {
+    const uint32_t nowMs = millis();
+    if (nowMs - lastStatsMs >= 5000) {
+      lastStatsMs = nowMs;
+      registerCache.updateStats(transactionLog);
+    }
+  }
+
+  // ── Fill state transition side-effects ───────────────────────────────────
   if (prevState != ProcessState::Complete && newState == ProcessState::Complete) {
     const TransactionRecord rec = transactionLog.getLatestTransaction();
     if (rec.id > 0) {
@@ -395,28 +432,26 @@ void loop() {
         sdService.appendTransaction(rec);
       }
     }
+    // Refresh stats cache immediately after a transaction completes
+    registerCache.updateStats(transactionLog);
+    lastStatsMs = millis();
   }
-  // Publish alert on fresh fault or e-stop
   if (prevState != ProcessState::Fault && newState == ProcessState::Fault) {
     const StatusSnapshot s = statusStore.snapshot();
     mqttService.publishAlert("fault", s.lastReasonCode);
   }
 
-  // Keep Modbus services aware of MQTT connection state (for kHR_MqttConnected register)
-  const bool mqttOk = mqttService.isConnected();
-  modbusTcpService.setMqttConnected(mqttOk);
-  modbusRtuService.setMqttConnected(mqttOk);
-
-  networkManager.poll();
+  // ── Low-priority background services ─────────────────────────────────────
   webPortal.handleClient();
-  modbusTcpService.handleClient();
-  modbusRtuService.handleClient();
   mqttService.loop();
   pollSerialCommands();
   updateOledStatus();
+
   ResourceMonitor::instance().sample(static_cast<uint16_t>(WiFi.status()),
                                      networkManager.isSTAConnected() ? static_cast<int16_t>(WiFi.RSSI()) : 0,
                                      mqttOk ? 1 : 0);
   ResourceMonitor::instance().recordLoop(static_cast<uint32_t>(micros() - loopStartUs));
-  delay(5);
+
+  // Yield to WiFi/BT stack; do not use delay(5) as it adds 5 ms minimum latency.
+  delay(1);
 }

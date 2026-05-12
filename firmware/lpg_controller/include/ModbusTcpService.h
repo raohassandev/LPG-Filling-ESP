@@ -3,6 +3,7 @@
 #include <WiFi.h>
 
 #include "FillController.h"
+#include "ModbusRegisterCache.h"
 #include "RtcService.h"
 #include "SettingsStore.h"
 #include "StatusStore.h"
@@ -12,7 +13,7 @@ class ModbusTcpService {
  public:
     ModbusTcpService(StatusStore& statusStore, SettingsStore& settingsStore,
                      FillController& fillController, TransactionLog& transactionLog,
-                     RtcService& rtcService);
+                     RtcService& rtcService, ModbusRegisterCache& registerCache);
 
     void begin();
     void handleClient();
@@ -32,12 +33,13 @@ class ModbusTcpService {
 
     void sendException(WiFiClient& client, const uint8_t* mbap, uint8_t fc, uint8_t exCode);
 
-    StatusStore&    statusStore_;
-    SettingsStore&  settingsStore_;
-    FillController& fillController_;
-    TransactionLog& transactionLog_;
-    RtcService&     rtcService_;
-    WiFiServer      server_{502};
+    StatusStore&         statusStore_;
+    SettingsStore&       settingsStore_;
+    FillController&      fillController_;
+    TransactionLog&      transactionLog_;
+    RtcService&          rtcService_;
+    ModbusRegisterCache& registerCache_;
+    WiFiServer           server_{502};
     WiFiClient      activeClient_;
     bool            mqttConnected_{false};
 

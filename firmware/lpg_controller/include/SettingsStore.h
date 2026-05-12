@@ -47,10 +47,10 @@ struct MqttSettingsSnapshot {
 
 struct ModbusRtuSettings {
   bool     enabled      = true;
-  uint8_t  slaveAddress = 1;     // 1–247
-  uint32_t baudRate     = 9600;  // 9600/19200/38400/57600/115200
-  uint8_t  parity       = 0;    // 0=None 1=Even 2=Odd
-  uint8_t  stopBits     = 1;    // 1 or 2
+  uint8_t  slaveAddress = 1;       // 1–247
+  uint32_t baudRate     = 115200;  // Factory default 115200. Compatible: 9600/19200/38400/57600
+  uint8_t  parity       = 0;       // 0=None 1=Even 2=Odd
+  uint8_t  stopBits     = 1;       // 1 or 2
 };
 
 class SettingsStore {

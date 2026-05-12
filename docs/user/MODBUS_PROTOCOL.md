@@ -1,6 +1,6 @@
 # LPG Controller Modbus TCP/RTU Protocol Reference
 
-Current date: 2026-05-08
+Current date: 2026-05-12
 
 Controller Modbus registers are the single source of truth for process and diagnostic values. The display dashboard, controller webpage, Modbus Poll, future HMI/SCADA, and this manual must match `firmware/lpg_controller/include/ModbusRegisterMap.h` and `firmware/lpg_controller/src/ModbusRegisterMap.cpp`.
 
@@ -14,12 +14,40 @@ Old 0x1001 map is legacy only and must not be used for ESP32-S3 display, Haiwell
 |---|---|---|
 | Port/interface | TCP port 502 | KC868-A6 RS485 UART2 |
 | Slave/unit | Unit ID 1 recommended | Slave address 1 default |
-| Baud | n/a | 9600 default |
+| Baud | n/a | **115200 default** (factory default for new devices) |
 | Format | n/a | 8N1 default |
 | RX/TX | n/a | RX GPIO14, TX GPIO27 |
 | Function codes | FC01, FC02, FC03, FC04, FC05, FC06, FC16 | FC01, FC02, FC03, FC04, FC05, FC06, FC16 |
 
 Float32 and UINT32 use two consecutive 16-bit registers, high word first. The table below shows only the starting address and number of registers.
+
+## RTU Baud Rate Selection
+
+**Recommended default for new installations: 115200 8N1.**
+
+Supported compatibility baud rates: 9600, 19200, 38400, 57600, 115200.
+
+Devices already configured with a saved baud rate continue to use their saved value. Factory default (no saved NVS setting) is 115200.
+
+Lower baud rates are supported for compatibility with older equipment but result in longer physical wire time for large register reads:
+
+| Baud rate | Wire time: 19-reg FC03 read+response | Wire time: 120-reg full map |
+|---|---|---|
+| 9600 | ~35 ms | ~220 ms |
+| 19200 | ~18 ms | ~110 ms |
+| 38400 | ~9 ms | ~55 ms |
+| 57600 | ~6 ms | ~37 ms |
+| 115200 | ~3 ms | ~19 ms |
+
+**HMI/SCADA recommendation:** Use 115200 for new installations. Do not poll slower than necessary — the firmware is designed to respond as fast as the serial frame allows. Read contiguous register blocks rather than single registers to reduce round-trips.
+
+## Performance Design
+
+- FC03/FC04 read requests are served from a RAM register cache updated every main loop iteration for process/IO values (~1 ms) and every 500–1000 ms for RTC/resource data.
+- No HX711, filesystem, MQTT, or web work is performed inside the Modbus read path.
+- Application Load Percent is a main-loop utilisation estimate, not a guaranteed FreeRTOS CPU load measurement.
+- Total RTU transaction time = firmware processing time (a few hundred µs from RAM) + physical serial frame time (baud dependent, see table above).
+- HMI/SCADA should not assume slow polling is required. Poll at the rate needed for the application.
 
 Device ID register `0x0018` returns `0xA601`. If Modbus Poll signed decimal display shows `-23039`, that equals unsigned `0xA601`; it is not an error.
 
@@ -44,7 +72,7 @@ Device ID register `0x0018` returns `0xA601`. If Modbus Poll signed decimal disp
 | 0023 | 0x0017 | Command | UINT16 | W | 1 | 1 | 1 |
 | 0024 | 0x0018 | Device ID | UINT16 | R | 1 | 1 | 0xA601 |
 | 0025 | 0x0019 | RTU Slave Address | UINT16 | RW | 1 | 1 | 1 |
-| 0026 | 0x001A | RTU Baud Rate | UINT32 | RW | 1 | 2 | 9600 |
+| 0026 | 0x001A | RTU Baud Rate | UINT32 | RW | 1 | 2 | 115200 |
 | 0028 | 0x001C | RTU Parity | UINT16 | RW | 1 | 1 | 0 |
 | 0029 | 0x001D | RTU Stop Bits | UINT16 | RW | 1 | 1 | 1 |
 | 0030 | 0x001E | TCP Port | UINT16 | R | 1 | 1 | 502 |

@@ -14,13 +14,23 @@ class WeightService
 {
 public:
   void begin();
+
+  // Non-blocking poll — call every loop iteration.
+  // Reads one HX711 sample only when DOUT is ready; returns immediately otherwise.
   void poll();
 
   float liveWeightKg() const;
   bool stable() const;
 
   // Single-point calibration (legacy)
+  // tare() is BLOCKING — use only from begin() or the serial console.
   void tare();
+
+  // Non-blocking tare: start sample collection via the poll() state machine.
+  // Completes when poll() has collected kTareSamples data-ready readings.
+  void requestTare();
+  bool isTaring() const;
+
   void setCalibrationFactor(float factor);
   float calibrationFactor() const { return calibrationFactor_; }
 
@@ -75,7 +85,8 @@ private:
   bool  readError_         = false;
   bool  calibrationValid_  = false;
 
-  // Stability detection
+  // Tare / stability
+  static constexpr uint8_t kTareSamples     = 15;
   static constexpr uint8_t kStabilityWindow = 10;
   float   weightHistory_[kStabilityWindow] = {0};
   uint8_t historyIndex_ = 0;
@@ -85,7 +96,19 @@ private:
   bool dataReady() const;
   long readRawHx711();
   bool readRawHx711(long& value, uint16_t timeoutMs);
+
+  // Fast, non-blocking 24-bit read. Only call when dataReady() is true.
+  // No timeout loop — returns false immediately if DOUT went high.
+  bool readRawFast(long& value);
+
   bool checkStability(float newWeight);
   void clearStabilityHistory(float value);
+  void applyRawSample(long rawValue);
+
+  // Non-blocking tare state machine
+  enum class TareState : uint8_t { Idle, Collecting };
+  TareState tareState_    = TareState::Idle;
+  long      tareSumAcc_   = 0;
+  uint8_t   tareSampleCount_ = 0;
   void persistCalPoints();
 };

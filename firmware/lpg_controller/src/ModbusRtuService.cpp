@@ -41,12 +41,13 @@ uint16_t expectedRequestLength(const uint8_t* buf, uint16_t len) {
 
 ModbusRtuService::ModbusRtuService(StatusStore& statusStore, SettingsStore& settingsStore,
                                     FillController& fillController, TransactionLog& transactionLog,
-                                    RtcService& rtcService)
+                                    RtcService& rtcService, ModbusRegisterCache& registerCache)
     : statusStore_(statusStore),
       settingsStore_(settingsStore),
       fillController_(fillController),
       transactionLog_(transactionLog),
       rtcService_(rtcService),
+      registerCache_(registerCache),
       uart_(Serial2) {}
 
 void ModbusRtuService::begin() {
@@ -134,7 +135,9 @@ void ModbusRtuService::processFrame() {
                               (static_cast<uint16_t>(rxBuf_[rxLen_ - 1]) << 8);
     const uint16_t calcCrc  = crc16(rxBuf_, rxLen_ - 2);
     if (rxCrc != calcCrc) {
+#if LPG_RTU_DEBUG
         Serial.printf("[RTU] CRC error: rx=0x%04X calc=0x%04X\n", rxCrc, calcCrc);
+#endif
         ResourceMonitor::instance().incrementRtuError();
         return;
     }
@@ -202,7 +205,7 @@ bool ModbusRtuService::dispatchFC(uint8_t fc, const uint8_t* req, uint16_t reqLe
     }
 }
 
-// ── FC01: Read Coils ──────────────────────────────────────────────────────────
+// ── FC01: Read Coils (from cache) ─────────────────────────────────────────────
 bool ModbusRtuService::handleFC01(const uint8_t* req, uint8_t* resp, uint16_t& respLen) {
     const uint16_t start = readU16BE(req);
     const uint16_t qty   = readU16BE(req + 2);
@@ -211,19 +214,18 @@ bool ModbusRtuService::handleFC01(const uint8_t* req, uint8_t* resp, uint16_t& r
         respLen = 1;
         return false;
     }
-    const StatusSnapshot status = statusStore_.snapshot();
     const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);
     resp[0] = byteCount;
     for (uint8_t i = 0; i < byteCount; i++) resp[1 + i] = 0;
     for (uint16_t i = 0; i < qty; i++) {
-        if (readCoil(static_cast<uint16_t>(start + i), status))
+        if (registerCache_.readCoil(static_cast<uint16_t>(start + i)))
             resp[1 + i / 8] |= (1 << (i % 8));
     }
     respLen = 1 + byteCount;
     return true;
 }
 
-// ── FC02: Read Discrete Inputs ────────────────────────────────────────────────
+// ── FC02: Read Discrete Inputs (from cache) ───────────────────────────────────
 bool ModbusRtuService::handleFC02(const uint8_t* req, uint8_t* resp, uint16_t& respLen) {
     const uint16_t start = readU16BE(req);
     const uint16_t qty   = readU16BE(req + 2);
@@ -232,19 +234,18 @@ bool ModbusRtuService::handleFC02(const uint8_t* req, uint8_t* resp, uint16_t& r
         respLen = 1;
         return false;
     }
-    const StatusSnapshot status = statusStore_.snapshot();
     const uint8_t byteCount = static_cast<uint8_t>((qty + 7) / 8);
     resp[0] = byteCount;
     for (uint8_t i = 0; i < byteCount; i++) resp[1 + i] = 0;
     for (uint16_t i = 0; i < qty; i++) {
-        if (readDI(static_cast<uint16_t>(start + i), status))
+        if (registerCache_.readDI(static_cast<uint16_t>(start + i)))
             resp[1 + i / 8] |= (1 << (i % 8));
     }
     respLen = 1 + byteCount;
     return true;
 }
 
-// ── FC03: Read Holding Registers ──────────────────────────────────────────────
+// ── FC03: Read Holding Registers (reads from RAM register cache) ───────────────
 bool ModbusRtuService::handleFC03(const uint8_t* req, uint8_t* resp, uint16_t& respLen) {
     const uint16_t startAddr = readU16BE(req);
     const uint16_t qty       = readU16BE(req + 2);
@@ -254,15 +255,8 @@ bool ModbusRtuService::handleFC03(const uint8_t* req, uint8_t* resp, uint16_t& r
     if (startAddr < kHR_Base || startAddr + qty > kHR_Base + kHR_Count) {
         resp[0] = 0x02; respLen = 1; return false;
     }
-    const StatusSnapshot status = statusStore_.snapshot();
-    const RtcTime rtcTime = rtcService_.getTime();
     resp[0] = static_cast<uint8_t>(qty * 2);
-    for (uint16_t i = 0; i < qty; i++) {
-        const uint16_t val = readHR(static_cast<uint16_t>(startAddr + i - kHR_Base),
-                                     status, transactionLog_, settingsStore_, rtcTime, mqttConnected_);
-        resp[1 + i * 2]     = static_cast<uint8_t>(val >> 8);
-        resp[1 + i * 2 + 1] = static_cast<uint8_t>(val & 0xFF);
-    }
+    registerCache_.readBlock(static_cast<uint16_t>(startAddr - kHR_Base), qty, &resp[1]);
     respLen = 1 + qty * 2;
     return true;
 }
