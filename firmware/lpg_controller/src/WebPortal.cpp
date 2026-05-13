@@ -202,17 +202,21 @@ void WebPortal::registerRoutes() {
   // Public modbus live register values (no auth)
   server_.on("/api/modbus-live", HTTP_GET, [this]() { handleModbusLive(); });
 
-  // Serve calibration and OTA pages from SPIFFS
-  server_.on("/calibration", HTTP_GET, [this]() {
+  // Serve calibration and OTA pages from SPIFFS (both with and without .html suffix)
+  auto serveCalibration = [this]() {
     File f = SPIFFS.open("/calibration.html","r");
     if (!f) { sendJson(404,"{\"ok\":false,\"message\":\"calibration.html not found\"}"); return; }
     sendCorsHeaders(); server_.streamFile(f, "text/html"); f.close();
-  });
-  server_.on("/ota", HTTP_GET, [this]() {
+  };
+  auto serveOta = [this]() {
     File f = SPIFFS.open("/ota.html","r");
     if (!f) { sendJson(404,"{\"ok\":false,\"message\":\"ota.html not found\"}"); return; }
     sendCorsHeaders(); server_.streamFile(f, "text/html"); f.close();
-  });
+  };
+  server_.on("/calibration",      HTTP_GET, serveCalibration);
+  server_.on("/calibration.html", HTTP_GET, serveCalibration);
+  server_.on("/ota",              HTTP_GET, serveOta);
+  server_.on("/ota.html",         HTTP_GET, serveOta);
 }
 
 void WebPortal::handleRoot() {
