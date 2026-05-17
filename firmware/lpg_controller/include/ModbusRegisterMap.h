@@ -182,8 +182,8 @@ constexpr uint16_t kHR_HmiCanTare          = 0x008A;  // UINT16 R    1=tare safe
 constexpr uint16_t kHR_HmiCanStop          = 0x008B;  // UINT16 R    1=fill active
 constexpr uint16_t kHR_HmiHeartbeat        = 0x008C;  // UINT16 R/W  HMI writes to prove alive
 constexpr uint16_t kHR_HmiWdtTimeoutSec    = 0x008D;  // UINT16 R/W  0=disabled watchdog sec
-constexpr uint16_t kHR_HmiHeartbeatAgeSec  = 0x008E;  // UINT16 R    seconds since last heartbeat
-constexpr uint16_t kHR_HmiReserved         = 0x008F;  // UINT16 R    reserved
+constexpr uint16_t kHR_HmiHeartbeatAgeSec  = 0x008E;  // UINT16 R    seconds since last Modbus activity
+constexpr uint16_t kHR_HmiWdtMode          = 0x008F;  // UINT16 R/W  0=warn-only 1=stop-fill on comm-lost
 constexpr uint16_t kHR_HmiPresetTareHi     = 0x0090;  // FLOAT32 R/W tare weight kg
 constexpr uint16_t kHR_HmiPresetTareLo     = 0x0091;
 constexpr uint16_t kHR_HmiPresetTargetHi   = 0x0092;  // FLOAT32 R/W target fill weight kg
@@ -194,13 +194,38 @@ constexpr uint16_t kHR_HmiPresetAmountHi   = 0x0096;  // FLOAT32 R/W target amou
 constexpr uint16_t kHR_HmiPresetAmountLo   = 0x0097;
 constexpr uint16_t kHR_HmiPresetValid      = 0x0098;  // UINT16 R    1=preset validated
 constexpr uint16_t kHR_HmiPresetErrCode    = 0x0099;  // UINT16 R    kHmiErr_* from last prepare
-constexpr uint16_t kHR_HmiLastFillResult   = 0x009A;  // UINT16 R    kHmiResult_* of last fill
-constexpr uint16_t kHR_HmiLastFillErrCode  = 0x009B;  // UINT16 R    kHmiErr_* of last fill
+constexpr uint16_t kHR_HmiLastFillResult   = 0x009A;  // UINT16 R    kHmiResult_* of last fill (compat)
+constexpr uint16_t kHR_HmiLastFillErrCode  = 0x009B;  // UINT16 R    kHmiErr_* of last fill (compat)
 
-constexpr uint16_t kHR_HmiCount = 0x001C;  // 28 HMI registers
+// ── Section 9: Fill record block (0x009C–0x00B0, 21 registers) ──────────────
+// Firmware populates this block on every fill completion (success, abort, fault).
+// HMI reads and logs the record, then writes kHR_HmiRecAck to clear pendingAck.
+constexpr uint16_t kHR_HmiRecIdHi       = 0x009C;  // UINT32 Hi  — R  monotonic fill counter
+constexpr uint16_t kHR_HmiRecIdLo       = 0x009D;  // UINT32 Lo
+constexpr uint16_t kHR_HmiRecResult     = 0x009E;  // UINT16 R   — kHmiResult_*
+constexpr uint16_t kHR_HmiRecErrCode    = 0x009F;  // UINT16 R   — kHmiErr_*
+constexpr uint16_t kHR_HmiRecMode       = 0x00A0;  // UINT16 R   — 0=by-kg 1=by-amount
+constexpr uint16_t kHR_HmiRecTargetHi   = 0x00A1;  // FLOAT32 Hi — target fill kg
+constexpr uint16_t kHR_HmiRecTargetLo   = 0x00A2;
+constexpr uint16_t kHR_HmiRecActualHi   = 0x00A3;  // FLOAT32 Hi — actual net kg delivered
+constexpr uint16_t kHR_HmiRecActualLo   = 0x00A4;
+constexpr uint16_t kHR_HmiRecRateHi     = 0x00A5;  // FLOAT32 Hi — rate PKR/kg
+constexpr uint16_t kHR_HmiRecRateLo     = 0x00A6;
+constexpr uint16_t kHR_HmiRecTgtAmtHi   = 0x00A7;  // FLOAT32 Hi — target amount PKR
+constexpr uint16_t kHR_HmiRecTgtAmtLo   = 0x00A8;
+constexpr uint16_t kHR_HmiRecFinalAmtHi = 0x00A9;  // FLOAT32 Hi — final amount PKR (actual×rate)
+constexpr uint16_t kHR_HmiRecFinalAmtLo = 0x00AA;
+constexpr uint16_t kHR_HmiRecTareHi     = 0x00AB;  // FLOAT32 Hi — tare kg at fill start
+constexpr uint16_t kHR_HmiRecTareLo     = 0x00AC;
+constexpr uint16_t kHR_HmiRecDurHi      = 0x00AD;  // UINT32 Hi  — fill duration seconds
+constexpr uint16_t kHR_HmiRecDurLo      = 0x00AE;
+constexpr uint16_t kHR_HmiRecPendingAck = 0x00AF;  // UINT16 R   — 1=new record awaiting HMI ack
+constexpr uint16_t kHR_HmiRecAck        = 0x00B0;  // UINT16 W   — write any value to acknowledge
+
+constexpr uint16_t kHR_HmiCount = 0x0031;  // 49 HMI registers (0x0080–0x00B0)
 
 constexpr uint16_t kHR_Base  = kHR_LiveWeightHi;
-constexpr uint16_t kHR_Count = 0x009C;  // 156 registers (0x0000–0x009B; gap 0x0078–0x007F reserved)
+constexpr uint16_t kHR_Count = 0x00B1;  // 177 registers (0x0000–0x00B0; gap 0x0078–0x007F reserved)
 
 // ── Coil PDU addresses (FC01/FC05) ───────────────────────────────────────
 constexpr uint16_t kCoil_EstopOk        = 0x0000;  // R   emergency stop OK

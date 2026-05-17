@@ -153,6 +153,9 @@ void ModbusRtuService::processFrame() {
         return;
     }
 
+    // Any CRC-valid frame from the master proves the HMI/client is alive.
+    if (hmiService_) hmiService_->notifyModbusActivity();
+
     const uint8_t fc      = rxBuf_[1];
     const uint8_t* pduReq = &rxBuf_[2];
     const uint16_t pduLen = rxLen_ - 4; // strip addr + FC + CRC

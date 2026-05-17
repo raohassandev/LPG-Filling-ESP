@@ -123,6 +123,10 @@ void ModbusTcpService::handleClient() {
     const uint8_t  fc     = rxBuf_[7];
     const uint8_t* pdu    = &rxBuf_[7];
     const uint16_t pduLen = static_cast<uint16_t>(declaredLen - 1);  // strip UnitID byte
+
+    // Any valid Modbus TCP frame proves the HMI/client is alive.
+    if (hmiService_) hmiService_->notifyModbusActivity();
+
     const uint32_t t0 = micros();
     dispatchPdu(activeClient_, rxBuf_, fc, pdu, pduLen);
     ResourceMonitor::instance().recordTcpTiming(micros() - t0);
