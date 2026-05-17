@@ -2,6 +2,18 @@
 
 Use this checklist after flashing the controller and display firmware.
 
+## 0. Device Credentials
+
+| Item | Value |
+| --- | --- |
+| Controller IP | 192.168.0.100 |
+| Modbus TCP Port | 502 |
+| Manufacturing PIN | **242728** |
+| PIN location | NVS namespace `lpgmfg`, key `pin` |
+
+The Manufacturing PIN is required to change RTU settings, run calibration, and upload OTA firmware via the web portal (`X-MFG-PIN` HTTP header).  
+To recover a lost PIN: dump NVS partition at flash `0x9000` size `0x5000` with esptool and search for namespace `lpgmfg`.
+
 ## 1. Serial Basics
 
 Controller serial: `115200 baud`.
