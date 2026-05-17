@@ -1,0 +1,238 @@
+// =============================================================
+// LPG OPERATOR SCREEN MACROS - DIRECT READ VERSION
+// Paste each macro as a separate macro_command in EasyBuilder Pro.
+// =============================================================
+
+// -------------------------------------------------------------
+// M00_OperatorLoop_Calc
+// Periodic execution: 300 ms to 500 ms
+// Purpose: calculate UI amount/kg and progress only.
+// This does NOT read all controller data by macro.
+// -------------------------------------------------------------
+macro_command main()
+
+short mode = 0
+short err = 0
+
+float price = 0.0
+float desiredKg = 0.0
+float desiredAmount = 0.0
+float net = 0.0
+float target = 0.0
+float progress = 0.0
+
+GetData(mode, "Local HMI", "UI Mode", 1)
+GetData(price, "Local HMI", "UI Price Per KG", 1)
+GetData(desiredKg, "Local HMI", "UI Desired KG", 1)
+GetData(desiredAmount, "Local HMI", "UI Desired Amount", 1)
+
+// Mode 0 = By KG: operator enters kg; amount is calculated.
+if mode == 0 then
+    if price > 0.0 then
+        desiredAmount = desiredKg * price
+        SetData(desiredAmount, "Local HMI", "UI Desired Amount", 1)
+    end if
+end if
+
+// Mode 1 = By Amount: operator enters amount; kg is calculated.
+if mode == 1 then
+    if price > 0.001 then
+        desiredKg = desiredAmount / price
+        SetData(desiredKg, "Local HMI", "UI Desired KG", 1)
+    end if
+end if
+
+// Progress = Net Weight / Target KG * 100
+GetData(net, "MODBUS RTU (Zero-based Addressing)", "Net Weight", 1)
+GetData(target, "MODBUS RTU (Zero-based Addressing)", "Target KG", 1)
+
+if target > 0.001 then
+    progress = net * 100.0 / target
+else
+    progress = 0.0
+end if
+
+if progress < 0.0 then
+    progress = 0.0
+end if
+
+if progress > 100.0 then
+    progress = 100.0
+end if
+
+SetData(progress, "Local HMI", "UI Progress Percent", 1)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M01_Select_By_KG
+// -------------------------------------------------------------
+macro_command main()
+
+short mode = 0
+short err = 0
+
+SetData(mode, "Local HMI", "UI Mode", 1)
+err = LPG_SendCommand(20)  // Mode KG
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M02_Select_By_Amount
+// -------------------------------------------------------------
+macro_command main()
+
+short mode = 1
+short err = 0
+
+SetData(mode, "Local HMI", "UI Mode", 1)
+err = LPG_SendCommand(21)  // Mode Amount
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M03_Capture_Tare
+// Button label: Capture Tare
+// Sends hardware tare command. Operator does not type tare manually.
+// -------------------------------------------------------------
+macro_command main()
+
+short err = 0
+
+err = LPG_SendCommand(13)  // Hardware Tare / Capture Tare
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M04_Ready_Apply_Setup
+// Button label: Ready / Apply Setup
+// Writes selected sale setup and prepares the machine.
+// -------------------------------------------------------------
+macro_command main()
+
+short mode = 0
+short err = 0
+short prepErr = 0
+
+float price = 0.0
+float desiredKg = 0.0
+float desiredAmount = 0.0
+float zeroTare = 0.0
+
+GetData(mode, "Local HMI", "UI Mode", 1)
+GetData(price, "Local HMI", "UI Price Per KG", 1)
+GetData(desiredKg, "Local HMI", "UI Desired KG", 1)
+GetData(desiredAmount, "Local HMI", "UI Desired Amount", 1)
+
+if mode == 0 then
+    if price > 0.0 then
+        desiredAmount = desiredKg * price
+        SetData(desiredAmount, "Local HMI", "UI Desired Amount", 1)
+    end if
+end if
+
+if mode == 1 then
+    if price > 0.001 then
+        desiredKg = desiredAmount / price
+        SetData(desiredKg, "Local HMI", "UI Desired KG", 1)
+    end if
+end if
+
+// Write preset values directly using 4x_Double tags.
+SetDataEx(zeroTare, "MODBUS RTU (Zero-based Addressing)", "HMI Preset Tare Weight", 1)
+GetError(err)
+
+if err == 0 then
+    SetDataEx(desiredKg, "MODBUS RTU (Zero-based Addressing)", "HMI Preset Target KG", 1)
+    GetError(err)
+end if
+
+if err == 0 then
+    SetDataEx(price, "MODBUS RTU (Zero-based Addressing)", "HMI Preset Rate Per KG", 1)
+    GetError(err)
+end if
+
+if err == 0 then
+    SetDataEx(desiredAmount, "MODBUS RTU (Zero-based Addressing)", "HMI Preset Amount", 1)
+    GetError(err)
+end if
+
+// Apply selected mode then prepare.
+if err == 0 then
+    if mode == 0 then
+        prepErr = LPG_SendCommand(20)
+    else
+        prepErr = LPG_SendCommand(21)
+    end if
+    if prepErr <> 0 then
+        err = prepErr
+    end if
+end if
+
+if err == 0 then
+    prepErr = LPG_SendCommand(10)  // Prepare / Apply setup
+    if prepErr <> 0 then
+        err = prepErr
+    end if
+end if
+
+SetData(err, "Local HMI", "UI Last Error", 1)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M30_Start_Filling
+// -------------------------------------------------------------
+macro_command main()
+
+short err = 0
+err = LPG_SendCommand(30)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M31_Stop_Filling
+// -------------------------------------------------------------
+macro_command main()
+
+short err = 0
+err = LPG_SendCommand(31)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M32_Reset_Clear
+// -------------------------------------------------------------
+macro_command main()
+
+short err = 0
+err = LPG_SendCommand(32)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// -------------------------------------------------------------
+// M33_Complete_Next_Cylinder
+// -------------------------------------------------------------
+macro_command main()
+
+short err = 0
+err = LPG_SendCommand(33)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command

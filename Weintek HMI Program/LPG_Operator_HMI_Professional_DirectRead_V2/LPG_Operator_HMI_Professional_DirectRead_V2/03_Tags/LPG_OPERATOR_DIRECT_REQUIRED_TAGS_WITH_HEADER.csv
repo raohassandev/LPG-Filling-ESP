@@ -1,0 +1,41 @@
+Name,Device,Address Type,Address,Comment,Data Type
+Live Weight,MODBUS RTU (Zero-based Addressing),4x_Double,0,Controller direct float. Live cylinder gross weight. Display only.,32-bit Float
+Tare Weight,MODBUS RTU (Zero-based Addressing),4x_Double,2,Controller direct float. Captured tare / cylinder tare. Display only.,32-bit Float
+Net Weight,MODBUS RTU (Zero-based Addressing),4x_Double,4,Controller direct float. Main net filling weight. Display only.,32-bit Float
+Target KG,MODBUS RTU (Zero-based Addressing),4x_Double,6,Controller direct float. Active target kg/weight after setup. Display only.,32-bit Float
+Rate Per KG,MODBUS RTU (Zero-based Addressing),4x_Double,8,Controller direct float. Active price/rate per kg. Display only.,32-bit Float
+Target Amount,MODBUS RTU (Zero-based Addressing),4x_Double,10,Controller direct float. Active target amount after setup. Display only.,32-bit Float
+Current Amount,MODBUS RTU (Zero-based Addressing),4x_Double,12,Controller direct float. Current filling amount. Display only.,32-bit Float
+Fill State,MODBUS RTU (Zero-based Addressing),4x,14,Machine fill state. Use as header word lamp.,16-bit Unsigned
+EStop OK,MODBUS RTU (Zero-based Addressing),4x,15,1=Emergency stop circuit OK.,16-bit Unsigned
+Cylinder Present,MODBUS RTU (Zero-based Addressing),4x,16,1=Cylinder detected/present.,16-bit Unsigned
+Nozzle Engaged,MODBUS RTU (Zero-based Addressing),4x,17,1=Nozzle engaged.,16-bit Unsigned
+Weight Stable,MODBUS RTU (Zero-based Addressing),4x,18,1=Weight stable.,16-bit Unsigned
+Alarm Code,MODBUS RTU (Zero-based Addressing),4x,72,Alarm code. Use as alarm word lamp.,16-bit Unsigned
+Alarm Severity,MODBUS RTU (Zero-based Addressing),4x,73,Alarm severity.,16-bit Unsigned
+Readiness Mask,MODBUS RTU (Zero-based Addressing),4x,74,"Readiness mask, engineering optional.",16-bit Unsigned
+Blocker Mask,MODBUS RTU (Zero-based Addressing),4x,75,"Blocker mask, engineering optional.",16-bit Unsigned
+HMI Command Code,MODBUS RTU (Zero-based Addressing),4x,128,HMI command code write register.,16-bit Unsigned
+HMI Command Seq,MODBUS RTU (Zero-based Addressing),4x,129,HMI command sequence write register.,16-bit Unsigned
+HMI Command Result,MODBUS RTU (Zero-based Addressing),4x,131,Command result status.,16-bit Unsigned
+HMI Command Error Code,MODBUS RTU (Zero-based Addressing),4x,132,Command error code.,16-bit Unsigned
+HMI Command Busy,MODBUS RTU (Zero-based Addressing),4x,133,1=command busy.,16-bit Unsigned
+HMI Fill Mode,MODBUS RTU (Zero-based Addressing),4x,134,"0=By KG, 1=By Amount.",16-bit Unsigned
+HMI Prepared Flag,MODBUS RTU (Zero-based Addressing),4x,135,1=setup prepared/applied.,16-bit Unsigned
+HMI Ready To Prepare,MODBUS RTU (Zero-based Addressing),4x,136,1=ready to apply setup.,16-bit Unsigned
+HMI Ready To Start,MODBUS RTU (Zero-based Addressing),4x,137,1=start filling allowed.,16-bit Unsigned
+HMI Can Tare,MODBUS RTU (Zero-based Addressing),4x,138,1=tare capture allowed.,16-bit Unsigned
+HMI Can Stop,MODBUS RTU (Zero-based Addressing),4x,139,1=stop filling allowed.,16-bit Unsigned
+HMI Preset Tare Weight,MODBUS RTU (Zero-based Addressing),4x_Double,144,Preset tare value if firmware requires it. Usually 0 because Capture Tare command is preferred.,32-bit Float
+HMI Preset Target KG,MODBUS RTU (Zero-based Addressing),4x_Double,146,Preset target kg/weight to write from HMI.,32-bit Float
+HMI Preset Rate Per KG,MODBUS RTU (Zero-based Addressing),4x_Double,148,Preset price/rate per kg to write from HMI.,32-bit Float
+HMI Preset Amount,MODBUS RTU (Zero-based Addressing),4x_Double,150,Preset target amount to write from HMI.,32-bit Float
+UI Mode,Local HMI,LW,1400,"0=By KG, 1=By Amount. Controlled by mode tab buttons.",16-bit Unsigned
+UI Price Per KG,Local HMI,LW,1402,Operator entered price/rate per kg.,32-bit Float
+UI Desired KG,Local HMI,LW,1404,Operator desired kg. Used in By KG mode; calculated in By Amount mode.,32-bit Float
+UI Desired Amount,Local HMI,LW,1406,Operator desired amount. Used in By Amount mode; calculated in By KG mode.,32-bit Float
+UI Progress Percent,Local HMI,LW,1420,"Calculated progress percent for progress bar, 0..100.",32-bit Float
+UI Command Seq Counter,Local HMI,LW,1422,Local command sequence counter.,16-bit Unsigned
+UI Last Command Code,Local HMI,LW,1423,Last command sent from HMI.,16-bit Unsigned
+UI Last Error,Local HMI,LW,1424,Last macro/write error.,16-bit Signed
+UI Macro Error,Local HMI,LW,899,General macro error display.,16-bit Signed

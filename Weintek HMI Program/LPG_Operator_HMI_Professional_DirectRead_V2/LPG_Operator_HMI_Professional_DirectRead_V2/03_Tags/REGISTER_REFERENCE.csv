@@ -1,0 +1,41 @@
+Name,Register/Address,Type,Use
+Live Weight,4x_Double 0,32-bit Float,Controller direct float. Live cylinder gross weight. Display only.
+Tare Weight,4x_Double 2,32-bit Float,Controller direct float. Captured tare / cylinder tare. Display only.
+Net Weight,4x_Double 4,32-bit Float,Controller direct float. Main net filling weight. Display only.
+Target KG,4x_Double 6,32-bit Float,Controller direct float. Active target kg/weight after setup. Display only.
+Rate Per KG,4x_Double 8,32-bit Float,Controller direct float. Active price/rate per kg. Display only.
+Target Amount,4x_Double 10,32-bit Float,Controller direct float. Active target amount after setup. Display only.
+Current Amount,4x_Double 12,32-bit Float,Controller direct float. Current filling amount. Display only.
+Fill State,4x 14,16-bit Unsigned,Machine fill state. Use as header word lamp.
+EStop OK,4x 15,16-bit Unsigned,1=Emergency stop circuit OK.
+Cylinder Present,4x 16,16-bit Unsigned,1=Cylinder detected/present.
+Nozzle Engaged,4x 17,16-bit Unsigned,1=Nozzle engaged.
+Weight Stable,4x 18,16-bit Unsigned,1=Weight stable.
+Alarm Code,4x 72,16-bit Unsigned,Alarm code. Use as alarm word lamp.
+Alarm Severity,4x 73,16-bit Unsigned,Alarm severity.
+Readiness Mask,4x 74,16-bit Unsigned,"Readiness mask, engineering optional."
+Blocker Mask,4x 75,16-bit Unsigned,"Blocker mask, engineering optional."
+HMI Command Code,4x 128,16-bit Unsigned,HMI command code write register.
+HMI Command Seq,4x 129,16-bit Unsigned,HMI command sequence write register.
+HMI Command Result,4x 131,16-bit Unsigned,Command result status.
+HMI Command Error Code,4x 132,16-bit Unsigned,Command error code.
+HMI Command Busy,4x 133,16-bit Unsigned,1=command busy.
+HMI Fill Mode,4x 134,16-bit Unsigned,"0=By KG, 1=By Amount."
+HMI Prepared Flag,4x 135,16-bit Unsigned,1=setup prepared/applied.
+HMI Ready To Prepare,4x 136,16-bit Unsigned,1=ready to apply setup.
+HMI Ready To Start,4x 137,16-bit Unsigned,1=start filling allowed.
+HMI Can Tare,4x 138,16-bit Unsigned,1=tare capture allowed.
+HMI Can Stop,4x 139,16-bit Unsigned,1=stop filling allowed.
+HMI Preset Tare Weight,4x_Double 144,32-bit Float,Preset tare value if firmware requires it. Usually 0 because Capture Tare command is preferred.
+HMI Preset Target KG,4x_Double 146,32-bit Float,Preset target kg/weight to write from HMI.
+HMI Preset Rate Per KG,4x_Double 148,32-bit Float,Preset price/rate per kg to write from HMI.
+HMI Preset Amount,4x_Double 150,32-bit Float,Preset target amount to write from HMI.
+UI Mode,LW 1400,16-bit Unsigned,"0=By KG, 1=By Amount. Controlled by mode tab buttons."
+UI Price Per KG,LW 1402,32-bit Float,Operator entered price/rate per kg.
+UI Desired KG,LW 1404,32-bit Float,Operator desired kg. Used in By KG mode; calculated in By Amount mode.
+UI Desired Amount,LW 1406,32-bit Float,Operator desired amount. Used in By Amount mode; calculated in By KG mode.
+UI Progress Percent,LW 1420,32-bit Float,"Calculated progress percent for progress bar, 0..100."
+UI Command Seq Counter,LW 1422,16-bit Unsigned,Local command sequence counter.
+UI Last Command Code,LW 1423,16-bit Unsigned,Last command sent from HMI.
+UI Last Error,LW 1424,16-bit Signed,Last macro/write error.
+UI Macro Error,LW 899,16-bit Signed,General macro error display.

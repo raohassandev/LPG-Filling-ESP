@@ -1,0 +1,97 @@
+Category,File,Width_px,Height_px,Path
+Button,capture_tare_disabled_200x42.png,200,42,02_Assets/Buttons/capture_tare_disabled_200x42.png
+Button,capture_tare_normal_200x42.png,200,42,02_Assets/Buttons/capture_tare_normal_200x42.png
+Button,capture_tare_pressed_200x42.png,200,42,02_Assets/Buttons/capture_tare_pressed_200x42.png
+Button,complete_next_cylinder_disabled_190x54.png,190,54,02_Assets/Buttons/complete_next_cylinder_disabled_190x54.png
+Button,complete_next_cylinder_normal_190x54.png,190,54,02_Assets/Buttons/complete_next_cylinder_normal_190x54.png
+Button,complete_next_cylinder_pressed_190x54.png,190,54,02_Assets/Buttons/complete_next_cylinder_pressed_190x54.png
+Button,ready_apply_setup_disabled_200x42.png,200,42,02_Assets/Buttons/ready_apply_setup_disabled_200x42.png
+Button,ready_apply_setup_normal_200x42.png,200,42,02_Assets/Buttons/ready_apply_setup_normal_200x42.png
+Button,ready_apply_setup_pressed_200x42.png,200,42,02_Assets/Buttons/ready_apply_setup_pressed_200x42.png
+Button,reset_clear_disabled_190x54.png,190,54,02_Assets/Buttons/reset_clear_disabled_190x54.png
+Button,reset_clear_normal_190x54.png,190,54,02_Assets/Buttons/reset_clear_normal_190x54.png
+Button,reset_clear_pressed_190x54.png,190,54,02_Assets/Buttons/reset_clear_pressed_190x54.png
+Button,start_filling_disabled_190x54.png,190,54,02_Assets/Buttons/start_filling_disabled_190x54.png
+Button,start_filling_normal_190x54.png,190,54,02_Assets/Buttons/start_filling_normal_190x54.png
+Button,start_filling_pressed_190x54.png,190,54,02_Assets/Buttons/start_filling_pressed_190x54.png
+Button,stop_filling_disabled_190x54.png,190,54,02_Assets/Buttons/stop_filling_disabled_190x54.png
+Button,stop_filling_normal_190x54.png,190,54,02_Assets/Buttons/stop_filling_normal_190x54.png
+Button,stop_filling_pressed_190x54.png,190,54,02_Assets/Buttons/stop_filling_pressed_190x54.png
+Mode Selector,mode_by_amount_selected_146x30.png,146,30,02_Assets/ModeTabs/mode_by_amount_selected_146x30.png
+Mode Selector,mode_by_kg_selected_146x30.png,146,30,02_Assets/ModeTabs/mode_by_kg_selected_146x30.png
+Navigation,nav_alarm_normal_150x46.png,150,46,02_Assets/Nav/nav_alarm_normal_150x46.png
+Navigation,nav_alarm_pressed_150x46.png,150,46,02_Assets/Nav/nav_alarm_pressed_150x46.png
+Navigation,nav_alarm_selected_150x46.png,150,46,02_Assets/Nav/nav_alarm_selected_150x46.png
+Navigation,nav_diagnostics_normal_150x46.png,150,46,02_Assets/Nav/nav_diagnostics_normal_150x46.png
+Navigation,nav_diagnostics_pressed_150x46.png,150,46,02_Assets/Nav/nav_diagnostics_pressed_150x46.png
+Navigation,nav_diagnostics_selected_150x46.png,150,46,02_Assets/Nav/nav_diagnostics_selected_150x46.png
+Navigation,nav_operator_normal_150x46.png,150,46,02_Assets/Nav/nav_operator_normal_150x46.png
+Navigation,nav_operator_pressed_150x46.png,150,46,02_Assets/Nav/nav_operator_pressed_150x46.png
+Navigation,nav_operator_selected_150x46.png,150,46,02_Assets/Nav/nav_operator_selected_150x46.png
+Navigation,nav_reports_normal_150x46.png,150,46,02_Assets/Nav/nav_reports_normal_150x46.png
+Navigation,nav_reports_pressed_150x46.png,150,46,02_Assets/Nav/nav_reports_pressed_150x46.png
+Navigation,nav_reports_selected_150x46.png,150,46,02_Assets/Nav/nav_reports_selected_150x46.png
+Navigation,nav_service_normal_150x46.png,150,46,02_Assets/Nav/nav_service_normal_150x46.png
+Navigation,nav_service_pressed_150x46.png,150,46,02_Assets/Nav/nav_service_pressed_150x46.png
+Navigation,nav_service_selected_150x46.png,150,46,02_Assets/Nav/nav_service_selected_150x46.png
+Bit Lamp,lamp_disabled_16x16.png,16,16,02_Assets/Lamps/lamp_disabled_16x16.png
+Bit Lamp,lamp_disabled_20x20.png,20,20,02_Assets/Lamps/lamp_disabled_20x20.png
+Bit Lamp,lamp_disabled_24x24.png,24,24,02_Assets/Lamps/lamp_disabled_24x24.png
+Bit Lamp,lamp_disabled_28x28.png,28,28,02_Assets/Lamps/lamp_disabled_28x28.png
+Bit Lamp,lamp_disabled_32x32.png,32,32,02_Assets/Lamps/lamp_disabled_32x32.png
+Bit Lamp,lamp_fault_16x16.png,16,16,02_Assets/Lamps/lamp_fault_16x16.png
+Bit Lamp,lamp_fault_20x20.png,20,20,02_Assets/Lamps/lamp_fault_20x20.png
+Bit Lamp,lamp_fault_24x24.png,24,24,02_Assets/Lamps/lamp_fault_24x24.png
+Bit Lamp,lamp_fault_28x28.png,28,28,02_Assets/Lamps/lamp_fault_28x28.png
+Bit Lamp,lamp_fault_32x32.png,32,32,02_Assets/Lamps/lamp_fault_32x32.png
+Bit Lamp,lamp_off_16x16.png,16,16,02_Assets/Lamps/lamp_off_16x16.png
+Bit Lamp,lamp_off_20x20.png,20,20,02_Assets/Lamps/lamp_off_20x20.png
+Bit Lamp,lamp_off_24x24.png,24,24,02_Assets/Lamps/lamp_off_24x24.png
+Bit Lamp,lamp_off_28x28.png,28,28,02_Assets/Lamps/lamp_off_28x28.png
+Bit Lamp,lamp_off_32x32.png,32,32,02_Assets/Lamps/lamp_off_32x32.png
+Bit Lamp,lamp_ok_16x16.png,16,16,02_Assets/Lamps/lamp_ok_16x16.png
+Bit Lamp,lamp_ok_20x20.png,20,20,02_Assets/Lamps/lamp_ok_20x20.png
+Bit Lamp,lamp_ok_24x24.png,24,24,02_Assets/Lamps/lamp_ok_24x24.png
+Bit Lamp,lamp_ok_28x28.png,28,28,02_Assets/Lamps/lamp_ok_28x28.png
+Bit Lamp,lamp_ok_32x32.png,32,32,02_Assets/Lamps/lamp_ok_32x32.png
+Bit Lamp,lamp_warn_16x16.png,16,16,02_Assets/Lamps/lamp_warn_16x16.png
+Bit Lamp,lamp_warn_20x20.png,20,20,02_Assets/Lamps/lamp_warn_20x20.png
+Bit Lamp,lamp_warn_24x24.png,24,24,02_Assets/Lamps/lamp_warn_24x24.png
+Bit Lamp,lamp_warn_28x28.png,28,28,02_Assets/Lamps/lamp_warn_28x28.png
+Bit Lamp,lamp_warn_32x32.png,32,32,02_Assets/Lamps/lamp_warn_32x32.png
+Word Lamp,alarm_pill_active_alarm_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_active_alarm_180x36.png
+Word Lamp,alarm_pill_alarm_ok_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_alarm_ok_180x36.png
+Word Lamp,alarm_pill_apply_setup_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_apply_setup_180x36.png
+Word Lamp,alarm_pill_blank_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_blank_180x36.png
+Word Lamp,alarm_pill_complete_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_complete_180x36.png
+Word Lamp,alarm_pill_fault_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_fault_180x36.png
+Word Lamp,alarm_pill_filling_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_filling_180x36.png
+Word Lamp,alarm_pill_idle_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_idle_180x36.png
+Word Lamp,alarm_pill_not_ready_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_not_ready_180x36.png
+Word Lamp,alarm_pill_ready_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_ready_180x36.png
+Word Lamp,alarm_pill_ready_to_start_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_ready_to_start_180x36.png
+Word Lamp,alarm_pill_stopped_180x36.png,180,36,02_Assets/WordLamps/alarm_pill_stopped_180x36.png
+Word Lamp,machine_strip_active_alarm_266x32.png,266,32,02_Assets/WordLamps/machine_strip_active_alarm_266x32.png
+Word Lamp,machine_strip_alarm_ok_266x32.png,266,32,02_Assets/WordLamps/machine_strip_alarm_ok_266x32.png
+Word Lamp,machine_strip_apply_setup_266x32.png,266,32,02_Assets/WordLamps/machine_strip_apply_setup_266x32.png
+Word Lamp,machine_strip_blank_266x32.png,266,32,02_Assets/WordLamps/machine_strip_blank_266x32.png
+Word Lamp,machine_strip_complete_266x32.png,266,32,02_Assets/WordLamps/machine_strip_complete_266x32.png
+Word Lamp,machine_strip_fault_266x32.png,266,32,02_Assets/WordLamps/machine_strip_fault_266x32.png
+Word Lamp,machine_strip_filling_266x32.png,266,32,02_Assets/WordLamps/machine_strip_filling_266x32.png
+Word Lamp,machine_strip_idle_266x32.png,266,32,02_Assets/WordLamps/machine_strip_idle_266x32.png
+Word Lamp,machine_strip_not_ready_266x32.png,266,32,02_Assets/WordLamps/machine_strip_not_ready_266x32.png
+Word Lamp,machine_strip_ready_266x32.png,266,32,02_Assets/WordLamps/machine_strip_ready_266x32.png
+Word Lamp,machine_strip_ready_to_start_266x32.png,266,32,02_Assets/WordLamps/machine_strip_ready_to_start_266x32.png
+Word Lamp,machine_strip_stopped_266x32.png,266,32,02_Assets/WordLamps/machine_strip_stopped_266x32.png
+Word Lamp,state_pill_active_alarm_130x36.png,130,36,02_Assets/WordLamps/state_pill_active_alarm_130x36.png
+Word Lamp,state_pill_alarm_ok_130x36.png,130,36,02_Assets/WordLamps/state_pill_alarm_ok_130x36.png
+Word Lamp,state_pill_apply_setup_130x36.png,130,36,02_Assets/WordLamps/state_pill_apply_setup_130x36.png
+Word Lamp,state_pill_blank_130x36.png,130,36,02_Assets/WordLamps/state_pill_blank_130x36.png
+Word Lamp,state_pill_complete_130x36.png,130,36,02_Assets/WordLamps/state_pill_complete_130x36.png
+Word Lamp,state_pill_fault_130x36.png,130,36,02_Assets/WordLamps/state_pill_fault_130x36.png
+Word Lamp,state_pill_filling_130x36.png,130,36,02_Assets/WordLamps/state_pill_filling_130x36.png
+Word Lamp,state_pill_idle_130x36.png,130,36,02_Assets/WordLamps/state_pill_idle_130x36.png
+Word Lamp,state_pill_not_ready_130x36.png,130,36,02_Assets/WordLamps/state_pill_not_ready_130x36.png
+Word Lamp,state_pill_ready_130x36.png,130,36,02_Assets/WordLamps/state_pill_ready_130x36.png
+Word Lamp,state_pill_ready_to_start_130x36.png,130,36,02_Assets/WordLamps/state_pill_ready_to_start_130x36.png
+Word Lamp,state_pill_stopped_130x36.png,130,36,02_Assets/WordLamps/state_pill_stopped_130x36.png

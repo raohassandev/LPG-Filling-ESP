@@ -1,0 +1,24 @@
+Object,Weintek Object Type,Device,Tag/Macro,X,Y,W,H,Notes
+Header Fill State,Word Lamp,MODBUS RTU (Zero-based Addressing),Fill State,350,12,120,36,Use word states in WORD_LAMP_STATES.md
+Header Alarm,Word Lamp,MODBUS RTU (Zero-based Addressing),Alarm Code,545,12,170,36,Large alarm pill; use short alarm text
+Price per KG,Numeric Input,Local HMI,UI Price Per KG,120,148,100,34,32-bit Float; units /kg
+Desired KG,Numeric Input,Local HMI,UI Desired KG,120,188,100,34,32-bit Float; enabled in By KG mode
+Desired Amount,Numeric Input,Local HMI,UI Desired Amount,120,228,100,34,32-bit Float; enabled in By Amount mode
+Cylinder Tare,Numeric Display,MODBUS RTU (Zero-based Addressing),Tare Weight,120,276,100,34,32-bit Float; no manual entry
+Capture Tare,Picture + Function Key,Local HMI,M03_Capture_Tare,24,310,200,38,Use capture_tare button asset + transparent function key
+Ready Apply Setup,Picture + Function Key,Local HMI,M04_Ready_Apply_Setup,24,352,200,38,Use ready_apply_setup asset + transparent function key
+Net Weight,Numeric Display,MODBUS RTU (Zero-based Addressing),Net Weight,272,140,266,50,"Large font, 32-bit Float"
+Live Weight,Numeric Display,MODBUS RTU (Zero-based Addressing),Live Weight,272,226,80,31,32-bit Float
+Target,Numeric Display,MODBUS RTU (Zero-based Addressing),Target KG,365,226,80,31,32-bit Float
+Current Amount,Numeric Display,MODBUS RTU (Zero-based Addressing),Current Amount,458,226,80,31,32-bit Float
+Fill Progress,Bar Graph,Local HMI,UI Progress Percent,272,292,266,16,0..100 float
+Machine Status,Word Lamp,MODBUS RTU (Zero-based Addressing),Fill State,272,334,266,32,Use central machine status word states
+E-Stop,Bit Lamp,MODBUS RTU (Zero-based Addressing),EStop OK,282,351,20,20,1=OK
+Cylinder,Bit Lamp,MODBUS RTU (Zero-based Addressing),Cylinder Present,355,351,20,20,1=OK
+Nozzle,Bit Lamp,MODBUS RTU (Zero-based Addressing),Nozzle Engaged,428,351,20,20,1=OK
+Stable,Bit Lamp,MODBUS RTU (Zero-based Addressing),Weight Stable,501,351,20,20,1=OK
+Start Filling,Picture + Function Key,Local HMI,M30_Start_Filling,580,112,190,54,Enable when HMI Ready To Start=1
+Stop Filling,Picture + Function Key,Local HMI,M31_Stop_Filling,580,180,190,54,Enable when HMI Can Stop=1
+Complete Next Cylinder,Picture + Function Key,Local HMI,M33_Complete_Next_Cylinder,580,248,190,54,Use after complete
+Reset Clear,Picture + Function Key,Local HMI,M32_Reset_Clear,580,316,190,54,Reset/Clear
+Macro Error,Numeric Display,Local HMI,UI Macro Error,430,455,60,21,16-bit signed

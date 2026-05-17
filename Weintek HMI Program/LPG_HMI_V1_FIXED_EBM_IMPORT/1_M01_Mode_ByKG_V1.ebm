@@ -1,0 +1,30 @@
+﻿macro_definition_begin
+    "id": "1"
+    "name": "M01_Mode_ByKG_V1"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M01_Mode_ByKG_V1
+// Select By KG mode.
+// =============================================================
+
+macro_command main()
+
+short mode = 0
+float price = 0.0
+float kg = 0.0
+float amount = 0.0
+
+SetData(mode, "Local HMI", LW, 1400, 1)
+
+GetData(price, "Local HMI", RW, 1402, 1)
+GetData(kg, "Local HMI", LW, 1404, 1)
+
+if price > 0.0 then
+    amount = kg * price
+    SetData(amount, "Local HMI", LW, 1406, 1)
+end if
+
+end macro_command

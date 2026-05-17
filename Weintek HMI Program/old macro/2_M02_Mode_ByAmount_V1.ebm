@@ -1,0 +1,30 @@
+﻿macro_definition_begin
+    "id": "2"
+    "name": "M02_Mode_ByAmount_V1"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M02_Mode_ByAmount_V1
+// Select By Amount mode.
+// =============================================================
+
+macro_command main()
+
+short mode = 1
+float price = 0.0
+float kg = 0.0
+float amount = 0.0
+
+SetData(mode, "Local HMI", LW, 1400, 1)
+
+GetData(price, "Local HMI", RW, 1402, 1)
+GetData(amount, "Local HMI", LW, 1406, 1)
+
+if price > 0.0 then
+    kg = amount / price
+    SetData(kg, "Local HMI", LW, 1404, 1)
+end if
+
+end macro_command

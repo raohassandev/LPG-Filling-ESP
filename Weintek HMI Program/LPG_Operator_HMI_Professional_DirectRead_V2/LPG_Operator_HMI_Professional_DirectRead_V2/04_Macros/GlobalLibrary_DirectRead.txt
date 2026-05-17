@@ -1,0 +1,39 @@
+// =============================================================
+// LPG OPERATOR HMI - GLOBAL LIBRARY (DIRECT READ VERSION)
+// Device name used in tags: MODBUS RTU (Zero-based Addressing)
+// Direct display values use controller tags. This library is only
+// for UI calculations and command sequencing.
+// =============================================================
+
+sub short LPG_SendCommand(short cmd)
+
+short seq = 0
+short err = 0
+
+GetData(seq, "Local HMI", "UI Command Seq Counter", 1)
+
+seq = seq + 1
+if seq >= 65000 then
+    seq = 1
+end if
+
+SetData(seq, "Local HMI", "UI Command Seq Counter", 1)
+SetData(cmd, "Local HMI", "UI Last Command Code", 1)
+
+// IMPORTANT:
+// Use Weintek Data Conversion: 4x AB->BA enabled for UINT16 values
+// if direct UINT16 values read as 256 instead of 1.
+SetDataEx(cmd, "MODBUS RTU (Zero-based Addressing)", "HMI Command Code", 1)
+GetError(err)
+
+if err == 0 then
+    SetDataEx(seq, "MODBUS RTU (Zero-based Addressing)", "HMI Command Seq", 1)
+    GetError(err)
+end if
+
+SetData(err, "Local HMI", "UI Last Error", 1)
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+return err
+
+end sub
