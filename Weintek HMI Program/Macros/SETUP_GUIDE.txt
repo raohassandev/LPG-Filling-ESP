@@ -1,0 +1,121 @@
+═══════════════════════════════════════════════════════════════════════════════
+  LPG HMI — MACRO SETUP GUIDE
+  EasyBuilder Pro  |  Device: LPG-Controller (Modbus TCP 192.168.0.100:502)
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANT — READ FIRST
+───────────────────────
+• The user defined tags.csv file is overwritten by EBP every time you do
+  "Export Tags". It is NOT a live source of truth.
+  To add tags: Edit the CSV → in EBP do System → Tag → Import.
+• NEVER write to LW8950–8954 from macros. These are Weintek UAC system
+  registers. Writing to them corrupts login state. Use LW8900–8904 instead
+  if you need local service-screen copies.
+• The macros below use DIRECT ADDRESSES (4x, addr) for integer registers
+  and TAG NAMES for float (4x_Double) registers. Import the CSV tags first
+  so tag names resolve correctly.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1 — IMPORT TAGS
+═══════════════════════════════════════════════════════════════════════════════
+1. In EBP: System → Tag → Import
+2. Select: "Weintek HMI Program/Tages/user defined tags.csv"
+3. Choose "Overwrite existing" if prompted.
+4. Save the project immediately so EBP does not discard the import.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2 — CREATE THE GLOBAL LIBRARY
+═══════════════════════════════════════════════════════════════════════════════
+1. In EBP: Macro → Global Library
+2. Paste the entire content of GLOBAL_LIB.txt
+3. This defines LPG_SendCommand() used by all button macros.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3 — CREATE MACROS  (one macro per file)
+═══════════════════════════════════════════════════════════════════════════════
+For each file below: Macro → Add → paste code → save.
+Name the macro exactly as shown (the "M##" name).
+
+  File                           | Macro Name               | Type    | Interval
+  -------------------------------|--------------------------|---------|----------
+  M00_Operator_Loop_Calc.txt     | M00_Operator_Loop_Calc   | Cycle   | 300 ms
+  M01_Select_By_KG.txt           | M01_Select_By_KG         | General | —
+  M02_Select_By_Amount.txt       | M02_Select_By_Amount     | General | —
+  M03_Capture_Tare.txt           | M03_Capture_Tare         | General | —
+  M04_Prepare_Cylinder.txt       | M04_Prepare_Cylinder     | General | —
+  M05_Start_Filling.txt          | M05_Start_Filling        | General | —
+  M06_Stop_Filling.txt           | M06_Stop_Filling         | General | —
+  M07_Reset_To_Idle.txt          | M07_Reset_To_Idle        | General | —
+  M08_Next_Cylinder.txt          | M08_Next_Cylinder        | General | —
+  M09_Poll_Fill_Record.txt       | M09_Poll_Fill_Record     | Cycle   | 500 ms
+  M10_Acknowledge_Fill_Record.txt| M10_Acknowledge_Fill_Rec | General | —
+
+Cycle macros: set them to run only when the relevant screen is open.
+  M00 → run on Operator screen
+  M09 → run on Fill History (Reports) screen
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4 — ASSIGN MACROS TO BUTTONS
+═══════════════════════════════════════════════════════════════════════════════
+Operator Screen buttons:
+  Button              | Macro                  | Visibility condition
+  --------------------|------------------------|-------------------------------
+  By KG mode tab      | M01_Select_By_KG       | always visible
+  By Amount mode tab  | M02_Select_By_Amount   | always visible
+  Capture Tare        | M03_Capture_Tare       | HMI Can Tare (4x,138)==1
+  PREPARE CYLINDER    | M04_Prepare_Cylinder   | HMI Ready To Prepare(4x,136)==1
+  START FILLING       | M05_Start_Filling      | HMI Ready To Start (4x,137)==1
+  STOP FILLING        | M06_Stop_Filling       | HMI Can Stop (4x,139)==1
+  NEXT CYLINDER       | M08_Next_Cylinder      | Fill State (4x,14)==7 (Complete)
+  RESET (Service)     | M07_Reset_To_Idle      | always visible on Service screen
+
+Fill History (Reports) screen buttons:
+  Button              | Macro                  | Visibility condition
+  --------------------|------------------------|-------------------------------
+  ACKNOWLEDGE         | M10_Acknowledge_Fill.. | LB1506==1 (pending record)
+  Operator Screen nav | Change Screen          | always visible
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5 — FILL HISTORY SCREEN BACKGROUND
+═══════════════════════════════════════════════════════════════════════════════
+The PNG is already generated at:
+  History Screen/01_Background/history_screen_background_800x480.png
+
+In EBP:
+1. Insert → Picture → select the PNG
+2. Position: x=0, y=0, Width=800, Height=480
+3. Place display objects on top using the guide coordinates in
+   HISTORY_SCREEN_IMPLEMENTATION_GUIDE.txt
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6 — BUTTON VISIBILITY (QUICK REFERENCE)
+═══════════════════════════════════════════════════════════════════════════════
+In EBP, set Button Visibility via:
+  General tab → Show Object → Condition
+
+  4x,136 == 1  → Show PREPARE CYLINDER (Ready To Prepare)
+  4x,137 == 1  → Show START FILLING    (Ready To Start)
+  4x,139 == 1  → Show STOP FILLING     (Can Stop)
+  4x,14  == 7  → Show NEXT CYLINDER    (Complete state)
+  LB1506 == 1  → Show ACKNOWLEDGE on History screen
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMAND CODE REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+  Code | Command              | When to send
+  -----|----------------------|-------------------------------------------
+   13  | RequestTare          | Tare the scale (when no cylinder)
+   14  | PrepareCylinder      | Atomic: capture tare + validate + prepare
+   20  | ModeKg               | Set fill mode to By KG
+   21  | ModeAmount           | Set fill mode to By Amount
+   30  | Start                | Start filling (after prepared)
+   31  | Stop                 | Stop filling immediately (safety)
+   32  | Reset                | Clear fault/complete → Idle
+   33  | AckComplete          | Acknowledge Complete → Idle (Next Cylinder)
+   40  | ClearResult          | Clear command result display
+
+Fill State values on wire (4x,14):
+  0=Boot  1=Idle  2=Ready  3=Validating  4=FillingFast
+  5=FillingSlow  6=Settling  7=Complete  8=Aborted  9=Fault
+
+═══════════════════════════════════════════════════════════════════════════════

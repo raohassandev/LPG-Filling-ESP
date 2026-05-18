@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LPG Fill History Screen Background — 800 x 480 px
+  Style matches the existing LPG Filling Operator screen.
+  Import into EasyBuilder Pro as a Picture object set to the
+  full screen (x=0, y=0, w=800, h=480), then place Weintek
+  display objects on top using the placeholder boxes as guides.
+  Export this SVG to PNG at 800x480 before importing.
+-->
+<svg width="800" height="480" xmlns="http://www.w3.org/2000/svg"
+     font-family="Arial, Helvetica, sans-serif">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BACKGROUND
+  ════════════════════════════════════════════════════════════ -->
+  <rect width="800" height="480" fill="#FFFFFF"/>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HEADER BAR  (y 0–50)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="0" y="0" width="800" height="50" fill="#1A3449"/>
+
+  <!-- LPG cylinder icon (simplified) -->
+  <rect x="8"  y="11" width="26" height="28" rx="4" fill="#17B4C8"/>
+  <ellipse cx="21" cy="11" rx="13" ry="4" fill="#17B4C8"/>
+  <rect x="15" y="7"  width="12" height="5"  rx="2" fill="#0E8CA0"/>
+  <!-- flame dot -->
+  <circle cx="21" cy="25" r="4" fill="#1A3449"/>
+  <circle cx="21" cy="25" r="2" fill="#FFFFFF" opacity="0.4"/>
+
+  <!-- Screen title -->
+  <text x="44" y="33" font-size="21" font-weight="bold" fill="#FFFFFF">LPG Filling Reports</text>
+
+  <!-- Record # chip in header -->
+  <text x="390" y="17" font-size="8" fill="#99CCDD" letter-spacing="0.5">RECORD  #</text>
+  <rect x="390" y="21" width="98" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Pending ACK chip in header -->
+  <text x="500" y="17" font-size="8" fill="#FF9944" letter-spacing="0.5">PENDING  ACK</text>
+  <rect x="500" y="21" width="108" height="22" rx="3" fill="none" stroke="#FF9944" stroke-width="1.5"/>
+
+  <!-- Date / Time (top-right) -->
+  <!-- calendar icon -->
+  <rect x="622" y="8"  width="14" height="14" rx="2" fill="none" stroke="#99CCDD" stroke-width="1"/>
+  <line x1="625" y1="11" x2="633" y2="11" stroke="#99CCDD" stroke-width="1"/>
+  <text x="640" y="19" font-size="9" fill="#CCDDEE">DATE</text>
+  <rect x="672" y="6"  width="120" height="16" rx="3" fill="none" stroke="#17B4C8" stroke-width="1"/>
+  <!-- clock icon -->
+  <rect x="622" y="27" width="14" height="14" rx="2" fill="none" stroke="#99CCDD" stroke-width="1"/>
+  <text x="640" y="38" font-size="9" fill="#CCDDEE">TIME</text>
+  <rect x="672" y="26" width="120" height="16" rx="3" fill="none" stroke="#17B4C8" stroke-width="1"/>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LEFT PANEL — "Record Info"  (x 5–249, y 57–402)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="5" y="57" width="244" height="345" rx="6" fill="#FFFFFF" stroke="#17B4C8" stroke-width="2"/>
+  <line x1="5" y1="85" x2="249" y2="85" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="127" y="76" text-anchor="middle" font-size="13" font-weight="bold" fill="#17B4C8">Record Info</text>
+
+  <!-- Record # -->
+  <text x="15" y="107" font-size="11" fill="#333333">Record #</text>
+  <rect x="105" y="93" width="135" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Status (word lamp — 4x,158) -->
+  <text x="15" y="137" font-size="11" fill="#333333">Status</text>
+  <rect x="105" y="123" width="135" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Mode (word lamp — 4x,160) -->
+  <text x="15" y="167" font-size="11" fill="#333333">Mode</text>
+  <rect x="105" y="153" width="135" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Error Code (4x,159) -->
+  <text x="15" y="197" font-size="11" fill="#333333">Error Code</text>
+  <rect x="105" y="183" width="135" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Duration (4x,173 hi + 4x,174 lo — show Lo word; max 65535 sec ≈ 18 h) -->
+  <text x="15" y="227" font-size="11" fill="#333333">Duration</text>
+  <rect x="105" y="213" width="110" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="219" y="227" font-size="10" fill="#666666">sec</text>
+
+  <!-- Pending ACK lamp -->
+  <text x="127" y="278" text-anchor="middle" font-size="10" fill="#555555">New Record</text>
+  <circle cx="127" cy="315" r="28" fill="none" stroke="#17B4C8" stroke-width="2"/>
+  <!-- lamp label inside circle -->
+  <text x="127" y="311" text-anchor="middle" font-size="7" fill="#888888">WORD</text>
+  <text x="127" y="321" text-anchor="middle" font-size="7" fill="#888888">LAMP</text>
+  <text x="127" y="331" text-anchor="middle" font-size="6" fill="#AAAAAA">4x,175</text>
+  <text x="127" y="363" text-anchor="middle" font-size="9" fill="#555555">LB 1506</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CENTER PANEL — "Weight Data"  (x 257–540, y 57–402)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="257" y="57" width="284" height="345" rx="6" fill="#FFFFFF" stroke="#17B4C8" stroke-width="2"/>
+  <line x1="257" y1="85" x2="541" y2="85" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="399" y="76" text-anchor="middle" font-size="13" font-weight="bold" fill="#17B4C8">Weight Data</text>
+
+  <!-- Actual Net KG — large display (4x_Double,163) -->
+  <text x="399" y="106" text-anchor="middle" font-size="10" fill="#555555">Actual Net KG</text>
+  <rect x="267" y="110" width="264" height="58" rx="5" fill="none" stroke="#17B4C8" stroke-width="2"/>
+
+  <!-- Target KG (4x_Double,161) -->
+  <text x="312" y="188" text-anchor="middle" font-size="9" fill="#555555">Target KG</text>
+  <rect x="267" y="192" width="90" height="24" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Tare KG (4x_Double,171) -->
+  <text x="447" y="188" text-anchor="middle" font-size="9" fill="#555555">Tare KG</text>
+  <rect x="402" y="192" width="90" height="24" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Δ vs Target  (calculated: Actual − Target; use local LW or EBP expression) -->
+  <text x="399" y="240" text-anchor="middle" font-size="10" fill="#555555">Δ vs Target (kg)</text>
+  <rect x="314" y="244" width="170" height="24" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Fill Progress bar placeholder -->
+  <text x="267" y="290" font-size="10" fill="#555555">Fill Progress</text>
+  <rect x="267" y="294" width="264" height="18" rx="9" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+
+  <!-- Machine Status lamps -->
+  <text x="267" y="334" font-size="10" fill="#555555">Machine Status</text>
+  <circle cx="293" cy="362" r="15" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="293" y="382" text-anchor="middle" font-size="8" fill="#555555">E-Stop</text>
+  <circle cx="353" cy="362" r="15" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="353" y="382" text-anchor="middle" font-size="8" fill="#555555">Cylinder</text>
+  <circle cx="430" cy="362" r="15" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="430" y="382" text-anchor="middle" font-size="8" fill="#555555">Nozzle</text>
+  <circle cx="500" cy="362" r="15" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="500" y="382" text-anchor="middle" font-size="8" fill="#555555">Stable</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RIGHT PANEL — "Amount Data"  (x 549–793, y 57–402)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="549" y="57" width="244" height="345" rx="6" fill="#FFFFFF" stroke="#17B4C8" stroke-width="2"/>
+  <line x1="549" y1="85" x2="793" y2="85" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="671" y="76" text-anchor="middle" font-size="13" font-weight="bold" fill="#17B4C8">Amount Data</text>
+
+  <!-- Rate per KG (4x_Double,165) -->
+  <text x="559" y="107" font-size="11" fill="#333333">Rate / KG</text>
+  <rect x="635" y="93" width="130" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="769" y="107" text-anchor="end" font-size="9" fill="#666666">PKR</text>
+
+  <!-- Target Amount (4x_Double,167) -->
+  <text x="559" y="137" font-size="11" fill="#333333">Target Amt</text>
+  <rect x="635" y="123" width="130" height="22" rx="3" fill="none" stroke="#17B4C8" stroke-width="1.5"/>
+  <text x="769" y="137" text-anchor="end" font-size="9" fill="#666666">PKR</text>
+
+  <!-- Final Amount — large display (4x_Double,169) -->
+  <text x="671" y="175" text-anchor="middle" font-size="10" fill="#555555">Final Amount (PKR)</text>
+  <rect x="559" y="179" width="228" height="58" rx="5" fill="none" stroke="#17B4C8" stroke-width="2"/>
+
+  <!-- Divider -->
+  <line x1="559" y1="252" x2="793" y2="252" stroke="#DDDDDD" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- ACKNOWLEDGE button placeholder -->
+  <rect x="559" y="260" width="228" height="52" rx="8" fill="#EBF9FB" stroke="#17B4C8" stroke-width="2.5"/>
+  <text x="673" y="291" text-anchor="middle" font-size="14" font-weight="bold" fill="#17B4C8">ACKNOWLEDGE</text>
+  <text x="673" y="305" text-anchor="middle" font-size="8" fill="#888888">Enabled when 4x,175 = 1</text>
+
+  <!-- Go to Operator Screen button placeholder -->
+  <rect x="559" y="328" width="228" height="44" rx="8" fill="none" stroke="#AAAAAA" stroke-width="1.5"/>
+  <text x="673" y="354" text-anchor="middle" font-size="11" fill="#888888">◀  Operator Screen</text>
+  <text x="673" y="366" text-anchor="middle" font-size="8" fill="#AAAAAA">Change Screen button</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       NAVIGATION BAR  (y 408–452)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="0" y="408" width="800" height="44" fill="#FFFFFF" stroke="#17B4C8" stroke-width="1"/>
+
+  <!-- Tab dividers -->
+  <line x1="160" y1="408" x2="160" y2="452" stroke="#CCCCCC" stroke-width="1"/>
+  <line x1="320" y1="408" x2="320" y2="452" stroke="#17B4C8" stroke-width="1"/>
+  <line x1="480" y1="408" x2="480" y2="452" stroke="#CCCCCC" stroke-width="1"/>
+  <line x1="640" y1="408" x2="640" y2="452" stroke="#CCCCCC" stroke-width="1"/>
+
+  <!-- Alarm tab (inactive) -->
+  <text x="80"  y="435" text-anchor="middle" font-size="12" fill="#444444">Alarm</text>
+
+  <!-- Reports tab (ACTIVE) -->
+  <rect x="160" y="408" width="160" height="44" fill="#17B4C8"/>
+  <text x="240" y="435" text-anchor="middle" font-size="12" font-weight="bold" fill="#FFFFFF">Reports</text>
+
+  <!-- Service tab (inactive) -->
+  <text x="400" y="435" text-anchor="middle" font-size="12" fill="#444444">Service</text>
+
+  <!-- Diagnostics tab (inactive) -->
+  <text x="560" y="435" text-anchor="middle" font-size="12" fill="#444444">Diagnostics</text>
+
+  <!-- Operator tab (inactive) -->
+  <text x="720" y="435" text-anchor="middle" font-size="12" fill="#444444">Operator</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FOOTER — Macro Error  (y 453–480)
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="0" y="453" width="800" height="27" fill="#1A3449"/>
+  <text x="10" y="470" font-size="11" font-weight="bold" fill="#FFFFFF">Macro Error:</text>
+  <rect x="108" y="458" width="80" height="16" rx="2" fill="none" stroke="#4DC8D4" stroke-width="1"/>
+
+</svg>

@@ -1,0 +1,18 @@
+// =============================================================
+// M07_Reset_To_Idle
+// Trigger : "RESET / CLEAR" button on Service screen — Press
+// Command : 32 (Reset)
+//
+// Clears Fault, Aborted, or Complete state back to Idle.
+// Safety command — fires without debounce.
+// =============================================================
+macro_command main()
+
+short err  = 0
+short step = 1   // Step Code 1 = Idle / Enter values
+
+err = LPG_SendCommand(32)   // cmd 32 = Reset to Idle
+
+SetData(step, "Local HMI", LW, 1450, 1)  // Step Code = 1
+
+end macro_command

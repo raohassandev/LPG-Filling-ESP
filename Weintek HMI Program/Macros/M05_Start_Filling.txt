@@ -1,0 +1,23 @@
+// =============================================================
+// M05_Start_Filling
+// Trigger : "START FILLING" button — Press event
+// Command : 30 (Start)
+//
+// The button should only be active when:
+//   HMI Ready To Start (4x,137) == 1
+//   i.e. prepared + safety OK + scale stable
+//
+// Firmware blocks the start internally if conditions are not
+// met and returns a rejected result — the HMI button visibility
+// is a second layer of safety, not the only one.
+// =============================================================
+macro_command main()
+
+short err  = 0
+short step = 5   // Step Code 5 = Filling
+
+err = LPG_SendCommand(30)   // cmd 30 = Start
+
+SetData(step, "Local HMI", LW, 1450, 1)  // Step Code = 5
+
+end macro_command

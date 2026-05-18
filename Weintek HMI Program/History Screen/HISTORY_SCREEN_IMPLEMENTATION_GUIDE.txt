@@ -1,0 +1,301 @@
+═══════════════════════════════════════════════════════════════════════════════
+  LPG FILL HISTORY SCREEN — IMPLEMENTATION GUIDE
+  Screen: "Fill History" (Reports tab), resolution 800 × 480
+  Controller device in EBP: LPG-Controller (Modbus TCP 192.168.0.100:502)
+  ProcessState enum on wire: Idle=1, FillingFast=4, FillingSlow=5,
+                              Settling=6, Complete=7, Aborted=8, Fault=9
+═══════════════════════════════════════════════════════════════════════════════
+
+OVERVIEW
+--------
+The controller stores the result of every fill (success, abort, fault) in a
+21-register block starting at 4x,156 (PDU 0x009C).  After each fill the
+firmware sets 4x,175 (PendingAck) = 1 to signal "new record ready".
+The HMI must:
+  1. Read and display the block (direct display objects work without macros).
+  2. Write any non-zero value to 4x,176 (RecAck) to clear the flag.
+  3. Clear local bit LB1506 to reflect the acknowledged state locally.
+
+The block is NOT a FIFO — it is overwritten on each fill.  If you need
+persistent history, copy the block to retentive LW registers (RW space)
+inside M07 before acknowledging, or use the ESP32 web API
+GET /api/transactions to pull the full transaction log.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1 — IMPORT TAGS
+═══════════════════════════════════════════════════════════════════════════════
+Import "Weintek HMI Program/Tages/user defined tags.csv" into EBP.
+New tags added for this screen (all under LPG-Controller device):
+
+  Tag Name                 | Type       | Address | Description
+  -------------------------|------------|---------|--------------------------------
+  Fill Rec ID Hi           | 4x, UINT16 | 156     | Record ID (uint32 high word)
+  Fill Rec ID Lo           | 4x, UINT16 | 157     | Record ID (uint32 low word)
+  Fill Rec Result          | 4x, UINT16 | 158     | 0=Idle 4=Done 5=Failed
+  Fill Rec Err Code        | 4x, UINT16 | 159     | 0=None 12=FaultActive etc.
+  Fill Rec Mode            | 4x, UINT16 | 160     | 0=By KG  1=By Amount
+  Fill Rec Target KG       | 4x_Double  | 161     | Target fill weight kg
+  Fill Rec Actual KG       | 4x_Double  | 163     | Actual net kg delivered
+  Fill Rec Rate Per KG     | 4x_Double  | 165     | Rate PKR/kg
+  Fill Rec Target Amount   | 4x_Double  | 167     | Target amount PKR
+  Fill Rec Final Amount    | 4x_Double  | 169     | Final amount = actual × rate
+  Fill Rec Tare KG         | 4x_Double  | 171     | Tare kg at fill start
+  Fill Rec Dur Hi          | 4x, UINT16 | 173     | Duration seconds (uint32 hi)
+  Fill Rec Dur Lo          | 4x, UINT16 | 174     | Duration seconds (uint32 lo)
+  Fill Rec Pending Ack     | 4x, UINT16 | 175     | 1=new record; 0=acknowledged
+  Fill Rec Ack Write       | 4x, UINT16 | 176     | Write any value → clears flag
+
+  Local HMI tags:
+  Fill Record Pending      | LB         | 1506    | Local mirror of 4x,175
+  Step Code                | LW         | 1450    | Operator step indicator
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2 — CREATE THE SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+In EBP, add a new Window (screen).
+Name it "Fill History" or "Reports".
+Set screen size to 800 × 480.
+
+Import the background:
+  File: History Screen/01_Background/history_screen_background_800x480.svg
+  Export the SVG as a PNG at exactly 800 × 480 pixels first
+  (open in Chrome, right-click → Save as image, or use Inkscape Export PNG).
+  In EBP: Insert → Picture → select the PNG → position x=0 y=0 w=800 h=480.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3 — PLACE DISPLAY OBJECTS
+═══════════════════════════════════════════════════════════════════════════════
+Use the placeholder boxes in the SVG as exact position guides.
+All numeric displays: font Bold 14–18 pt, right-aligned within box.
+
+── LEFT PANEL: Record Info ──────────────────────────────────────────────────
+
+Object        | EBP Type          | Tag / Address        | Box position (approx)
+--------------|-------------------|----------------------|----------------------
+Record #      | Numeric Display   | Fill Rec ID Lo       | x=105 y=93  w=135 h=22
+              |                   | (UINT16, 0 decimals) |
+Status        | Word Lamp         | Fill Rec Result      | x=105 y=123 w=135 h=22
+              |                   | State 0→"Idle"       |
+              |                   | State 4→"Done"  ✓    |
+              |                   | State 5→"Failed" ✗   |
+Mode          | Word Lamp         | Fill Rec Mode        | x=105 y=153 w=135 h=22
+              |                   | State 0→"By KG"      |
+              |                   | State 1→"By Amount"  |
+Error Code    | Numeric Display   | Fill Rec Err Code    | x=105 y=183 w=135 h=22
+              |                   | (UINT16, 0 decimals) |
+Duration      | Numeric Display   | Fill Rec Dur Lo      | x=105 y=213 w=110 h=22
+              |                   | (UINT16, 0 dec, sec) |
+Pending lamp  | Bit Lamp          | LB 1506              | x=99  y=287 w=56 h=56
+              |                   | State 0→grey (none)  |
+              |                   | State 1→orange (new) |
+
+Note: For Record ID >65535, display both ID Hi and ID Lo as separate
+      numeric boxes, or use a script display showing  Hi*65536 + Lo.
+      In practice, fill count stays well below 65535 per power cycle.
+
+── CENTER PANEL: Weight Data ────────────────────────────────────────────────
+
+Object           | EBP Type        | Tag / Address           | Box (approx)
+-----------------|-----------------|-------------------------|--------------------
+Actual Net KG    | Numeric Display | Fill Rec Actual KG      | x=267 y=110 w=264 h=58
+                 | (large, 3 dec)  | 4x_Double               |
+Target KG        | Numeric Display | Fill Rec Target KG      | x=267 y=192 w=90  h=24
+                 | (2 dec)         | 4x_Double               |
+Tare KG          | Numeric Display | Fill Rec Tare KG        | x=402 y=192 w=90  h=24
+                 | (2 dec)         | 4x_Double               |
+Δ vs Target      | Numeric Display | Needs local LW calc *   | x=314 y=244 w=170 h=24
+                 | (signed, 3 dec) |                         |
+Fill Progress    | Bar Graph       | HMI Prepared Flag (or   | x=267 y=294 w=264 h=18
+                 |                 | LW1420 UI Progress Pct) |
+E-Stop lamp      | Bit Lamp        | EStop OK (4x,15)        | x=278 y=347 w=30  h=30
+Cylinder lamp    | Bit Lamp        | Cylinder Present(4x,16) | x=338 y=347 w=30  h=30
+Nozzle lamp      | Bit Lamp        | Nozzle Engaged (4x,17)  | x=415 y=347 w=30  h=30
+Stable lamp      | Bit Lamp        | Weight Stable  (4x,18)  | x=485 y=347 w=30  h=30
+
+* Δ vs Target = Actual − Target. Since EBP lacks arithmetic expressions
+  in display objects, compute it in the M06 poll macro and store in an
+  LW register (e.g. LW1440 as a signed 16-bit integer × 100 for 2 dec).
+
+── RIGHT PANEL: Amount Data ─────────────────────────────────────────────────
+
+Object           | EBP Type        | Tag / Address           | Box (approx)
+-----------------|-----------------|-------------------------|--------------------
+Rate / KG        | Numeric Display | Fill Rec Rate Per KG    | x=635 y=93  w=130 h=22
+                 | (2 dec, PKR)    | 4x_Double               |
+Target Amount    | Numeric Display | Fill Rec Target Amount  | x=635 y=123 w=130 h=22
+                 | (0 dec, PKR)    | 4x_Double               |
+Final Amount     | Numeric Display | Fill Rec Final Amount   | x=559 y=179 w=228 h=58
+                 | (large, 0 dec)  | 4x_Double               |
+ACKNOWLEDGE btn  | Function Key    | Macro: M07              | x=559 y=260 w=228 h=52
+                 | Visibility:     | LB 1506 == 1            |
+Operator Screen  | Change Screen   | Target: Operator screen | x=559 y=328 w=228 h=44
+navigation       | button          |                         |
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4 — MACROS
+═══════════════════════════════════════════════════════════════════════════════
+Two macros are needed. Both are in:
+  History Screen/04_Macros/M07_Fill_Record_Acknowledge.txt
+
+── M06_Poll_Fill_Record (periodic, 500 ms) ──────────────────────────────────
+Create a new Cycle macro (Macro → Add → Cycle Macro, interval 500 ms).
+Assign it to the Fill History screen (run only when screen is open).
+Paste the "M06_Poll_Fill_Record" code from the macro file.
+
+What it does: reads 4x,175 (PendingAck) every 500 ms and mirrors it to
+LB1506.  This drives the "Pending lamp" and ACKNOWLEDGE button visibility.
+
+Alternative: If EBP supports Data Change Triggers, set a trigger on
+4x,175 changing to 1 → call M07 directly, skipping the poll loop.
+
+── M07_Fill_Record_Acknowledge (button macro) ───────────────────────────────
+Create a new Macro (Macro → Add).
+Paste the "M07_Fill_Record_Acknowledge" code from the macro file.
+Assign it to the ACKNOWLEDGE function key button's "Press" event.
+
+What it does:
+  1. Reads 4x,175 (PendingAck) — skips if already 0.
+  2. Writes 1 to 4x,176 (RecAck) — firmware clears pendingAck.
+  3. Clears LB1506 — hides the pending indicator and disables the button.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5 — ACKNOWLEDGE BUTTON VISIBILITY
+═══════════════════════════════════════════════════════════════════════════════
+The ACKNOWLEDGE button should be greyed-out / hidden when no record is
+pending. In EBP, add a Visibility condition:
+
+  Object: ACKNOWLEDGE Function Key button
+  Visibility condition: LB 1506 == 1
+    → Button visible and active when LB1506 = 1 (pending record exists)
+    → Button hidden or disabled when LB1506 = 0
+
+Alternatively, use "Bit lamp" to swap between two button states (greyed vs
+coloured) using LB1506 as the control bit.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6 — NAVIGATION (Reports tab)
+═══════════════════════════════════════════════════════════════════════════════
+The nav bar is drawn in the background image with "Reports" as the active
+tab.  In EBP, add Change Screen buttons over each nav tab area:
+
+  Tab         | x    | y   | w   | h  | Target screen
+  ------------|------|-----|-----|----|-----------------------
+  Alarm       |   0  | 408 | 160 | 44 | Alarm screen
+  Reports     | 160  | 408 | 160 | 44 | This screen (no-op or refresh)
+  Service     | 320  | 408 | 160 | 44 | Service screen
+  Diagnostics | 480  | 408 | 160 | 44 | Diagnostics screen
+  Operator    | 640  | 408 | 160 | 44 | Operator screen
+
+Set each button background to Transparent / No Fill so the background
+image nav bar shows through.  Only add a coloured overlay for the inactive
+tabs if you want a hover/press feedback effect.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 7 — WORD LAMP STATES FOR "Status" FIELD
+═══════════════════════════════════════════════════════════════════════════════
+"Fill Rec Result" (4x,158) uses kHmiResult_* codes:
+
+  Value | Label    | Background colour
+  ------|----------|------------------
+    0   | —        | Grey    (idle / no data yet)
+    1   | Accepted | Blue    (should not appear in record)
+    2   | Busy     | Blue    (should not appear in record)
+    3   | Rejected | Orange
+    4   | Done     | Green   ← normal successful fill
+    5   | Failed   | Red     ← fault terminated
+
+For the "Mode" word lamp (4x,160):
+  Value | Label
+  ------|----------
+    0   | By KG
+    1   | By Amount
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 8 — ERROR CODE REFERENCE  (Fill Rec Err Code / 4x,159)
+═══════════════════════════════════════════════════════════════════════════════
+  0  = None (success)
+  1  = InvalidCmd
+  2  = InvalidSeq
+  3  = Busy
+  4  = NotPrepared
+  5  = SafetyNotReady
+  6  = ScaleNotReady
+  7  = Unstable
+  8  = CalInvalid
+  9  = InvalidPreset
+  10 = NotAllowed
+  11 = Timeout
+  12 = FaultActive     ← most common fault-terminated fill
+  13 = AlreadyFilling
+  14 = CylinderMissing
+  15 = NozzleNotEngaged
+  16 = CommLost
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 9 — OPTIONAL: SAVE RECORD TO RETENTIVE MEMORY
+═══════════════════════════════════════════════════════════════════════════════
+The controller overwrites registers 4x,156–176 on every fill.  If you want
+to show the last N records on the HMI (without the web API), modify M07 to
+copy the register values to RW (retentive) space before acknowledging:
+
+  RW1000–RW1001  → Record ID Hi/Lo copy
+  RW1002         → Result
+  RW1003         → Mode
+  RW1004         → Error Code
+  RW1005–RW1006  → Actual KG (float hi/lo)
+  RW1007–RW1008  → Final Amount (float hi/lo)
+  RW1009         → Duration Lo (seconds)
+
+Use GetData to read each 4x tag then SetData to write to RW addresses
+before calling SetDataEx to write the ack.  RW values survive power cycles.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK REFERENCE: Register Map
+═══════════════════════════════════════════════════════════════════════════════
+PDU 0x009C = decimal 156 = Weintek "4x, 156"
+
+  PDU   | Dec | Tag                   | Type    | R/W
+  ------|-----|-----------------------|---------|----
+  009C  | 156 | Fill Rec ID Hi        | UINT16  | R
+  009D  | 157 | Fill Rec ID Lo        | UINT16  | R
+  009E  | 158 | Fill Rec Result       | UINT16  | R
+  009F  | 159 | Fill Rec Err Code     | UINT16  | R
+  00A0  | 160 | Fill Rec Mode         | UINT16  | R
+  00A1  | 161 | Fill Rec Target KG    | FLOAT32 | R  (Hi at 161, Lo at 162)
+  00A3  | 163 | Fill Rec Actual KG    | FLOAT32 | R  (Hi at 163, Lo at 164)
+  00A5  | 165 | Fill Rec Rate Per KG  | FLOAT32 | R
+  00A7  | 167 | Fill Rec Target Amt   | FLOAT32 | R
+  00A9  | 169 | Fill Rec Final Amt    | FLOAT32 | R
+  00AB  | 171 | Fill Rec Tare KG      | FLOAT32 | R
+  00AD  | 173 | Fill Rec Dur Hi       | UINT16  | R
+  00AE  | 174 | Fill Rec Dur Lo       | UINT16  | R
+  00AF  | 175 | Fill Rec Pending Ack  | UINT16  | R   1=new, 0=acked
+  00B0  | 176 | Fill Rec Ack Write    | UINT16  | W   write any value to ack
+
+  LB 1506 = local mirror of 4x,175 (managed by M06 poll macro)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FILES DELIVERED
+═══════════════════════════════════════════════════════════════════════════════
+  Weintek HMI Program/
+    Tages/
+      user defined tags.csv          ← UPDATED (18 new tags appended)
+    History Screen/
+      HISTORY_SCREEN_IMPLEMENTATION_GUIDE.txt   ← this file
+      01_Background/
+        history_screen_background_800x480.svg   ← export as PNG, import to EBP
+      04_Macros/
+        M07_Fill_Record_Acknowledge.txt          ← two macros: M06 poll + M07 ack
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,92 @@
+UAC command execution result : succeeds,Local HMI,LW_Bit,895100,,Undesignated
+UAC command execution result : invalid command,Local HMI,LW_Bit,895101,,Undesignated
+UAC command execution result : account exists,Local HMI,LW_Bit,895102,,Undesignated
+UAC command execution result : account not exists,Local HMI,LW_Bit,895103,,Undesignated
+UAC command execution result : password error,Local HMI,LW_Bit,895104,,Undesignated
+UAC command execution result : deny command,Local HMI,LW_Bit,895105,,Undesignated
+UAC command execution result : invalid name,Local HMI,LW_Bit,895106,,Undesignated
+UAC command execution result : invalid password character exists,Local HMI,LW_Bit,895107,,Undesignated
+UAC command execution result : invalid import data,Local HMI,LW_Bit,895108,,Undesignated
+UAC command execution result : out of validity range,Local HMI,LW_Bit,895109,,Undesignated
+UAC privilege (Class A ),Local HMI,LW_Bit,895300,,Undesignated
+UAC privilege (Class B ),Local HMI,LW_Bit,895301,,Undesignated
+UAC privilege (Class C ),Local HMI,LW_Bit,895302,,Undesignated
+UAC privilege (Class D ),Local HMI,LW_Bit,895303,,Undesignated
+UAC privilege (Class E ),Local HMI,LW_Bit,895304,,Undesignated
+UAC privilege (Class F ),Local HMI,LW_Bit,895305,,Undesignated
+UAC privilege (Class G ),Local HMI,LW_Bit,895306,,Undesignated
+UAC privilege (Class H ),Local HMI,LW_Bit,895307,,Undesignated
+UAC privilege (Class I ),Local HMI,LW_Bit,895308,,Undesignated
+UAC privilege (Class J ),Local HMI,LW_Bit,895309,,Undesignated
+UAC privilege (Class K ),Local HMI,LW_Bit,895310,,Undesignated
+UAC privilege (Class L ),Local HMI,LW_Bit,895311,,Undesignated
+UAC command,Local HMI,LW,8950,,Undesignated
+UAC command execution result,Local HMI,LW,8951,,Undesignated
+UAC user index,Local HMI,LW,8952,,Undesignated
+UAC user privilege,Local HMI,LW,8953,,Undesignated
+UAC user name,Local HMI,LW,8954,,Undesignated
+UAC password,Local HMI,LW,8962,,Undesignated
+Live Weight,LPG-Controller,4x_Double,0,Direct controller float. Gross/live scale weight shown on Live Filling screen.,32-bit Float
+Tare Weight,LPG-Controller,4x_Double,2,Direct controller float. Captured cylinder tare shown after Capture Tare.,32-bit Float
+Net Weight,LPG-Controller,4x_Double,4,Direct controller float. Main filling net weight display.,32-bit Float
+Target KG,LPG-Controller,4x_Double,6,Direct controller float. Active target kg/weight after Ready/Apply Setup.,32-bit Float
+Rate Per KG,LPG-Controller,4x_Double,8,Direct controller float. Active rate used by controller after setup.,32-bit Float
+Target Amount,LPG-Controller,4x_Double,10,Direct controller float. Active target amount after setup.,32-bit Float
+Current Amount,LPG-Controller,4x_Double,12,Direct controller float. Current calculated amount during filling.,32-bit Float
+Fill State,LPG-Controller,4x,14,"Machine state word lamp: IDLE, READY, FILLING, COMPLETE, FAULT, etc.",16-bit Unsigned
+EStop OK,LPG-Controller,4x,15,1=Emergency stop loop healthy; 0=E-stop/open fault.,16-bit Unsigned
+Cylinder Present,LPG-Controller,4x,16,1=Cylinder detected; 0=no cylinder.,16-bit Unsigned
+Nozzle Engaged,LPG-Controller,4x,17,1=Nozzle engaged; 0=nozzle not engaged.,16-bit Unsigned
+Weight Stable,LPG-Controller,4x,18,1=Scale/weight stable; 0=unstable.,16-bit Unsigned
+Alarm Code,LPG-Controller,4x,72,Alarm word lamp code. 0=Alarm OK; non-zero shows active alarm reason.,16-bit Unsigned
+Alarm Severity,LPG-Controller,4x,73,Alarm severity/status for service or diagnostics screen.,16-bit Unsigned
+Readiness Mask,LPG-Controller,4x,74,Engineering readiness bit mask. Optional diagnostic display.,16-bit Unsigned
+Blocker Mask,LPG-Controller,4x,75,Engineering blocker bit mask explaining why filling cannot start.,16-bit Unsigned
+HMI Command Code,LPG-Controller,4x,128,Write register. HMI command code sent by function-key macros.,16-bit Unsigned
+HMI Command Seq,LPG-Controller,4x,129,Write register. Incrementing sequence to execute each HMI command once.,16-bit Unsigned
+HMI Command Result,LPG-Controller,4x,131,Controller response/result for last HMI command.,16-bit Unsigned
+HMI Command Error Code,LPG-Controller,4x,132,Controller error code for last command; 0 means no command error.,16-bit Unsigned
+HMI Command Busy,LPG-Controller,4x,133,1=controller is processing HMI command; 0=ready.,16-bit Unsigned
+HMI Fill Mode,LPG-Controller,4x,134,"Active controller mode: 0=By KG, 1=By Amount.",16-bit Unsigned
+HMI Prepared Flag,LPG-Controller,4x,135,1=sale setup is applied/prepared in controller.,16-bit Unsigned
+HMI Ready To Prepare,LPG-Controller,4x,136,1=controller accepts Ready/Apply Setup command.,16-bit Unsigned
+HMI Ready To Start,LPG-Controller,4x,137,1=Start Filling is allowed.,16-bit Unsigned
+HMI Can Tare,LPG-Controller,4x,138,1=Capture Tare is allowed.,16-bit Unsigned
+HMI Can Stop,LPG-Controller,4x,139,1=Stop Filling is allowed.,16-bit Unsigned
+HMI Preset Tare Weight,LPG-Controller,4x_Double,144,Preset tare write value only if firmware needs manual tare. Capture Tare command is preferred.,32-bit Float
+HMI Preset Target KG,LPG-Controller,4x_Double,146,Write register. Target kg sent from HMI after By KG/By Amount calculation.,32-bit Float
+HMI Preset Rate Per KG,LPG-Controller,4x_Double,148,Write register. Price/rate per kg sent from saved HMI rate.,32-bit Float
+HMI Preset Amount,LPG-Controller,4x_Double,150,Write register. Target amount sent from HMI after calculation.,32-bit Float
+UI Mode,Local HMI,LW,1400,"Local operator mode: 0=By KG, 1=By Amount. Set by mode buttons.",16-bit Unsigned
+UI Price Per KG,Local HMI,RW,1402,Retentive saved price/rate per kg. Use RW so it stays after power cycle.,32-bit Float
+UI Desired KG,Local HMI,LW,1404,Operator desired kg. Entered in By KG mode; calculated in By Amount mode.,32-bit Float
+UI Desired Amount,Local HMI,LW,1406,Operator desired amount. Entered in By Amount mode; calculated in By KG mode.,32-bit Float
+UI Progress Percent,Local HMI,LW,1420,"Calculated progress percentage for progress bar, 0 to 100.",32-bit Float
+UI Command Seq Counter,Local HMI,LW,1422,Local incrementing command sequence counter for command macros.,16-bit Unsigned
+UI Last Command Code,Local HMI,LW,1423,Last command code sent by the HMI. Diagnostic only.,16-bit Unsigned
+UI Last Error,Local HMI,LW,1424,Last macro/write error for operator/debug display.,16-bit Signed
+UI Macro Error,Local HMI,LW,899,General macro error shown on footer. 0 means OK.,16-bit Signed
+Prepare Cylinder Enable,Local HMI,LB,1500,,Undesignated
+Start Filling Enable,Local HMI,LB,1501,,Undesignated
+Stop Filling Enable,Local HMI,LB,1502,,Undesignated
+Next Cylinder Enable,Local HMI,LB,1503,,Undesignated
+Alarm Active,Local HMI,LB,1504,,Undesignated
+Communication Fault,Local HMI,LB,1505,,Undesignated
+Last Accepted Seq,Local HMI,LW,1425,,Undesignated
+Step Code,Local HMI,LW,1450,Operator step indicator set by macros: 1=Enter KG 2=Enter Amount 3=Prepare 4=Start 5=Filling 6=Complete 7=Fault.,16-bit Unsigned
+Fill Record Pending,Local HMI,LB,1506,Local mirror of 4x-175 PendingAck. Cleared by Acknowledge macro.,Undesignated
+Fill Rec ID Hi,LPG-Controller,4x,156,Fill record monotonic counter high word (uint32 hi).,16-bit Unsigned
+Fill Rec ID Lo,LPG-Controller,4x,157,Fill record monotonic counter low word (uint32 lo).,16-bit Unsigned
+Fill Rec Result,LPG-Controller,4x,158,"Fill record result: 0=Idle 4=Done 5=Failed.",16-bit Unsigned
+Fill Rec Err Code,LPG-Controller,4x,159,"Fill record error code: 0=None 12=FaultActive.",16-bit Unsigned
+Fill Rec Mode,LPG-Controller,4x,160,"Fill record mode: 0=By KG 1=By Amount.",16-bit Unsigned
+Fill Rec Target KG,LPG-Controller,4x_Double,161,Fill record target fill weight kg (float32).,32-bit Float
+Fill Rec Actual KG,LPG-Controller,4x_Double,163,Fill record actual net kg delivered (float32).,32-bit Float
+Fill Rec Rate Per KG,LPG-Controller,4x_Double,165,Fill record rate PKR per kg (float32).,32-bit Float
+Fill Rec Target Amount,LPG-Controller,4x_Double,167,Fill record target amount PKR (float32).,32-bit Float
+Fill Rec Final Amount,LPG-Controller,4x_Double,169,Fill record final amount PKR = actual x rate (float32).,32-bit Float
+Fill Rec Tare KG,LPG-Controller,4x_Double,171,Fill record tare kg captured at fill start (float32).,32-bit Float
+Fill Rec Dur Hi,LPG-Controller,4x,173,Fill record duration seconds high word (uint32 hi).,16-bit Unsigned
+Fill Rec Dur Lo,LPG-Controller,4x,174,Fill record duration seconds low word (uint32 lo).,16-bit Unsigned
+Fill Rec Pending Ack,LPG-Controller,4x,175,"1=new fill record awaiting HMI acknowledge; 0=acknowledged.",16-bit Unsigned
+Fill Rec Ack Write,LPG-Controller,4x,176,Write any non-zero value to acknowledge and clear the pending fill record.,16-bit Unsigned

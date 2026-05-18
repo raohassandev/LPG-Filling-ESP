@@ -1,0 +1,38 @@
+// =============================================================
+// M10_Acknowledge_Fill_Record
+// Trigger : "ACKNOWLEDGE" button on Fill History screen — Press
+//
+// Tells the controller the HMI has read the fill record.
+// Firmware clears pendingAck on any write to 4x,176.
+// After this, the controller can overwrite the record block
+// on the next fill completion.
+//
+// The ACKNOWLEDGE button should only be visible / active when
+//   LB1506 == 1  (set by M09_Poll_Fill_Record)
+// =============================================================
+macro_command main()
+
+short pendingAck = 0
+short ackVal     = 1
+short clearBit   = 0
+short err        = 0
+
+// Double-check PendingAck before writing (guard against stale LB1506)
+GetData(pendingAck, "LPG-Controller", 4x, 175, 1)
+
+if pendingAck == 1 then
+
+    // Write any non-zero value to RecAck (4x,176) — firmware clears flag
+    SetDataEx(ackVal, "LPG-Controller", 4x, 176, 1)
+    GetError(err)
+
+    if err == 0 then
+        // Clear local pending bit — hides button and lamp immediately
+        SetData(clearBit, "Local HMI", LB, 1506, 1)
+    end if
+
+end if
+
+SetData(err, "Local HMI", LW, 899, 1)  // UI Macro Error (footer)
+
+end macro_command

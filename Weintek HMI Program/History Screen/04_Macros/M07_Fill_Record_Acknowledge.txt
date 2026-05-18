@@ -1,0 +1,71 @@
+// =============================================================
+// M07_Fill_Record_Acknowledge
+// Trigger: "ACKNOWLEDGE" button on Fill History screen.
+// Purpose: Tells the controller the HMI has read and logged
+//          the fill record. Clears the pending-ack flag so
+//          the controller knows it may overwrite the record
+//          on the next fill completion.
+//
+// Registers written:
+//   4x,176  "Fill Rec Ack Write"   — controller clears pendingAck
+//   LB,1506 "Fill Record Pending"  — local HMI pending indicator
+//
+// The button should only be visible / enabled when
+//   Fill Rec Pending Ack (4x,175) == 1
+//   or LB1506 == 1
+// =============================================================
+macro_command main()
+
+short pendingAck = 0
+short ackVal     = 1
+short clearBit   = 0
+short err        = 0
+
+// Check if there is actually a pending record before writing.
+GetData(pendingAck, "LPG-Controller", "Fill Rec Pending Ack", 1)
+
+if pendingAck == 1 then
+
+    // Write to RecAck (4x,176). Firmware clears pendingAck on any write
+    // to offset 0x30 from HMI base (PDU 0x00B0 = 176 decimal).
+    SetDataEx(ackVal, "LPG-Controller", "Fill Rec Ack Write", 1)
+    GetError(err)
+
+    if err == 0 then
+        // Clear local pending indicator
+        SetData(clearBit, "Local HMI", LB, 1506, 1)
+    end if
+
+end if
+
+SetData(err, "Local HMI", "UI Macro Error", 1)
+
+end macro_command
+
+
+// =============================================================
+// M06_Poll_Fill_Record  (periodic, 500 ms)
+// Trigger: Cycle macro running every 500 ms when the
+//          History / Reports screen is open.
+// Purpose: Mirror the controller's PendingAck register into
+//          LB1506 so word-lamp and button visibility objects
+//          on the HMI update without a dedicated macro trigger.
+//
+// If EasyBuilder Pro supports a macro trigger on 4x,175
+// changing to 1, use that instead of polling.
+// =============================================================
+macro_command main()
+
+short pendingAck = 0
+short setPending = 1
+short clearBit   = 0
+
+GetData(pendingAck, "LPG-Controller", "Fill Rec Pending Ack", 1)
+
+if pendingAck == 1 then
+    SetData(setPending, "Local HMI", LB, 1506, 1)
+else
+    SetData(clearBit, "Local HMI", LB, 1506, 1)
+end if
+
+end macro_command

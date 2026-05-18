@@ -1,0 +1,59 @@
+// =============================================================
+// M00_Operator_Loop_Calc
+// Type    : Cycle Macro (periodic)
+// Interval: 300 ms
+// Screen  : Operator screen (run only when operator screen active)
+// Purpose : Calculate UI amount/kg from user input and update
+//           progress bar. Does NOT read controller data —
+//           display objects read controller registers directly.
+// =============================================================
+macro_command main()
+
+short mode = 0
+short err  = 0
+
+float price         = 0.0
+float desiredKg     = 0.0
+float desiredAmount = 0.0
+float net           = 0.0
+float target        = 0.0
+float progress      = 0.0
+
+GetData(mode,          "Local HMI", LW, 1400, 1)  // UI Mode
+GetData(price,         "Local HMI", RW, 1402, 1)  // UI Price Per KG (retentive)
+GetData(desiredKg,     "Local HMI", LW, 1404, 1)  // UI Desired KG
+GetData(desiredAmount, "Local HMI", LW, 1406, 1)  // UI Desired Amount
+
+// Mode 0 = By KG : operator types KG, amount is calculated
+if mode == 0 then
+    if price > 0.0 then
+        desiredAmount = desiredKg * price
+        SetData(desiredAmount, "Local HMI", LW, 1406, 1)
+    end if
+end if
+
+// Mode 1 = By Amount : operator types amount, KG is calculated
+if mode == 1 then
+    if price > 0.001 then
+        desiredKg = desiredAmount / price
+        SetData(desiredKg, "Local HMI", LW, 1404, 1)
+    end if
+end if
+
+// Progress bar = (Net Weight / Target KG) * 100
+GetData(net,    "LPG-Controller", "Net Weight",   1)  // 4x_Double,4
+GetData(target, "LPG-Controller", "Target KG",    1)  // 4x_Double,6
+
+if target > 0.001 then
+    progress = net * 100.0 / target
+else
+    progress = 0.0
+end if
+
+if progress < 0.0   then progress = 0.0   end if
+if progress > 100.0 then progress = 100.0 end if
+
+SetData(progress, "Local HMI", LW, 1420, 1)  // UI Progress Percent
+SetData(err,      "Local HMI", LW, 899,  1)  // UI Macro Error
+
+end macro_command

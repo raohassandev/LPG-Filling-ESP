@@ -1,0 +1,18 @@
+// =============================================================
+// M06_Stop_Filling
+// Trigger : "STOP FILLING" button — Press event
+// Command : 31 (Stop)
+//
+// Safety command — fires immediately without debounce.
+// The button should be visible when HMI Can Stop (4x,139)==1.
+// =============================================================
+macro_command main()
+
+short err  = 0
+short step = 1   // Step Code 1 = back to idle after stop
+
+err = LPG_SendCommand(31)   // cmd 31 = Stop
+
+SetData(step, "Local HMI", LW, 1450, 1)  // Step Code = 1
+
+end macro_command

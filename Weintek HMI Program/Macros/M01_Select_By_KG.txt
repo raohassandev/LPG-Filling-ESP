@@ -1,0 +1,14 @@
+// =============================================================
+// M01_Select_By_KG
+// Trigger : "By KG" mode tab / button — Press event
+// Sends command 20 (ModeKg) to controller so its mode matches.
+// =============================================================
+macro_command main()
+
+short mode = 0
+short err  = 0
+
+SetData(mode, "Local HMI", LW, 1400, 1)  // UI Mode = By KG
+err = LPG_SendCommand(20)                 // cmd 20 = ModeKg
+
+end macro_command

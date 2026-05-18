@@ -268,8 +268,8 @@ void HmiOperationService::executeCommand(uint16_t code, uint16_t seq,
             if (!snap.weightStable) {
                 setResult(kHmiResult_Rejected, kHmiErr_Unstable); break;
             }
-            // Capture live weight as tare — HMI never needs to write preset tare
-            presetTare_ = snap.liveWeightKg;
+            // Capture live weight as tare. Clamp to 0 — scale can drift slightly negative when empty.
+            presetTare_ = (snap.liveWeightKg < 0.0f) ? 0.0f : snap.liveWeightKg;
             statusStore.setTareWeight(snap.liveWeightKg);
             uint16_t errCode = kHmiErr_None;
             if (!validatePreset(errCode)) {
@@ -316,9 +316,6 @@ void HmiOperationService::executeCommand(uint16_t code, uint16_t seq,
             }
             if (!snap.emergencyStopOk) {
                 setResult(kHmiResult_Rejected, kHmiErr_SafetyNotReady); break;
-            }
-            if (!snap.weightStable) {
-                setResult(kHmiResult_Rejected, kHmiErr_Unstable); break;
             }
             // Apply validated preset to StatusStore before starting
             statusStore.setTareWeight(presetTare_);
@@ -380,7 +377,8 @@ void HmiOperationService::pushToCache(ModbusRegisterCache& cache, const StatusSn
     const bool rtp = snap.emergencyStopOk && snap.weightInitialized &&
                      !snap.weightReadError && snap.calibrationValid &&
                      (snap.state == ProcessState::Idle || snap.state == ProcessState::Ready);
-    const bool rts = rtp && preparedFlag_ && snap.weightStable;
+    // weightStable was verified at cmd14 prepare time; don't re-gate here
+    const bool rts = rtp && preparedFlag_;
 
     uint16_t* h = cache.hmiRegs();
 

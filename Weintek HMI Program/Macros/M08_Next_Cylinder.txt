@@ -1,0 +1,19 @@
+// =============================================================
+// M08_Next_Cylinder
+// Trigger : "NEXT CYLINDER" button — Press event
+// Command : 33 (AckComplete)
+//
+// Called after a fill completes (Fill State == Complete).
+// Acknowledges the complete state so the controller returns
+// to Idle and accepts the next cylinder.
+// =============================================================
+macro_command main()
+
+short err  = 0
+short step = 1   // Step Code 1 = Idle / Enter new values
+
+err = LPG_SendCommand(33)   // cmd 33 = AckComplete
+
+SetData(step, "Local HMI", LW, 1450, 1)  // Step Code = 1
+
+end macro_command

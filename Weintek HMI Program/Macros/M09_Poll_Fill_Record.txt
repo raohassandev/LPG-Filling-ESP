@@ -1,0 +1,28 @@
+// =============================================================
+// M09_Poll_Fill_Record
+// Type    : Cycle Macro (periodic)
+// Interval: 500 ms
+// Screen  : Fill History / Reports screen only
+// Purpose : Mirror controller's PendingAck (4x,175) into local
+//           LB1506 so the Acknowledge button and pending lamp
+//           reflect current state without a macro trigger.
+//
+// If EasyBuilder Pro supports Data Change Triggers, set one on
+// 4x,175 changing to 1 and skip this poll macro entirely.
+// =============================================================
+macro_command main()
+
+short pendingAck = 0
+short bitVal     = 0
+
+GetData(pendingAck, "LPG-Controller", 4x, 175, 1)  // Fill Rec Pending Ack
+
+if pendingAck == 1 then
+    bitVal = 1
+else
+    bitVal = 0
+end if
+
+SetData(bitVal, "Local HMI", LB, 1506, 1)  // Fill Record Pending (local)
+
+end macro_command

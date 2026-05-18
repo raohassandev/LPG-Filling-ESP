@@ -1,0 +1,79 @@
+// =============================================================
+// M04_Prepare_Cylinder
+// Trigger : "PREPARE CYLINDER" button — Press event
+// Command : 14 (PrepareCylinder — atomic)
+//
+// What happens:
+//   1. Reads operator-entered KG/Amount/Price from local HMI.
+//   2. Calculates missing value (KG or Amount based on mode).
+//   3. Writes preset values to controller (4x_Double registers).
+//   4. Sends cmd 14 — firmware captures live weight as tare,
+//      validates the preset, and sets preparedFlag = 1.
+//   5. HMI does NOT need to write tare — firmware handles it.
+//
+// Requires tags imported from user defined tags.csv:
+//   HMI Fill Mode        (4x,134)  — type 4x UINT16
+//   HMI Preset Target KG (4x_Double,146) — type float32
+//   HMI Preset Rate Per KG (4x_Double,148) — type float32
+//   HMI Preset Amount    (4x_Double,150) — type float32
+// =============================================================
+macro_command main()
+
+short mode  = 0
+short err   = 0
+short step  = 3
+
+float price         = 0.0
+float desiredKg     = 0.0
+float desiredAmount = 0.0
+
+GetData(mode,          "Local HMI", LW, 1400, 1)  // UI Mode
+GetData(price,         "Local HMI", RW, 1402, 1)  // UI Price Per KG
+GetData(desiredKg,     "Local HMI", LW, 1404, 1)  // UI Desired KG
+GetData(desiredAmount, "Local HMI", LW, 1406, 1)  // UI Desired Amount
+
+// Calculate missing value for whichever mode is active
+if mode == 0 then
+    // By KG: ensure amount is up to date
+    if price > 0.0 then
+        desiredAmount = desiredKg * price
+        SetData(desiredAmount, "Local HMI", LW, 1406, 1)
+    end if
+else
+    // By Amount: ensure kg is up to date
+    if price > 0.001 then
+        desiredKg = desiredAmount / price
+        SetData(desiredKg, "Local HMI", LW, 1404, 1)
+    end if
+end if
+
+// ── Write mode to controller ──────────────────────────────────────────────
+SetDataEx(mode, "LPG-Controller", 4x, 134, 1)   // HMI Fill Mode (4x,134)
+GetError(err)
+
+// ── Write preset values to controller (floats via 4x_Double tags) ────────
+if err == 0 then
+    SetDataEx(desiredKg, "LPG-Controller", "HMI Preset Target KG", 1)
+    GetError(err)
+end if
+
+if err == 0 then
+    SetDataEx(price, "LPG-Controller", "HMI Preset Rate Per KG", 1)
+    GetError(err)
+end if
+
+if err == 0 then
+    SetDataEx(desiredAmount, "LPG-Controller", "HMI Preset Amount", 1)
+    GetError(err)
+end if
+
+// ── Send cmd 14: firmware captures tare + validates + sets prepared ───────
+if err == 0 then
+    err = LPG_SendCommand(14)   // cmd 14 = PrepareCylinder (atomic)
+end if
+
+// ── Update step indicator ─────────────────────────────────────────────────
+SetData(step, "Local HMI", LW, 1450, 1)  // Step Code = 3 (Prepare sent)
+SetData(err,  "Local HMI", LW, 899,  1)  // UI Macro Error (footer)
+
+end macro_command

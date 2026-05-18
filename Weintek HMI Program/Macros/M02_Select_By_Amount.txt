@@ -1,0 +1,14 @@
+// =============================================================
+// M02_Select_By_Amount
+// Trigger : "By Amount" mode tab / button — Press event
+// Sends command 21 (ModeAmount) to controller.
+// =============================================================
+macro_command main()
+
+short mode = 1
+short err  = 0
+
+SetData(mode, "Local HMI", LW, 1400, 1)  // UI Mode = By Amount
+err = LPG_SendCommand(21)                 // cmd 21 = ModeAmount
+
+end macro_command

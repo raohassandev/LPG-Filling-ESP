@@ -1,0 +1,43 @@
+// =============================================================
+// GLOBAL LIBRARY — paste into EBP "Global" macro slot
+// Device name: LPG-Controller  (Modbus TCP 192.168.0.100:502)
+// All button macros call LPG_SendCommand(cmdCode).
+//
+// HOW THIS WORKS:
+//   The firmware fires a command when HMI Command Seq (4x,129)
+//   changes value. We increment a local counter, write cmd code
+//   first, then write the new seq. Firmware executes once per
+//   seq change — no debounce issue, no repeated triggers.
+// =============================================================
+
+sub short LPG_SendCommand(short cmd)
+
+    short seq = 0
+    short err = 0
+
+    // Increment local sequence counter (wraps before 65000)
+    GetData(seq, "Local HMI", LW, 1422, 1)
+    seq = seq + 1
+    if seq >= 65000 then
+        seq = 1
+    end if
+    SetData(seq, "Local HMI", LW, 1422, 1)
+
+    // Log last command sent (diagnostic only)
+    SetData(cmd, "Local HMI", LW, 1423, 1)
+
+    // Write command code FIRST, then sequence — firmware triggers on seq change
+    SetDataEx(cmd, "LPG-Controller", 4x, 128, 1)   // HMI Command Code
+    GetError(err)
+
+    if err == 0 then
+        SetDataEx(seq, "LPG-Controller", 4x, 129, 1)  // HMI Command Seq
+        GetError(err)
+    end if
+
+    SetData(err, "Local HMI", LW, 1424, 1)   // UI Last Error
+    SetData(err, "Local HMI", LW, 899,  1)   // UI Macro Error (footer display)
+
+    return err
+
+end sub

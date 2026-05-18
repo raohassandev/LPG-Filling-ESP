@@ -1,0 +1,1427 @@
+LB-9000 : initialized as ON,Local HMI,LB,9000,,16-bit Unsigned,Supported
+LB-9001 : initialized as ON,Local HMI,LB,9001,,16-bit Unsigned,Supported
+LB-9002 : initialized as ON,Local HMI,LB,9002,,16-bit Unsigned,Supported
+LB-9003 : initialized as ON,Local HMI,LB,9003,,16-bit Unsigned,Supported
+LB-9004 : initialized as ON,Local HMI,LB,9004,,16-bit Unsigned,Supported
+LB-9005 : initialized as ON,Local HMI,LB,9005,,16-bit Unsigned,Supported
+LB-9006 : initialized as ON,Local HMI,LB,9006,,16-bit Unsigned,Supported
+LB-9007 : initialized as ON,Local HMI,LB,9007,,16-bit Unsigned,Supported
+LB-9008 : initialized as ON,Local HMI,LB,9008,,16-bit Unsigned,Supported
+LB-9009 : initialized as ON,Local HMI,LB,9009,,16-bit Unsigned,Supported
+LB-9010 : data-transfer write indicator,Local HMI,LB,9010,,16-bit Unsigned,Supported
+LB-9011 : data-transfer read indicator,Local HMI,LB,9011,,16-bit Unsigned,Supported
+LB-9012 : data-transfer execution indicator,Local HMI,LB,9012,,16-bit Unsigned,Supported
+LB-9013 : hide (set ON)/show (set OFF) FS window,Local HMI,LB,9013,,16-bit Unsigned,Unsupported
+LB-9014 : hide (set ON)/show (set OFF) FS button,Local HMI,LB,9014,,16-bit Unsigned,Unsupported
+LB-9015 : hide (set ON)/show (set OFF) FS window/button,Local HMI,LB,9015,,16-bit Unsigned,Unsupported
+LB-9016 : status is on when any remote HMI client connects to this HMI that acts as a remote HMI,Local HMI,LB,9016,,16-bit Unsigned,Supported
+LB-9017 : disable write-back in PLC control's [change window],Local HMI,LB,9017,,16-bit Unsigned,Supported
+LB-9018 : disable(set ON)/enable (set OFF) mouse cursor,Local HMI,LB,9018,,16-bit Unsigned,Supported
+LB-9019 : disable(set ON)/enable (set OFF) sound output,Local HMI,LB,9019,,16-bit Unsigned,Supported
+LB-9020 : show (set ON)/ hide (set OFF) system setting bar,Local HMI,LB,9020,,16-bit Unsigned,Supported
+LB-9021 : reset current event log (OFF->ON),Local HMI,LB,9021,,16-bit Unsigned,Supported
+LB-9022 : delete the earliest event log file on HMI memory (set ON),Local HMI,LB,9022,,16-bit Unsigned,Unsupported
+LB-9023 : delete all event log files on HMI memory (set ON),Local HMI,LB,9023,,16-bit Unsigned,Supported
+LB-9024 : refresh event log information on HMI memory (set ON),Local HMI,LB,9024,,16-bit Unsigned,Unsupported
+LB-9025 : delete the earliest data sampling file on HMI memory (set ON),Local HMI,LB,9025,,16-bit Unsigned,Unsupported
+LB-9026 : delete all data sampling files on HMI memory (set ON),Local HMI,LB,9026,,16-bit Unsigned,Supported
+LB-9027 : refresh data sampling information on HMI memory (set ON),Local HMI,LB,9027,,16-bit Unsigned,Unsupported
+LB-9028 : reset all recipe data (set ON),Local HMI,LB,9028,,16-bit Unsigned,Supported
+LB-9029 : save all recipe data to machine (set ON),Local HMI,LB,9029,,16-bit Unsigned,Supported
+LB-9030 : activate COM 1 new communication settings (LW-9550~9554) (set ON),Local HMI,LB,9030,,16-bit Unsigned,Supported
+LB-9031 : activate COM 2 new communication settings (LW-9555~9559) (set ON),Local HMI,LB,9031,,16-bit Unsigned,Supported
+LB-9032 : activate COM 3 new communication settings (LW-9560~9564) (set ON),Local HMI,LB,9032,,16-bit Unsigned,Supported
+LB-9033 : disable (when on)/enable (when off) HMI upload function,Local HMI,LB,9033,,16-bit Unsigned,Supported
+"LB-9034 : save event/data sampling/operation log to HMI, USB disk, SD card (set ON)",Local HMI,LB,9034,,16-bit Unsigned,Supported
+LB-9035 : HMI free space insufficiency alarm (when ON),Local HMI,LB,9035,,16-bit Unsigned,Supported
+LB-9036 : SD card free space insufficiency alarm (when ON),Local HMI,LB,9036,,16-bit Unsigned,Unsupported
+LB-9037 : USB disk 1 free space insufficiency alarm (when ON),Local HMI,LB,9037,,16-bit Unsigned,Supported
+LB-9038 : USB disk 2 free space insufficiency alarm (when ON),Local HMI,LB,9038,,16-bit Unsigned,Supported
+LB-9039 : status of file backup activity (backup in process if ON),Local HMI,LB,9039,,16-bit Unsigned,Supported
+LB-9040 : backlight up (set ON),Local HMI,LB,9040,,16-bit Unsigned,Supported
+LB-9041 : backlight down (set ON),Local HMI,LB,9041,,16-bit Unsigned,Supported
+LB-9042 : acknowledge all alarm events (OFF->ON),Local HMI,LB,9042,,16-bit Unsigned,Supported
+LB-9043 : unacknowledged events exist (when ON),Local HMI,LB,9043,,16-bit Unsigned,Supported
+LB-9044 : disable remote control (when ON),Local HMI,LB,9044,,16-bit Unsigned,Supported
+LB-9045 : memory-map communication fails (when ON),Local HMI,LB,9045,,16-bit Unsigned,Supported
+LB-9046 : project key is different from HMI key (when ON),Local HMI,LB,9046,,16-bit Unsigned,Supported
+LB-9047 : reboot HMI (set ON when LB9048 is on),Local HMI,LB,9047,,16-bit Unsigned,Supported
+LB-9048 : reboot-HMI protection,Local HMI,LB,9048,,16-bit Unsigned,Supported
+LB-9049 : disable/enable watch dog (use LW-11456 set watch dog timeout),Local HMI,LB,9049,,16-bit Unsigned,Supported
+LB-9050 : user logout,Local HMI,LB,9050,,16-bit Unsigned,Unsupported
+"LB-9051 : disconnect (set OFF)/connect (set ON) EasyAccess server ",Local HMI,LB,9051,,16-bit Unsigned,Unsupported
+LB-9052 : status of connecting to EasyAccess server,Local HMI,LB,9052,,16-bit Unsigned,Unsupported
+LB-9053 : prohibit password remote-read operation (when ON),Local HMI,LB,9053,,16-bit Unsigned,Supported
+LB-9054 : prohibit password remote-write operation (when ON),Local HMI,LB,9054,,16-bit Unsigned,Supported
+LB-9055 : MODBUS server (COM 1) receives a request (when ON),Local HMI,LB,9055,,16-bit Unsigned,Supported
+LB-9056 : MODBUS server (COM 2) receives a request (when ON),Local HMI,LB,9056,,16-bit Unsigned,Supported
+LB-9057 : MODBUS server (COM 3) receives a request (when ON),Local HMI,LB,9057,,16-bit Unsigned,Supported
+LB-9058 : MODBUS server (ethernet) receives a request (when ON),Local HMI,LB,9058,,16-bit Unsigned,Supported
+LB-9059 : disable macro TRACE function (when ON),Local HMI,LB,9059,,16-bit Unsigned,Supported
+LB-9060 : password error,Local HMI,LB,9060,,16-bit Unsigned,Unsupported
+LB-9061 : update password (set ON),Local HMI,LB,9061,,16-bit Unsigned,Unsupported
+LB-9062 : open hardware setting dialog (set ON),Local HMI,LB,9062,,16-bit Unsigned,Supported
+LB-9063 : disable(set ON)/enable(set OFF) information popup dialog when USB disk is detected,Local HMI,LB,9063,,16-bit Unsigned,Supported
+LB-9064 : enable USB barcode scanner (disable keyboard) (when ON),Local HMI,LB,9064,,16-bit Unsigned,Supported
+LB-9065 : disable/enable COM 1 broadcast station no.,Local HMI,LB,9065,,16-bit Unsigned,Supported
+LB-9066 : disable/enable COM 2 broadcast station no.,Local HMI,LB,9066,,16-bit Unsigned,Supported
+LB-9067 : disable/enable COM 3 broadcast station no.,Local HMI,LB,9067,,16-bit Unsigned,Supported
+LB-9068 : auto. connection for remote HMI 1 (when ON),Local HMI,LB,9068,,16-bit Unsigned,Supported
+LB-9069 : auto. connection for remote HMI 2 (when ON),Local HMI,LB,9069,,16-bit Unsigned,Supported
+LB-9070 : auto. connection for remote HMI 3 (when ON),Local HMI,LB,9070,,16-bit Unsigned,Supported
+LB-9071 : auto. connection for remote HMI 4 (when ON),Local HMI,LB,9071,,16-bit Unsigned,Supported
+LB-9072 : auto. connection for remote HMI 5 (when ON),Local HMI,LB,9072,,16-bit Unsigned,Supported
+LB-9073 : auto. connection for remote HMI 6 (when ON),Local HMI,LB,9073,,16-bit Unsigned,Supported
+LB-9074 : auto. connection for remote HMI 7 (when ON),Local HMI,LB,9074,,16-bit Unsigned,Supported
+LB-9075 : auto. connection for remote HMI 8 (when ON),Local HMI,LB,9075,,16-bit Unsigned,Supported
+LB-9099 : auto. connection for remote HMI 32 (when ON),Local HMI,LB,9099,,16-bit Unsigned,Supported
+LB-9100 : remote HMI 1 status,Local HMI,LB,9100,,16-bit Unsigned,Supported
+LB-9101 : remote HMI 2 status,Local HMI,LB,9101,,16-bit Unsigned,Supported
+LB-9102 : remote HMI 3 status,Local HMI,LB,9102,,16-bit Unsigned,Supported
+LB-9103 : remote HMI 4 status,Local HMI,LB,9103,,16-bit Unsigned,Supported
+LB-9104 : remote HMI 5 status,Local HMI,LB,9104,,16-bit Unsigned,Supported
+LB-9105 : remote HMI 6 status,Local HMI,LB,9105,,16-bit Unsigned,Supported
+LB-9106 : remote HMI 7 status,Local HMI,LB,9106,,16-bit Unsigned,Supported
+LB-9107 : remote HMI 8 status,Local HMI,LB,9107,,16-bit Unsigned,Supported
+LB-9148 : remote HMI 49 status,Local HMI,LB,9148,,16-bit Unsigned,Supported
+LB-9149 : forced to reconnect remote HMI when IP changed on-line (set ON),Local HMI,LB,9149,,16-bit Unsigned,Supported
+LB-9150 : auto. connection for device 1 (COM 1) (when ON),Local HMI,LB,9150,,16-bit Unsigned,Supported
+LB-9151 : auto. connection for device 2 (COM 2) (when ON),Local HMI,LB,9151,,16-bit Unsigned,Supported
+LB-9152 : auto. connection for device 3 (COM 3) (when ON),Local HMI,LB,9152,,16-bit Unsigned,Supported
+LB-9153 : auto. connection for device 4 (ethernet) (when ON),Local HMI,LB,9153,,16-bit Unsigned,Supported
+LB-9154 : auto. connection for device 5 (ethernet) (when ON),Local HMI,LB,9154,,16-bit Unsigned,Supported
+LB-9155 : auto. connection for device 6 (ethernet) (when ON),Local HMI,LB,9155,,16-bit Unsigned,Supported
+LB-9156 : auto. connection for device 7 (ethernet) (when ON),Local HMI,LB,9156,,16-bit Unsigned,Supported
+LB-9157 : auto. connection for device 8 (ethernet) (when ON),Local HMI,LB,9157,,16-bit Unsigned,Supported
+LB-9158 : auto. connection for device 9 (ethernet) (when ON),Local HMI,LB,9158,,16-bit Unsigned,Supported
+LB-9189 : auto. connection for device 40 (ethernet) (when ON),Local HMI,LB,9189,,16-bit Unsigned,Supported
+LB-9190 : auto. connection for device (USB) (when ON),Local HMI,LB,9190,,16-bit Unsigned,Supported
+"LB-9191 : device status (USB), set on to retry connection",Local HMI,LB,9191,,16-bit Unsigned,Supported
+"LB-9192 : disable USB device's ""Device No Response"" dialog (when ON)",Local HMI,LB,9192,,16-bit Unsigned,Supported
+LB-9196 : local HMI supports monitor function only (when ON),Local HMI,LB,9196,,16-bit Unsigned,Supported
+LB-9197 : support monitor function only for remote HMIs (when ON),Local HMI,LB,9197,,16-bit Unsigned,Supported
+LB-9198 : disable local HMI to trigger a macro (when ON),Local HMI,LB,9198,,16-bit Unsigned,Supported
+LB-9199 : disable remote HMI to trigger a macro (when ON),Local HMI,LB,9199,,16-bit Unsigned,Supported
+"LB-9200 : device 1 status (SN0, COM 1), set on to retry connection",Local HMI,LB,9200,,16-bit Unsigned,Supported
+"LB-9201 : device 1 status (SN1, COM 1), set on to retry connection",Local HMI,LB,9201,,16-bit Unsigned,Supported
+"LB-9202 : device 1 status (SN2, COM 1), set on to retry connection",Local HMI,LB,9202,,16-bit Unsigned,Supported
+"LB-9203 : device 1 status (SN3, COM 1), set on to retry connection",Local HMI,LB,9203,,16-bit Unsigned,Supported
+"LB-9204 : device 1 status (SN4, COM 1), set on to retry connection",Local HMI,LB,9204,,16-bit Unsigned,Supported
+"LB-9205 : device 1 status (SN5, COM 1), set on to retry connection",Local HMI,LB,9205,,16-bit Unsigned,Supported
+"LB-9206 : device 1 status (SN6, COM 1), set on to retry connection",Local HMI,LB,9206,,16-bit Unsigned,Supported
+"LB-9207 : device 1 status (SN7, COM 1), set on to retry connection",Local HMI,LB,9207,,16-bit Unsigned,Supported
+"LB-9455 : device 1 status (SN255, COM1), set on to retry connection",Local HMI,LB,9455,,16-bit Unsigned,Supported
+LB-9460 : EM0's storage device (SD card) does not exist (when ON),Local HMI,LB,9460,,16-bit Unsigned,Unsupported
+LB-9461 : EM1's storage device (SD card) does not exist (when ON),Local HMI,LB,9461,,16-bit Unsigned,Unsupported
+LB-9462 : EM2's storage device (SD card) does not exist (when ON),Local HMI,LB,9462,,16-bit Unsigned,Unsupported
+LB-9463 : EM3's storage device (SD card) does not exist (when ON),Local HMI,LB,9463,,16-bit Unsigned,Unsupported
+LB-9464 : EM4's storage device (SD card) does not exist (when ON),Local HMI,LB,9464,,16-bit Unsigned,Unsupported
+LB-9465 : EM5's storage device (SD card) does not exist (when ON),Local HMI,LB,9465,,16-bit Unsigned,Unsupported
+LB-9466 : EM6's storage device (SD card) does not exist (when ON),Local HMI,LB,9466,,16-bit Unsigned,Unsupported
+LB-9467 : EM7's storage device (SD card) does not exist (when ON),Local HMI,LB,9467,,16-bit Unsigned,Unsupported
+LB-9468 : EM8's storage device (SD card) does not exist (when ON),Local HMI,LB,9468,,16-bit Unsigned,Unsupported
+LB-9469 : EM9's storage device (SD card) does not exist (when ON),Local HMI,LB,9469,,16-bit Unsigned,Unsupported
+LB-9470 : EM0's storage device (USB disk) does not exist (when ON),Local HMI,LB,9470,,16-bit Unsigned,Supported
+LB-9471 : EM1's storage device (USB disk) does not exist (when ON),Local HMI,LB,9471,,16-bit Unsigned,Supported
+LB-9472 : EM2's storage device (USB disk) does not exist (when ON),Local HMI,LB,9472,,16-bit Unsigned,Supported
+LB-9473 : EM3's storage device (USB disk) does not exist (when ON),Local HMI,LB,9473,,16-bit Unsigned,Supported
+LB-9474 : EM4's storage device (USB disk) does not exist (when ON),Local HMI,LB,9474,,16-bit Unsigned,Supported
+LB-9475 : EM5's storage device (USB disk) does not exist (when ON),Local HMI,LB,9475,,16-bit Unsigned,Supported
+LB-9476 : EM6's storage device (USB disk) does not exist (when ON),Local HMI,LB,9476,,16-bit Unsigned,Supported
+LB-9477 : EM7's storage device (USB disk) does not exist (when ON),Local HMI,LB,9477,,16-bit Unsigned,Supported
+LB-9478 : EM8's storage device (USB disk) does not exist (when ON),Local HMI,LB,9478,,16-bit Unsigned,Supported
+LB-9479 : EM9's storage device (USB disk) does not exist (when ON),Local HMI,LB,9479,,16-bit Unsigned,Supported
+LB-9480 : EM0's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9480,,16-bit Unsigned,Supported
+LB-9481 : EM1's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9481,,16-bit Unsigned,Supported
+LB-9482 : EM2's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9482,,16-bit Unsigned,Supported
+LB-9483 : EM3's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9483,,16-bit Unsigned,Supported
+LB-9484 : EM4's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9484,,16-bit Unsigned,Supported
+LB-9485 : EM5's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9485,,16-bit Unsigned,Supported
+LB-9486 : EM6's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9486,,16-bit Unsigned,Supported
+LB-9487 : EM7's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9487,,16-bit Unsigned,Supported
+LB-9488 : EM8's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9488,,16-bit Unsigned,Supported
+LB-9489 : EM9's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,9489,,16-bit Unsigned,Supported
+"LB-9500 : device 2 status (SN0, COM 2), set on to retry connection",Local HMI,LB,9500,,16-bit Unsigned,Supported
+"LB-9501 : device 2 status (SN1, COM 2), set on to retry connection",Local HMI,LB,9501,,16-bit Unsigned,Supported
+"LB-9502 : device 2 status (SN2, COM 2), set on to retry connection",Local HMI,LB,9502,,16-bit Unsigned,Supported
+"LB-9503 : device 2 status (SN3, COM 2), set on to retry connection",Local HMI,LB,9503,,16-bit Unsigned,Supported
+"LB-9504 : device 2 status (SN4, COM 2), set on to retry connection",Local HMI,LB,9504,,16-bit Unsigned,Supported
+"LB-9505 : device 2 status (SN5, COM 2), set on to retry connection",Local HMI,LB,9505,,16-bit Unsigned,Supported
+"LB-9506 : device 2 status (SN6, COM 2), set on to retry connection",Local HMI,LB,9506,,16-bit Unsigned,Supported
+"LB-9507 : device 2 status (SN7, COM 2), set on to retry connection",Local HMI,LB,9507,,16-bit Unsigned,Supported
+"LB-9755 : device 2 status (SN255, COM2), set on to retry connection",Local HMI,LB,9755,,16-bit Unsigned,Supported
+"LB-9800 : device 3 status (SN0, COM 3), set on to retry connection",Local HMI,LB,9800,,16-bit Unsigned,Supported
+"LB-9801 : device 3 status (SN1, COM 3), set on to retry connection",Local HMI,LB,9801,,16-bit Unsigned,Supported
+"LB-9802 : device 3 status (SN2, COM 3), set on to retry connection",Local HMI,LB,9802,,16-bit Unsigned,Supported
+"LB-9803 : device 3 status (SN3, COM 3), set on to retry connection",Local HMI,LB,9803,,16-bit Unsigned,Supported
+"LB-9804 : device 3 status (SN4, COM 3), set on to retry connection",Local HMI,LB,9804,,16-bit Unsigned,Supported
+"LB-9805 : device 3 status (SN5, COM 3), set on to retry connection",Local HMI,LB,9805,,16-bit Unsigned,Supported
+"LB-9806 : device 3 status (SN6, COM 3), set on to retry connection",Local HMI,LB,9806,,16-bit Unsigned,Supported
+"LB-9807 : device 3 status (SN7, COM 3), set on to retry connection",Local HMI,LB,9807,,16-bit Unsigned,Supported
+"LB-10055 : device 3 status (SN255, COM3), set on to retry connection",Local HMI,LB,10055,,16-bit Unsigned,Supported
+LB-10069 : forced to reconnect remote printer/backup server when IP changed on-line (set ON),Local HMI,LB,10069,,16-bit Unsigned,Unsupported
+LB-10070 : forced to reconnect device 4 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10070,,16-bit Unsigned,Supported
+LB-10071 : forced to reconnect device 5 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10071,,16-bit Unsigned,Supported
+LB-10072 : forced to reconnect device 6 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10072,,16-bit Unsigned,Supported
+LB-10073 : forced to reconnect device 7 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10073,,16-bit Unsigned,Supported
+LB-10074 : forced to reconnect device 8 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10074,,16-bit Unsigned,Supported
+LB-10075 : forced to reconnect device 9 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10075,,16-bit Unsigned,Supported
+LB-10099 : forced to reconnect device 33 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,10099,,16-bit Unsigned,Supported
+"LB-10100 : device 4 status (ethernet), set on to retry connection",Local HMI,LB,10100,,16-bit Unsigned,Supported
+"LB-10101 : device 4 status (SN0, ethernet), set on to retry connection",Local HMI,LB,10101,,16-bit Unsigned,Supported
+"LB-10102 : device 4 status (SN1, ethernet), set on to retry connection",Local HMI,LB,10102,,16-bit Unsigned,Supported
+"LB-10103 : device 4 status (SN2, ethernet), set on to retry connection",Local HMI,LB,10103,,16-bit Unsigned,Supported
+"LB-10104 : device 4 status (SN3, ethernet), set on to retry connection",Local HMI,LB,10104,,16-bit Unsigned,Supported
+"LB-10105 : device 4 status (SN4, ethernet), set on to retry connection",Local HMI,LB,10105,,16-bit Unsigned,Supported
+"LB-10106 : device 4 status (SN5, ethernet), set on to retry connection",Local HMI,LB,10106,,16-bit Unsigned,Supported
+"LB-10107 : device 4 status (SN6, ethernet), set on to retry connection",Local HMI,LB,10107,,16-bit Unsigned,Supported
+"LB-10108 : device 4 status (SN7, ethernet), set on to retry connection",Local HMI,LB,10108,,16-bit Unsigned,Supported
+"LB-10356 : device 4 status (SN255, ethernet), set on to retry connection",Local HMI,LB,10356,,16-bit Unsigned,Supported
+"LB-10400 : device 5 status (ethernet), set on to retry connection",Local HMI,LB,10400,,16-bit Unsigned,Supported
+"LB-10401 : device 5 status (SN0, ethernet), set on to retry connection",Local HMI,LB,10401,,16-bit Unsigned,Supported
+"LB-10402 : device 5 status (SN1, ethernet), set on to retry connection",Local HMI,LB,10402,,16-bit Unsigned,Supported
+"LB-10403 : device 5 status (SN2, ethernet), set on to retry connection",Local HMI,LB,10403,,16-bit Unsigned,Supported
+"LB-10404 : device 5 status (SN3, ethernet), set on to retry connection",Local HMI,LB,10404,,16-bit Unsigned,Supported
+"LB-10405 : device 5 status (SN4, ethernet), set on to retry connection",Local HMI,LB,10405,,16-bit Unsigned,Supported
+"LB-10406 : device 5 status (SN5, ethernet), set on to retry connection",Local HMI,LB,10406,,16-bit Unsigned,Supported
+"LB-10407 : device 5 status (SN6, ethernet), set on to retry connection",Local HMI,LB,10407,,16-bit Unsigned,Supported
+"LB-10408 : device 5 status (SN7, ethernet), set on to retry connection",Local HMI,LB,10408,,16-bit Unsigned,Supported
+"LB-10656 : device 5 status (SN255, ethernet), set on to retry connection",Local HMI,LB,10656,,16-bit Unsigned,Supported
+"LB-10700 : device 6 status (ethernet), set on to retry connection",Local HMI,LB,10700,,16-bit Unsigned,Supported
+"LB-10701 : device 6 status (SN0, ethernet), set on to retry connection",Local HMI,LB,10701,,16-bit Unsigned,Supported
+"LB-10702 : device 6 status (SN1, ethernet), set on to retry connection",Local HMI,LB,10702,,16-bit Unsigned,Supported
+"LB-10703 : device 6 status (SN2, ethernet), set on to retry connection",Local HMI,LB,10703,,16-bit Unsigned,Supported
+"LB-10704 : device 6 status (SN3, ethernet), set on to retry connection",Local HMI,LB,10704,,16-bit Unsigned,Supported
+"LB-10705 : device 6 status (SN4, ethernet), set on to retry connection",Local HMI,LB,10705,,16-bit Unsigned,Supported
+"LB-10706 : device 6 status (SN5, ethernet), set on to retry connection",Local HMI,LB,10706,,16-bit Unsigned,Supported
+"LB-10707 : device 6 status (SN6, ethernet), set on to retry connection",Local HMI,LB,10707,,16-bit Unsigned,Supported
+"LB-10708 : device 6 status (SN7, ethernet), set on to retry connection",Local HMI,LB,10708,,16-bit Unsigned,Supported
+"LB-10956 : device 6 status (SN255, ethernet), set on to retry connection",Local HMI,LB,10956,,16-bit Unsigned,Supported
+"LB-11000 : device 7 status (ethernet), set on to retry connection",Local HMI,LB,11000,,16-bit Unsigned,Supported
+"LB-11001 : device 7 status (SN0, ethernet), set on to retry connection",Local HMI,LB,11001,,16-bit Unsigned,Supported
+"LB-11002 : device 7 status (SN1, ethernet), set on to retry connection",Local HMI,LB,11002,,16-bit Unsigned,Supported
+"LB-11003 : device 7 status (SN2, ethernet), set on to retry connection",Local HMI,LB,11003,,16-bit Unsigned,Supported
+"LB-11004 : device 7 status (SN3, ethernet), set on to retry connection",Local HMI,LB,11004,,16-bit Unsigned,Supported
+"LB-11005 : device 7 status (SN4, ethernet), set on to retry connection",Local HMI,LB,11005,,16-bit Unsigned,Supported
+"LB-11006 : device 7 status (SN5, ethernet), set on to retry connection",Local HMI,LB,11006,,16-bit Unsigned,Supported
+"LB-11007 : device 7 status (SN6, ethernet), set on to retry connection",Local HMI,LB,11007,,16-bit Unsigned,Supported
+"LB-11008 : device 7 status (SN7, ethernet), set on to retry connection",Local HMI,LB,11008,,16-bit Unsigned,Supported
+"LB-11256 : device 7 status (SN255, ethernet), set on to retry connection",Local HMI,LB,11256,,16-bit Unsigned,Supported
+"LB-11300 : device 8 status (ethernet), set on to retry connection",Local HMI,LB,11300,,16-bit Unsigned,Supported
+"LB-11301 : device 8 status (SN0, ethernet), set on to retry connection",Local HMI,LB,11301,,16-bit Unsigned,Supported
+"LB-11302 : device 8 status (SN1, ethernet), set on to retry connection",Local HMI,LB,11302,,16-bit Unsigned,Supported
+"LB-11303 : device 8 status (SN2, ethernet), set on to retry connection",Local HMI,LB,11303,,16-bit Unsigned,Supported
+"LB-11304 : device 8 status (SN3, ethernet), set on to retry connection",Local HMI,LB,11304,,16-bit Unsigned,Supported
+"LB-11305 : device 8 status (SN4, ethernet), set on to retry connection",Local HMI,LB,11305,,16-bit Unsigned,Supported
+"LB-11306 : device 8 status (SN5, ethernet), set on to retry connection",Local HMI,LB,11306,,16-bit Unsigned,Supported
+"LB-11307 : device 8 status (SN6, ethernet), set on to retry connection",Local HMI,LB,11307,,16-bit Unsigned,Supported
+"LB-11308 : device 8 status (SN7, ethernet), set on to retry connection",Local HMI,LB,11308,,16-bit Unsigned,Supported
+"LB-11556 : device 8 status (SN255, ethernet), set on to retry connection",Local HMI,LB,11556,,16-bit Unsigned,Supported
+"LB-11600 : device 9 status (ethernet), set on to retry connection",Local HMI,LB,11600,,16-bit Unsigned,Supported
+"LB-11601 : device 9 status (SN0, ethernet), set on to retry connection",Local HMI,LB,11601,,16-bit Unsigned,Supported
+"LB-11602 : device 9 status (SN1, ethernet), set on to retry connection",Local HMI,LB,11602,,16-bit Unsigned,Supported
+"LB-11603 : device 9 status (SN2, ethernet), set on to retry connection",Local HMI,LB,11603,,16-bit Unsigned,Supported
+"LB-11604 : device 9 status (SN3, ethernet), set on to retry connection",Local HMI,LB,11604,,16-bit Unsigned,Supported
+"LB-11605 : device 9 status (SN4, ethernet), set on to retry connection",Local HMI,LB,11605,,16-bit Unsigned,Supported
+"LB-11606 : device 9 status (SN5, ethernet), set on to retry connection",Local HMI,LB,11606,,16-bit Unsigned,Supported
+"LB-11607 : device 9 status (SN6, ethernet), set on to retry connection",Local HMI,LB,11607,,16-bit Unsigned,Supported
+"LB-11608 : device 9 status (SN7, ethernet), set on to retry connection",Local HMI,LB,11608,,16-bit Unsigned,Supported
+"LB-11856 : device 9 status (SN255, ethernet), set on to retry connection",Local HMI,LB,11856,,16-bit Unsigned,Supported
+"LB-11900 : device 10 status (ethernet), set on to retry connection",Local HMI,LB,11900,,16-bit Unsigned,Supported
+"LB-11901 : device 11 status (ethernet), set on to retry connection",Local HMI,LB,11901,,16-bit Unsigned,Supported
+"LB-11902 : device 12 status (ethernet), set on to retry connection",Local HMI,LB,11902,,16-bit Unsigned,Supported
+"LB-11903 : device 13 status (ethernet), set on to retry connection",Local HMI,LB,11903,,16-bit Unsigned,Supported
+"LB-11904 : device 14 status (ethernet), set on to retry connection",Local HMI,LB,11904,,16-bit Unsigned,Supported
+"LB-11905 : device 15 status (ethernet), set on to retry connection",Local HMI,LB,11905,,16-bit Unsigned,Supported
+"LB-11906 : device 16 status (ethernet), set on to retry connection",Local HMI,LB,11906,,16-bit Unsigned,Supported
+"LB-11939 : device 49 status (ethernet), set on to retry connection",Local HMI,LB,11939,,16-bit Unsigned,Supported
+LB-11940 : delete the earliest event log file on SD card (set ON),Local HMI,LB,11940,,16-bit Unsigned,Unsupported
+LB-11941 : delete all event log files on SD card (set ON),Local HMI,LB,11941,,16-bit Unsigned,Unsupported
+LB-11942 : refresh event log information on SD card (set ON),Local HMI,LB,11942,,16-bit Unsigned,Unsupported
+LB-11943 : delete the earliest event log file on USB disk 1 (set ON),Local HMI,LB,11943,,16-bit Unsigned,Unsupported
+LB-11944 : delete all event log files on USB disk 1 (set ON),Local HMI,LB,11944,,16-bit Unsigned,Supported
+LB-11945 : refresh event log information on USB disk 1 (set ON),Local HMI,LB,11945,,16-bit Unsigned,Unsupported
+LB-11946 : delete the earliest event log file on USB disk 2 (set ON),Local HMI,LB,11946,,16-bit Unsigned,Unsupported
+LB-11947 : delete all event log files on USB disk 2 (set ON),Local HMI,LB,11947,,16-bit Unsigned,Supported
+LB-11948 : refresh event log information on USB disk 2 (set ON),Local HMI,LB,11948,,16-bit Unsigned,Unsupported
+LB-11949 : delete the earliest data sampling file on SD card (set ON),Local HMI,LB,11949,,16-bit Unsigned,Unsupported
+LB-11950 : delete all data sampling files on SD card (set ON),Local HMI,LB,11950,,16-bit Unsigned,Unsupported
+LB-11951 : refresh data sampling information on SD card (set ON),Local HMI,LB,11951,,16-bit Unsigned,Unsupported
+LB-11952 : delete the earliest data sampling file on USB disk 1 (set ON),Local HMI,LB,11952,,16-bit Unsigned,Unsupported
+LB-11953 : delete all data sampling files on USB disk 1 (set ON),Local HMI,LB,11953,,16-bit Unsigned,Supported
+LB-11954 : refresh data sampling information on USB disk 1 (set ON),Local HMI,LB,11954,,16-bit Unsigned,Unsupported
+LB-11955 : delete the earliest data sampling file on USB disk 2 (set ON),Local HMI,LB,11955,,16-bit Unsigned,Unsupported
+LB-11956 : delete all data sampling files on USB disk 2 (set ON),Local HMI,LB,11956,,16-bit Unsigned,Supported
+LB-11957 : refresh data sampling information on USB disk 2 (set ON),Local HMI,LB,11957,,16-bit Unsigned,Unsupported
+LB-11958 : time setting error (when ON),Local HMI,LB,11958,,16-bit Unsigned,Supported
+LB-11959 : LED indicator control,Local HMI,LB,11959,,16-bit Unsigned,Unsupported
+"LB-11960 : disable device 1's ""Device No Response"" dialog (when ON)",Local HMI,LB,11960,,16-bit Unsigned,Supported
+"LB-11961 : disable device 2's ""Device No Response"" dialog (when ON)",Local HMI,LB,11961,,16-bit Unsigned,Supported
+"LB-11962 : disable device 3's ""Device No Response"" dialog (when ON)",Local HMI,LB,11962,,16-bit Unsigned,Supported
+"LB-11963 : disable device 4's ""Device No Response"" dialog (when ON)",Local HMI,LB,11963,,16-bit Unsigned,Supported
+"LB-11964 : disable device 5's ""Device No Response"" dialog (when ON)",Local HMI,LB,11964,,16-bit Unsigned,Supported
+"LB-11965 : disable device 6's ""Device No Response"" dialog (when ON)",Local HMI,LB,11965,,16-bit Unsigned,Supported
+"LB-11966 : disable device 7's ""Device No Response"" dialog (when ON)",Local HMI,LB,11966,,16-bit Unsigned,Supported
+"LB-11967 : disable device 8's ""Device No Response"" dialog (when ON)",Local HMI,LB,11967,,16-bit Unsigned,Supported
+"LB-12023 : disable device 64's ""Device No Response"" dialog (when ON)",Local HMI,LB,12023,,16-bit Unsigned,Supported
+LB-12024 : disable alarm buzzer (set ON),Local HMI,LB,12024,,16-bit Unsigned,Supported
+"LB-12030 : COM 1 status (OFF : normal, ON : open failed)",Local HMI,LB,12030,,16-bit Unsigned,Supported
+"LB-12031 : COM 2 status (OFF : normal, ON : open failed)",Local HMI,LB,12031,,16-bit Unsigned,Supported
+"LB-12032 : COM 3 status (OFF : normal, ON : open failed)",Local HMI,LB,12032,,16-bit Unsigned,Supported
+"LB-12033 : COM 4 status (OFF : normal, ON : open failed)",Local HMI,LB,12033,,16-bit Unsigned,Supported
+"LB-12034 : COM 5 status (OFF : normal, ON : open failed)",Local HMI,LB,12034,,16-bit Unsigned,Supported
+"LB-12035 : COM 6 status (OFF : normal, ON : open failed)",Local HMI,LB,12035,,16-bit Unsigned,Supported
+"LB-12036 : COM 7 status (OFF : normal, ON : open failed)",Local HMI,LB,12036,,16-bit Unsigned,Supported
+"LB-12037 : COM 8 status (OFF : normal, ON : open failed)",Local HMI,LB,12037,,16-bit Unsigned,Supported
+"LB-12038 : COM 9 status (OFF : normal, ON : open failed)",Local HMI,LB,12038,,16-bit Unsigned,Supported
+LB-12040 : remote printer/backup server disconnection alarm (when ON),Local HMI,LB,12040,,16-bit Unsigned,Unsupported
+"LB-12041 : refresh HMI ethernet information (DHCP, gateway, netmask, IP) (set ON)",Local HMI,LB,12041,,16-bit Unsigned,Supported
+LB-12042 : open/close [System information] dialog (set ON/set OFF),Local HMI,LB,12042,,16-bit Unsigned,Unsupported
+LB-12048 : USB disk 1 status (exists when ON),Local HMI,LB,12048,,16-bit Unsigned,Supported
+LB-12049 : USB disk 2 status (exists when ON),Local HMI,LB,12049,,16-bit Unsigned,Supported
+LB-12050 : SD card status (exists when ON),Local HMI,LB,12050,,16-bit Unsigned,Unsupported
+LB-12051 : buzzer control (active when ON),Local HMI,LB,12051,,16-bit Unsigned,Supported
+LB-12052 : MODBUS server status (disabled when ON),Local HMI,LB,12052,,16-bit Unsigned,Supported
+LB-12053 : failed to send an [Event Log] e-Mail (when ON),Local HMI,LB,12053,,16-bit Unsigned,Supported
+LB-12054 : failed to send an [Backup Object] e-Mail (when ON),Local HMI,LB,12054,,16-bit Unsigned,Supported
+LB-12055 : failed to execute time synchronization (when ON),Local HMI,LB,12055,,16-bit Unsigned,Unsupported
+LB-12056 : the user touches an unauthorized object (when ON),Local HMI,LB,12056,,16-bit Unsigned,Supported
+LB-12080 : auto. connection for device (CAN Bus) (when ON),Local HMI,LB,12080,,16-bit Unsigned,Unsupported
+"LB-12081 : device status (CAN Bus), set on to retry connection",Local HMI,LB,12081,,16-bit Unsigned,Unsupported
+"LB-12082 : disable CAN Bus device's ""Device No Response"" dialog (when ON)",Local HMI,LB,12082,,16-bit Unsigned,Unsupported
+LB-12088 : enable VNC monitor mode (when ON),Local HMI,LB,12088,,16-bit Unsigned,Supported
+LB-12089 : VNC password free (when ON),Local HMI,LB,12089,,16-bit Unsigned,Supported
+LB-12090 : a VNC client connecting to HMI (when ON),Local HMI,LB,12090,,16-bit Unsigned,Supported
+LB-12091 : disable auto-logout function when a VNC client connecting to HMI (when ON),Local HMI,LB,12091,,16-bit Unsigned,Supported
+"LB-12092 : enable VNC (set ON), disable VNC (set OFF)",Local HMI,LB,12092,,16-bit Unsigned,Supported
+"LB-12093 : VNC mode (OFF : single connection, ON : multi. connection)",Local HMI,LB,12093,,16-bit Unsigned,Supported
+"LB-12094 : update LAN 1 setting (IP, netmask, gateway) (set ON)",Local HMI,LB,12094,,16-bit Unsigned,Supported
+"LB-12095 : update LAN 2 setting (IP, netmask, gateway) (set ON)",Local HMI,LB,12095,,16-bit Unsigned,Supported
+LB-12100 : pause CAN Bus device 1 communication (when ON),Local HMI,LB,12100,,16-bit Unsigned,Unsupported
+LB-12101 : pause CAN Bus device 2 communication (when ON),Local HMI,LB,12101,,16-bit Unsigned,Unsupported
+LB-12102 : pause CAN Bus device 3 communication (when ON),Local HMI,LB,12102,,16-bit Unsigned,Unsupported
+LB-12103 : pause CAN Bus device 4 communication (when ON),Local HMI,LB,12103,,16-bit Unsigned,Unsupported
+LB-12104 : pause CAN Bus device 5 communication (when ON),Local HMI,LB,12104,,16-bit Unsigned,Unsupported
+LB-12105 : pause CAN Bus device 6 communication (when ON),Local HMI,LB,12105,,16-bit Unsigned,Unsupported
+LB-12106 : pause CAN Bus device 7 communication (when ON),Local HMI,LB,12106,,16-bit Unsigned,Unsupported
+LB-12107 : pause CAN Bus device 8 communication (when ON),Local HMI,LB,12107,,16-bit Unsigned,Unsupported
+LB-12108 : pause CAN Bus device 9 communication (when ON),Local HMI,LB,12108,,16-bit Unsigned,Unsupported
+LB-12109 : pause CAN Bus device 10 communication (when ON),Local HMI,LB,12109,,16-bit Unsigned,Unsupported
+LB-12354 : pause CAN Bus device 255 communication (when ON),Local HMI,LB,12354,,16-bit Unsigned,Unsupported
+LB-12355 : daylight saving time period (when ON),Local HMI,LB,12355,,16-bit Unsigned,Supported
+LB-12356 : enable(set on)/disable(set off) web streaming,Local HMI,LB,12356,,16-bit Unsigned,Supported
+LB-12357 : web streaming status (on: enabled / off: disabled),Local HMI,LB,12357,,16-bit Unsigned,Supported
+LB-12358 : enable (when ON) / disable (when OFF) off-line simulation on HMI,Local HMI,LB,12358,,16-bit Unsigned,Supported
+LB-12360 : CPU loading alarm (> 95%),Local HMI,LB,12360,,16-bit Unsigned,Supported
+"LB-12361 : status of operation log function (OFF : disabled, ON : enabled)",Local HMI,LB,12361,,16-bit Unsigned,Supported
+LB-12363 : Prohibit recipe database update from remote HMI (set ON),Local HMI,LB,12363,,16-bit Unsigned,Supported
+LB-12364 : show (set ON)/hide (set OFF) [Reset HMI to default] button in calibration mode,Local HMI,LB,12364,,16-bit Unsigned,Unsupported
+"LB-12365 : update wifi setting (IP, netmask, gateway, DNS) (set ON)",Local HMI,LB,12365,,16-bit Unsigned,Unsupported
+LB-12399 : status is on when alarm exists in any category,Local HMI,LB,12399,,16-bit Unsigned,Supported
+LB-12400 : status is on when alarm exists in category 0,Local HMI,LB,12400,,16-bit Unsigned,Supported
+LB-12401 : status is on when alarm exists in category 1,Local HMI,LB,12401,,16-bit Unsigned,Supported
+LB-12402 : status is on when alarm exists in category 2,Local HMI,LB,12402,,16-bit Unsigned,Supported
+LB-12403 : status is on when alarm exists in category 3,Local HMI,LB,12403,,16-bit Unsigned,Supported
+LB-12404 : status is on when alarm exists in category 4,Local HMI,LB,12404,,16-bit Unsigned,Supported
+LB-12405 : status is on when alarm exists in category 5,Local HMI,LB,12405,,16-bit Unsigned,Supported
+LB-12406 : status is on when alarm exists in category 6,Local HMI,LB,12406,,16-bit Unsigned,Supported
+LB-12407 : status is on when alarm exists in category 7,Local HMI,LB,12407,,16-bit Unsigned,Supported
+LB-12655 : status is on when alarm exists in category 255,Local HMI,LB,12655,,16-bit Unsigned,Supported
+"LB-12656 : enable Diagnoser (set ON), disable (set OFF)",Local HMI,LB,12656,,16-bit Unsigned,Supported
+LB-12657 : Diagnoser password free (when ON),Local HMI,LB,12657,,16-bit Unsigned,Supported
+"LB-12660 : status of reset button (when the button is pressed, status is ON)",Local HMI,LB,12660,,16-bit Unsigned,Unsupported
+LB-12664 : Cache Hit (cMT-G03),Local HMI,LB,12664,,16-bit Unsigned,Unsupported
+LB-12665 : open USB/SD card download/upload dialog.,Local HMI,LB,12665,,16-bit Unsigned,Supported
+LB-12666 : Disable(set OFF)/enable(set ON) WiFi Hotspot.,Local HMI,LB,12666,,16-bit Unsigned,Unsupported
+"LB-12667 : Refresh WiFi Hotspot setting (SSID, password) (set ON).",Local HMI,LB,12667,,16-bit Unsigned,Unsupported
+"LB-12668 : SECS license status (0: not activated, 1: activated).",Local HMI,LB,12668,,16-bit Unsigned,Unsupported
+LB-12670 : auto. connection for device 41 (ethernet) (when ON),Local HMI,LB,12670,,16-bit Unsigned,Supported
+LB-12671 : auto. connection for device 42 (ethernet) (when ON),Local HMI,LB,12671,,16-bit Unsigned,Supported
+LB-12672 : auto. connection for device 43 (ethernet) (when ON),Local HMI,LB,12672,,16-bit Unsigned,Supported
+LB-12673 : auto. connection for device 44 (ethernet) (when ON),Local HMI,LB,12673,,16-bit Unsigned,Supported
+LB-12693 : auto. connection for device 64 (ethernet) (when ON),Local HMI,LB,12693,,16-bit Unsigned,Supported
+"LB-12700 : device 50 status (ethernet), set on to retry connection",Local HMI,LB,12700,,16-bit Unsigned,Supported
+"LB-12701 : device 51 status (ethernet), set on to retry connection",Local HMI,LB,12701,,16-bit Unsigned,Supported
+"LB-12702 : device 52 status (ethernet), set on to retry connection",Local HMI,LB,12702,,16-bit Unsigned,Supported
+"LB-12703 : device 53 status (ethernet), set on to retry connection",Local HMI,LB,12703,,16-bit Unsigned,Supported
+"LB-12714 : device 64 status (ethernet), set on to retry connection",Local HMI,LB,12714,,16-bit Unsigned,Supported
+LB-12720 : forced to reconnect device 34 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,12720,,16-bit Unsigned,Supported
+LB-12721 : forced to reconnect device 35 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,12721,,16-bit Unsigned,Supported
+LB-12722 : forced to reconnect device 36 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,12722,,16-bit Unsigned,Supported
+LB-12723 : forced to reconnect device 37 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,12723,,16-bit Unsigned,Supported
+LB-12750 : forced to reconnect device 64 (ethernet) when IP or system parameters changed on-line (set ON),Local HMI,LB,12750,,16-bit Unsigned,Supported
+LB-12752 : Disable(set OFF)/enable(set ON) vibration. (Supported OS version : 20200618 or later),Local HMI,LB,12752,,16-bit Unsigned,Unsupported
+LB-12753 : Clear OPCUA HDA data,Local HMI,LB,12753,,16-bit Unsigned,Unsupported
+LB-12754 : auto. connection for remote HMI 33 (when ON),Local HMI,LB,12754,,16-bit Unsigned,Supported
+LB-12755 : auto. connection for remote HMI 34 (when ON),Local HMI,LB,12755,,16-bit Unsigned,Supported
+LB-12756 : auto. connection for remote HMI 35 (when ON),Local HMI,LB,12756,,16-bit Unsigned,Supported
+LB-12757 : auto. connection for remote HMI 36 (when ON),Local HMI,LB,12757,,16-bit Unsigned,Supported
+LB-12758 : auto. connection for remote HMI 37 (when ON),Local HMI,LB,12758,,16-bit Unsigned,Supported
+LB-12759 : auto. connection for remote HMI 38 (when ON),Local HMI,LB,12759,,16-bit Unsigned,Supported
+LB-12760 : auto. connection for remote HMI 39 (when ON),Local HMI,LB,12760,,16-bit Unsigned,Supported
+LB-12761 : auto. connection for remote HMI 40 (when ON),Local HMI,LB,12761,,16-bit Unsigned,Supported
+LB-12762 : auto. connection for remote HMI 41 (when ON),Local HMI,LB,12762,,16-bit Unsigned,Supported
+LB-12763 : auto. connection for remote HMI 42 (when ON),Local HMI,LB,12763,,16-bit Unsigned,Supported
+LB-12764 : auto. connection for remote HMI 43 (when ON),Local HMI,LB,12764,,16-bit Unsigned,Supported
+LB-12765 : auto. connection for remote HMI 44 (when ON),Local HMI,LB,12765,,16-bit Unsigned,Supported
+LB-12766 : auto. connection for remote HMI 45 (when ON),Local HMI,LB,12766,,16-bit Unsigned,Supported
+LB-12767 : auto. connection for remote HMI 46 (when ON),Local HMI,LB,12767,,16-bit Unsigned,Supported
+LB-12768 : auto. connection for remote HMI 47 (when ON),Local HMI,LB,12768,,16-bit Unsigned,Supported
+LB-12769 : auto. connection for remote HMI 48 (when ON),Local HMI,LB,12769,,16-bit Unsigned,Supported
+LB-12770 : auto. connection for remote HMI 49 (when ON),Local HMI,LB,12770,,16-bit Unsigned,Supported
+LB-12771 : auto. connection for remote HMI 50 (when ON),Local HMI,LB,12771,,16-bit Unsigned,Supported
+LB-12772 : auto. connection for remote HMI 51 (when ON),Local HMI,LB,12772,,16-bit Unsigned,Supported
+LB-12773 : auto. connection for remote HMI 52 (when ON),Local HMI,LB,12773,,16-bit Unsigned,Supported
+LB-12774 : auto. connection for remote HMI 53 (when ON),Local HMI,LB,12774,,16-bit Unsigned,Supported
+LB-12775 : auto. connection for remote HMI 54 (when ON),Local HMI,LB,12775,,16-bit Unsigned,Supported
+LB-12776 : auto. connection for remote HMI 55 (when ON),Local HMI,LB,12776,,16-bit Unsigned,Supported
+LB-12777 : auto. connection for remote HMI 56 (when ON),Local HMI,LB,12777,,16-bit Unsigned,Supported
+LB-12778 : auto. connection for remote HMI 57 (when ON),Local HMI,LB,12778,,16-bit Unsigned,Supported
+LB-12779 : auto. connection for remote HMI 58 (when ON),Local HMI,LB,12779,,16-bit Unsigned,Supported
+LB-12780 : auto. connection for remote HMI 59 (when ON),Local HMI,LB,12780,,16-bit Unsigned,Supported
+LB-12781 : auto. connection for remote HMI 60 (when ON),Local HMI,LB,12781,,16-bit Unsigned,Supported
+LB-12782 : auto. connection for remote HMI 61 (when ON),Local HMI,LB,12782,,16-bit Unsigned,Supported
+LB-12783 : auto. connection for remote HMI 62 (when ON),Local HMI,LB,12783,,16-bit Unsigned,Supported
+LB-12784 : auto. connection for remote HMI 63 (when ON),Local HMI,LB,12784,,16-bit Unsigned,Supported
+LB-12785 : auto. connection for remote HMI 64 (when ON),Local HMI,LB,12785,,16-bit Unsigned,Supported
+LB-12786 : remote HMI 50 status,Local HMI,LB,12786,,16-bit Unsigned,Supported
+LB-12787 : remote HMI 51 status,Local HMI,LB,12787,,16-bit Unsigned,Supported
+LB-12788 : remote HMI 52 status,Local HMI,LB,12788,,16-bit Unsigned,Supported
+LB-12789 : remote HMI 53 status,Local HMI,LB,12789,,16-bit Unsigned,Supported
+LB-12790 : remote HMI 54 status,Local HMI,LB,12790,,16-bit Unsigned,Supported
+LB-12791 : remote HMI 55 status,Local HMI,LB,12791,,16-bit Unsigned,Supported
+LB-12792 : remote HMI 56 status,Local HMI,LB,12792,,16-bit Unsigned,Supported
+LB-12793 : remote HMI 57 status,Local HMI,LB,12793,,16-bit Unsigned,Supported
+LB-12794 : remote HMI 58 status,Local HMI,LB,12794,,16-bit Unsigned,Supported
+LB-12795 : remote HMI 59 status,Local HMI,LB,12795,,16-bit Unsigned,Supported
+LB-12796 : remote HMI 60 status,Local HMI,LB,12796,,16-bit Unsigned,Supported
+LB-12797 : remote HMI 61 status,Local HMI,LB,12797,,16-bit Unsigned,Supported
+LB-12798 : remote HMI 62 status,Local HMI,LB,12798,,16-bit Unsigned,Supported
+LB-12799 : remote HMI 63 status,Local HMI,LB,12799,,16-bit Unsigned,Supported
+LB-12800 : remote HMI 64 status,Local HMI,LB,12800,,16-bit Unsigned,Supported
+LB-12801 : EM10's storage device (SD card) does not exist (when ON),Local HMI,LB,12801,,16-bit Unsigned,Unsupported
+LB-12802 : EM11's storage device (SD card) does not exist (when ON),Local HMI,LB,12802,,16-bit Unsigned,Unsupported
+LB-12803 : EM12's storage device (SD card) does not exist (when ON),Local HMI,LB,12803,,16-bit Unsigned,Unsupported
+LB-12804 : EM13's storage device (SD card) does not exist (when ON),Local HMI,LB,12804,,16-bit Unsigned,Unsupported
+LB-12805 : EM14's storage device (SD card) does not exist (when ON),Local HMI,LB,12805,,16-bit Unsigned,Unsupported
+LB-12806 : EM15's storage device (SD card) does not exist (when ON),Local HMI,LB,12806,,16-bit Unsigned,Unsupported
+LB-12807 : EM10's storage device (USB disk) does not exist (when ON),Local HMI,LB,12807,,16-bit Unsigned,Supported
+LB-12808 : EM11's storage device (USB disk) does not exist (when ON),Local HMI,LB,12808,,16-bit Unsigned,Supported
+LB-12809 : EM12's storage device (USB disk) does not exist (when ON),Local HMI,LB,12809,,16-bit Unsigned,Supported
+LB-12810 : EM13's storage device (USB disk) does not exist (when ON),Local HMI,LB,12810,,16-bit Unsigned,Supported
+LB-12811 : EM14's storage device (USB disk) does not exist (when ON),Local HMI,LB,12811,,16-bit Unsigned,Supported
+LB-12812 : EM15's storage device (USB disk) does not exist (when ON),Local HMI,LB,12812,,16-bit Unsigned,Supported
+LB-12813 : EM10's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12813,,16-bit Unsigned,Supported
+LB-12814 : EM11's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12814,,16-bit Unsigned,Supported
+LB-12815 : EM12's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12815,,16-bit Unsigned,Supported
+LB-12816 : EM13's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12816,,16-bit Unsigned,Supported
+LB-12817 : EM14's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12817,,16-bit Unsigned,Supported
+LB-12818 : EM15's storage device (USB disk 2) does not exist (when ON),Local HMI,LB,12818,,16-bit Unsigned,Supported
+"LB-12819 : RUN/STOP switch status (0: stop, 1: run)",Local HMI,LB,12819,,16-bit Unsigned,Unsupported
+"LB-12820 : M02 status (0: unplugged, 1: plugged in)",Local HMI,LB,12820,,16-bit Unsigned,Unsupported
+LB-12822 : Disable(set OFF)/enable(set ON) ethernet bridge mode. (Supported OS version : 20220126 or later),Local HMI,LB,12822,,16-bit Unsigned,Supported
+LB-12824 : Enable/disable VNC/WebView interlock (supported OS version : 20240123 or later),Local HMI,LB,12824,,16-bit Unsigned,Supported
+LW-9000 (16-bits) : index register of RWI,Local HMI,LW,9000,,16-bit Unsigned,Supported
+LW-9002 (32bit-float) : input high limit,Local HMI,LW,9002,,32-bit Float,Supported
+LW-9004 (32bit-float) : input low limit,Local HMI,LW,9004,,32-bit Float,Supported
+"LW-9006 (16bit) : connected client no. ",Local HMI,LW,9006,,16-bit Unsigned,Supported
+LW-9007 (16bit) : hardware index,Local HMI,LW,9007,,16-bit Unsigned,Unsupported
+LW-9008 (32bit-float) : battery voltage,Local HMI,LW,9008,,32-bit Float,Unsupported
+LW-9010 (16bit-BCD) : local second,Local HMI,LW,9010,,16-bit BCD,Supported
+LW-9011 (16bit-BCD) : local minute,Local HMI,LW,9011,,16-bit BCD,Supported
+LW-9012 (16bit-BCD) : local hour,Local HMI,LW,9012,,16-bit BCD,Supported
+LW-9013 (16bit-BCD) : local day,Local HMI,LW,9013,,16-bit BCD,Supported
+LW-9014 (16bit-BCD) : local month,Local HMI,LW,9014,,16-bit BCD,Supported
+LW-9015 (16bit-BCD) : local year,Local HMI,LW,9015,,16-bit BCD,Supported
+LW-9016 (16bit-BCD) : local day of week,Local HMI,LW,9016,,16-bit BCD,Supported
+LW-9017 (16bit) : local second,Local HMI,LW,9017,,16-bit Unsigned,Supported
+LW-9018 (16bit) : local minute,Local HMI,LW,9018,,16-bit Unsigned,Supported
+LW-9019 (16bit) : local hour,Local HMI,LW,9019,,16-bit Unsigned,Supported
+LW-9020 (16bit) : local day,Local HMI,LW,9020,,16-bit Unsigned,Supported
+LW-9021 (16bit) : local month,Local HMI,LW,9021,,16-bit Unsigned,Supported
+LW-9022 (16bit) : local year,Local HMI,LW,9022,,16-bit Unsigned,Supported
+"LW-9023 (16bit) : local day of week ",Local HMI,LW,9023,,16-bit Unsigned,Supported
+LW-9024 (16bit) : memory link system register,Local HMI,LW,9024,,16-bit Unsigned,Supported
+LW-9025 (16bit) : CPU loading (x 100%),Local HMI,LW,9025,,16-bit Unsigned,Supported
+LW-9026 (16bit) : OS version (year),Local HMI,LW,9026,,16-bit Unsigned,Supported
+LW-9027 (16bit) : OS version (month),Local HMI,LW,9027,,16-bit Unsigned,Supported
+LW-9028 (16bit) : OS version (day),Local HMI,LW,9028,,16-bit Unsigned,Supported
+LW-9030 (32bit) : system time (unit : 0.1 second),Local HMI,LW,9030,,32-bit Unsigned,Supported
+"LW-9032 (8 words) : folder name of backup history files to SD, USB memory",Local HMI,LW,9032,,16-bit Unsigned,Supported
+LW-9040 (16bit) : backlight index,Local HMI,LW,9040,,16-bit Unsigned,Supported
+LW-9041 (16bit) : touch status word (a user is touching the screen when bit 0's status is ON)),Local HMI,LW,9041,,16-bit Unsigned,Supported
+LW-9042 (16bit) : touch x position,Local HMI,LW,9042,,16-bit Unsigned,Supported
+LW-9043 (16bit) : touch y position,Local HMI,LW,9043,,16-bit Unsigned,Supported
+LW-9044 (16bit) : leave x position,Local HMI,LW,9044,,16-bit Unsigned,Supported
+LW-9045 (16bit) : leave y position,Local HMI,LW,9045,,16-bit Unsigned,Supported
+LW-9046 (32bit) : HMI key,Local HMI,LW,9046,,32-bit Unsigned,Supported
+"LW-9048 (16bit) : time (0 : AM, 1 : PM)",Local HMI,LW,9048,,16-bit Unsigned,Supported
+LW-9049 (16bit) : local hour (12-hour format),Local HMI,LW,9049,,16-bit Unsigned,Supported
+LW-9050 (16bit) : current base window ID,Local HMI,LW,9050,,16-bit Unsigned,Supported
+LW-9051 (16bit) : audio volume (0 ~100),Local HMI,LW,9051,,16-bit Unsigned,Unsupported
+LW-9052 (32bit-float) : the previous input value of the numeric input object,Local HMI,LW,9052,,32-bit Float,Supported
+LW-9054 (32bit) : HMI model ID,Local HMI,LW,9054,,32-bit Unsigned,Supported
+LW-9060 (16bit) : no. of event log files on HMI memory,Local HMI,LW,9060,,16-bit Unsigned,Unsupported
+LW-9061 (32bit) : size of event log files on HMI memory (bytes),Local HMI,LW,9061,,32-bit Unsigned,Unsupported
+LW-9063 (16bit) : no. of data sampling files on HMI memory,Local HMI,LW,9063,,16-bit Unsigned,Unsupported
+LW-9064 (32bit) : size of data sampling files on HMI memory (bytes),Local HMI,LW,9064,,32-bit Unsigned,Unsupported
+LW-9070 (16bit) : free space insufficiency warning (Mega bytes),Local HMI,LW,9070,,16-bit Unsigned,Unsupported
+LW-9071 (16bit) : reserved free space size (Mega bytes),Local HMI,LW,9071,,16-bit Unsigned,Unsupported
+LW-9072 (32bit) : HMI current free space (K bytes),Local HMI,LW,9072,,32-bit Unsigned,Supported
+LW-9074 (32bit) : SD current free space (K bytes),Local HMI,LW,9074,,32-bit Unsigned,Unsupported
+LW-9076 (32bit) : USB disk 1 current free space (K bytes),Local HMI,LW,9076,,32-bit Unsigned,Supported
+LW-9078 (32bit) : USB disk 2 current free space (K bytes),Local HMI,LW,9078,,32-bit Unsigned,Supported
+LW-9080 (16bit) : backlight saver time (unit : minute),Local HMI,LW,9080,,16-bit Unsigned,Supported
+LW-9081 (16bit) : screen saver time (unit : minute),Local HMI,LW,9081,,16-bit Unsigned,Supported
+"LW-9082 (16bit) : auto logout time (unit : minute, 0 : disable the function)",Local HMI,LW,9082,,16-bit Unsigned,Supported
+LW-9100 (14 words) : project name,Local HMI,LW,9100,,16-bit Unsigned,Supported
+LW-9116 (32bit) : project size in bytes,Local HMI,LW,9116,,32-bit Unsigned,Supported
+LW-9118 (32bit) : project size in K bytes,Local HMI,LW,9118,,32-bit Unsigned,Supported
+LW-9120 (32bit) : EasyBuilder Pro version,Local HMI,LW,9120,,32-bit Unsigned,Supported
+LW-9122 (16bit) : project compiled date [year],Local HMI,LW,9122,,16-bit Unsigned,Supported
+LW-9123 (16bit) : project compiled date [month],Local HMI,LW,9123,,16-bit Unsigned,Supported
+LW-9124 (16bit) : project compiled date [day],Local HMI,LW,9124,,16-bit Unsigned,Supported
+LW-9125 (16bit) : LAN 1 gateway 0 (for HMI use only),Local HMI,LW,9125,,16-bit Unsigned,Supported
+LW-9126 (16bit) : LAN 1 gateway 1 (for HMI use only),Local HMI,LW,9126,,16-bit Unsigned,Supported
+LW-9127 (16bit) : LAN 1 gateway 2 (for HMI use only),Local HMI,LW,9127,,16-bit Unsigned,Supported
+LW-9128 (16bit) : LAN 1 gateway 3 (for HMI use only),Local HMI,LW,9128,,16-bit Unsigned,Supported
+LW-9129 (16bit) : LAN 1 IP 0 (for HMI use only),Local HMI,LW,9129,,16-bit Unsigned,Supported
+LW-9130 (16bit) : LAN 1 IP 1 (for HMI use only),Local HMI,LW,9130,,16-bit Unsigned,Supported
+LW-9131 (16bit) : LAN 1 IP 2 (for HMI use only),Local HMI,LW,9131,,16-bit Unsigned,Supported
+LW-9132 (16bit) : LAN 1 IP 3 (for HMI use only),Local HMI,LW,9132,,16-bit Unsigned,Supported
+LW-9133 (16bit) : ethernet port no.,Local HMI,LW,9133,,16-bit Unsigned,Supported
+LW-9134 (16bit) : language mode,Local HMI,LW,9134,,16-bit Unsigned,Supported
+LW-9135 (16bit) : LAN 1 media access control (MAC) address 0,Local HMI,LW,9135,,16-bit Unsigned,Supported
+LW-9136 (16bit) : LAN 1 media access control (MAC) address 1,Local HMI,LW,9136,,16-bit Unsigned,Supported
+LW-9137 (16bit) : LAN 1 media access control (MAC) address 2,Local HMI,LW,9137,,16-bit Unsigned,Supported
+LW-9138 (16bit) : LAN 1 media access control (MAC) address 3,Local HMI,LW,9138,,16-bit Unsigned,Supported
+LW-9139 (16bit) : LAN 1 media access control (MAC) address 4,Local HMI,LW,9139,,16-bit Unsigned,Supported
+LW-9140 (16bit) : LAN 1 media access control (MAC) address 5,Local HMI,LW,9140,,16-bit Unsigned,Supported
+LW-9141 (16bit) : HMI station no.,Local HMI,LW,9141,,16-bit Unsigned,Supported
+LW-9150 (32 words) : keyboard's input data (ASCII),Local HMI,LW,9150,,16-bit Unsigned,Supported
+"LW-9199 (16bit) : external keyboard layout : 0: QWERTY, 1: AZERTY, 2: Cyrillic (Supported OS version for Cyrillic : 20210511 or later)",Local HMI,LW,9199,,16-bit Unsigned,Supported
+LW-9200 (16bit) : address index 0,Local HMI,LW,9200,,16-bit Unsigned,Supported
+LW-9201 (16bit) : address index 1,Local HMI,LW,9201,,16-bit Unsigned,Supported
+LW-9202 (16bit) : address index 2,Local HMI,LW,9202,,16-bit Unsigned,Supported
+LW-9203 (16bit) : address index 3,Local HMI,LW,9203,,16-bit Unsigned,Supported
+LW-9204 (16bit) : address index 4,Local HMI,LW,9204,,16-bit Unsigned,Supported
+LW-9205 (16bit) : address index 5,Local HMI,LW,9205,,16-bit Unsigned,Supported
+LW-9206 (16bit) : address index 6,Local HMI,LW,9206,,16-bit Unsigned,Supported
+LW-9207 (16bit) : address index 7,Local HMI,LW,9207,,16-bit Unsigned,Supported
+LW-9208 (16bit) : address index 8,Local HMI,LW,9208,,16-bit Unsigned,Supported
+LW-9209 (16bit) : address index 9,Local HMI,LW,9209,,16-bit Unsigned,Supported
+LW-9210 (16bit) : address index 10,Local HMI,LW,9210,,16-bit Unsigned,Supported
+LW-9211 (16bit) : address index 11,Local HMI,LW,9211,,16-bit Unsigned,Supported
+LW-9212 (16bit) : address index 12,Local HMI,LW,9212,,16-bit Unsigned,Supported
+LW-9213 (16bit) : address index 13,Local HMI,LW,9213,,16-bit Unsigned,Supported
+LW-9214 (16bit) : address index 14,Local HMI,LW,9214,,16-bit Unsigned,Supported
+LW-9215 (16bit) : address index 15,Local HMI,LW,9215,,16-bit Unsigned,Supported
+LW-9216 (16bit) : the result of importing e-Mail data,Local HMI,LW,9216,,16-bit Unsigned,Supported
+LW-9219 (16bit) : user no. (1~12),Local HMI,LW,9219,,16-bit Unsigned,Unsupported
+LW-9220 (32bit) : password,Local HMI,LW,9220,,32-bit Unsigned,Unsupported
+"LW-9222 (16bit) : object classes can be operated for current user (bit 0:A, bit 1:B,bit 2:C, ...)",Local HMI,LW,9222,,16-bit Unsigned,Supported
+LW-9230 (32bit) : address index 16,Local HMI,LW,9230,,32-bit Unsigned,Supported
+LW-9232 (32bit) : address index 17,Local HMI,LW,9232,,32-bit Unsigned,Supported
+LW-9234 (32bit) : address index 18,Local HMI,LW,9234,,32-bit Unsigned,Supported
+LW-9236 (32bit) : address index 19,Local HMI,LW,9236,,32-bit Unsigned,Supported
+LW-9238 (32bit) : address index 20,Local HMI,LW,9238,,32-bit Unsigned,Supported
+LW-9240 (32bit) : address index 21,Local HMI,LW,9240,,32-bit Unsigned,Supported
+LW-9242 (32bit) : address index 22,Local HMI,LW,9242,,32-bit Unsigned,Supported
+LW-9244 (32bit) : address index 23,Local HMI,LW,9244,,32-bit Unsigned,Supported
+LW-9246 (32bit) : address index 24,Local HMI,LW,9246,,32-bit Unsigned,Supported
+LW-9248 (32bit) : address index 25,Local HMI,LW,9248,,32-bit Unsigned,Supported
+LW-9250 (32bit) : address index 26,Local HMI,LW,9250,,32-bit Unsigned,Supported
+LW-9252 (32bit) : address index 27,Local HMI,LW,9252,,32-bit Unsigned,Supported
+LW-9254 (32bit) : address index 28,Local HMI,LW,9254,,32-bit Unsigned,Supported
+LW-9256 (32bit) : address index 29,Local HMI,LW,9256,,32-bit Unsigned,Supported
+LW-9258 (32bit) : address index 30,Local HMI,LW,9258,,32-bit Unsigned,Supported
+LW-9260 (32bit) : address index 31,Local HMI,LW,9260,,32-bit Unsigned,Supported
+LW-9270 (16bit) : request's function code - MODBUS server (COM 1),Local HMI,LW,9270,,16-bit Unsigned,Supported
+LW-9271 (16bit) : request's starting address - MODBUS server (COM 1),Local HMI,LW,9271,,16-bit Unsigned,Supported
+LW-9272 (16bit) : request's quantity of registers - MODBUS server (COM 1),Local HMI,LW,9272,,16-bit Unsigned,Supported
+LW-9275 (16bit) : request's function code - MODBUS server (COM 2),Local HMI,LW,9275,,16-bit Unsigned,Supported
+LW-9276 (16bit) : request's starting address - MODBUS server (COM 2),Local HMI,LW,9276,,16-bit Unsigned,Supported
+LW-9277 (16bit) : request's quantity of registers - MODBUS server (COM 2),Local HMI,LW,9277,,16-bit Unsigned,Supported
+LW-9280 (16bit) : request's function code - MODBUS server (COM 3),Local HMI,LW,9280,,16-bit Unsigned,Supported
+LW-9281 (16bit) : request's starting address - MODBUS server (COM 3),Local HMI,LW,9281,,16-bit Unsigned,Supported
+LW-9282 (16bit) : request's quantity of registers - MODBUS server (COM 3),Local HMI,LW,9282,,16-bit Unsigned,Supported
+LW-9285 (16bit) : request's function code - MODBUS server (ethernet),Local HMI,LW,9285,,16-bit Unsigned,Supported
+LW-9286 (16bit) : request's starting address - MODBUS server (ethernet),Local HMI,LW,9286,,16-bit Unsigned,Supported
+LW-9287 (16bit) : request's quantity of registers - MODBUS server (ethernet),Local HMI,LW,9287,,16-bit Unsigned,Supported
+LW-9288 (16bit) : last error code - MODBUS server (Ethernet),Local HMI,LW,9288,,16-bit Unsigned,Supported
+LW-9289 (16bit) : last error code - MODBUS server (COM 1),Local HMI,LW,9289,,16-bit Unsigned,Supported
+LW-9290 (16bit) : last error code - MODBUS server (COM 2),Local HMI,LW,9290,,16-bit Unsigned,Supported
+LW-9291 (16bit) : last error code - MODBUS server (COM 3),Local HMI,LW,9291,,16-bit Unsigned,Supported
+LW-9300 (16bit) : driver ID of local device 1,Local HMI,LW,9300,,16-bit Unsigned,Supported
+LW-9301 (16bit) : driver ID of local device 2,Local HMI,LW,9301,,16-bit Unsigned,Supported
+LW-9302 (16bit) : driver ID of local device 3,Local HMI,LW,9302,,16-bit Unsigned,Supported
+LW-9303 (16bit) : driver ID of local device 4,Local HMI,LW,9303,,16-bit Unsigned,Supported
+LW-9331 (16bit) : driver ID of local device 32,Local HMI,LW,9331,,16-bit Unsigned,Supported
+LW-9350 (16bit) : pending command no. in local HMI,Local HMI,LW,9350,,16-bit Unsigned,Supported
+LW-9351 (16bit) : pending command no. in device 1 (COM 1),Local HMI,LW,9351,,16-bit Unsigned,Supported
+LW-9352 (16bit) : pending command no. in device 2 (COM 2),Local HMI,LW,9352,,16-bit Unsigned,Supported
+LW-9353 (16bit) : pending command no. in device 3 (COM 3),Local HMI,LW,9353,,16-bit Unsigned,Supported
+LW-9354 (16bit) : pending command no. in device 4 (ethernet),Local HMI,LW,9354,,16-bit Unsigned,Supported
+LW-9355 (16bit) : pending command no. in device 5 (ethernet),Local HMI,LW,9355,,16-bit Unsigned,Supported
+LW-9356 (16bit) : pending command no. in device 6 (ethernet),Local HMI,LW,9356,,16-bit Unsigned,Supported
+LW-9357 (16bit) : pending command no. in device 7 (ethernet),Local HMI,LW,9357,,16-bit Unsigned,Supported
+LW-9389 (16bit) : pending command no. in device 39 (ethernet),Local HMI,LW,9389,,16-bit Unsigned,Supported
+LW-9390 (16bit) : pending command no. in device (USB),Local HMI,LW,9390,,16-bit Unsigned,Supported
+LW-9392 (16bit) : pending command no. in device (CAN Bus),Local HMI,LW,9392,,16-bit Unsigned,Unsupported
+LW-9400 (16bit) : error code for device 1,Local HMI,LW,9400,,16-bit Unsigned,Supported
+LW-9401 (16bit) : error code for device 2,Local HMI,LW,9401,,16-bit Unsigned,Supported
+LW-9402 (16bit) : error code for device 3,Local HMI,LW,9402,,16-bit Unsigned,Supported
+LW-9403 (16bit) : error code for device 4,Local HMI,LW,9403,,16-bit Unsigned,Supported
+LW-9404 (16bit) : error code for device 5,Local HMI,LW,9404,,16-bit Unsigned,Supported
+LW-9405 (16bit) : error code for device 6,Local HMI,LW,9405,,16-bit Unsigned,Supported
+LW-9406 (16bit) : error code for device 7,Local HMI,LW,9406,,16-bit Unsigned,Supported
+LW-9407 (16bit) : error code for device 8,Local HMI,LW,9407,,16-bit Unsigned,Supported
+LW-9449 (16bit) : error code for device 50,Local HMI,LW,9449,,16-bit Unsigned,Supported
+LW-9450 (16bit) : time tag of event log - second,Local HMI,LW,9450,,16-bit Unsigned,Supported
+LW-9451 (16bit) : time tag of event log - minute,Local HMI,LW,9451,,16-bit Unsigned,Supported
+LW-9452 (16bit) : time tag of event log - hour,Local HMI,LW,9452,,16-bit Unsigned,Supported
+LW-9453 (16bit) : time tag of event log - day,Local HMI,LW,9453,,16-bit Unsigned,Supported
+LW-9454 (16bit) : time tag of event log - month,Local HMI,LW,9454,,16-bit Unsigned,Supported
+LW-9455 (16bit) : time tag of event log - year,Local HMI,LW,9455,,16-bit Unsigned,Supported
+LW-9490 (16bit) : error code for USB device,Local HMI,LW,9490,,16-bit Unsigned,Supported
+LW-9492 (16bit) : error code for CAN-Bus device,Local HMI,LW,9492,,16-bit Unsigned,Supported
+LW-9500 (32bit) : user 1's password,Local HMI,LW,9500,,32-bit Unsigned,Unsupported
+LW-9502 (32bit) : user 2's password,Local HMI,LW,9502,,32-bit Unsigned,Unsupported
+LW-9504 (32bit) : user 3's password,Local HMI,LW,9504,,32-bit Unsigned,Unsupported
+LW-9506 (32bit) : user 4's password,Local HMI,LW,9506,,32-bit Unsigned,Unsupported
+LW-9508 (32bit) : user 5's password,Local HMI,LW,9508,,32-bit Unsigned,Unsupported
+LW-9510 (32bit) : user 6's password,Local HMI,LW,9510,,32-bit Unsigned,Unsupported
+LW-9512 (32bit) : user 7's password,Local HMI,LW,9512,,32-bit Unsigned,Unsupported
+LW-9514 (32bit) : user 8's password,Local HMI,LW,9514,,32-bit Unsigned,Unsupported
+LW-9516 (32bit) : user 9's password,Local HMI,LW,9516,,32-bit Unsigned,Unsupported
+LW-9518 (32bit) : user 10's password,Local HMI,LW,9518,,32-bit Unsigned,Unsupported
+LW-9520 (32bit) : user 11's password,Local HMI,LW,9520,,32-bit Unsigned,Unsupported
+LW-9522 (32bit) : user 12's password,Local HMI,LW,9522,,32-bit Unsigned,Unsupported
+LW-9530 (4 words) : VNC server password,Local HMI,LW,9530,,16-bit Unsigned,Supported
+LW-9540 (16bit) : reserved for caps lock,Local HMI,LW,9540,,16-bit Unsigned,Supported
+LW-9541 (16bit) : MODBUS/ASCII server station no. (COM 1),Local HMI,LW,9541,,16-bit Unsigned,Supported
+LW-9542 (16bit) : MODBUS/ASCII server station no. (COM 2),Local HMI,LW,9542,,16-bit Unsigned,Supported
+LW-9543 (16bit) : MODBUS/ASCII server station no. (COM 3),Local HMI,LW,9543,,16-bit Unsigned,Supported
+LW-9544 (16bit) : MODBUS/ASCII server station no. (ethernet),Local HMI,LW,9544,,16-bit Unsigned,Supported
+"LW-9550 (16bit) : COM 1 mode (0:RS232,1:RS485 2W,2:RS485 4W) (use LB-9030 to activate all communication settings)",Local HMI,LW,9550,,16-bit Unsigned,Supported
+"LW-9551 (16bit) : COM 1 baud rate (9:300,7:1200,8:2400,0:4800,1:9600,10:14400,2:19200,11:28800,3:38400,12:76800,4:57600,..)",Local HMI,LW,9551,,16-bit Unsigned,Supported
+"LW-9552 (16bit) : COM 1 databits (7 : 7 bits, 8 : 8 bits)",Local HMI,LW,9552,,16-bit Unsigned,Supported
+"LW-9553 (16bit) : COM 1 parity (0:none, 1:even, 2:odd)",Local HMI,LW,9553,,16-bit Unsigned,Supported
+"LW-9554 (16bit) : COM 1 stop bits (1 : 1 bit, 2 : 2 bits)",Local HMI,LW,9554,,16-bit Unsigned,Supported
+"LW-9555 (16bit) : COM 2 mode (0:RS232,1:RS485 2W,2:RS485 4W) (use LB-9031 to activate all communication settings)",Local HMI,LW,9555,,16-bit Unsigned,Supported
+"LW-9556 (16bit) : COM 2 baud rate(9:300,7:1200,8:2400,0:4800,1:9600,10:14400,2:19200,11:28800,3:38400,12:76800,4:57600,..)",Local HMI,LW,9556,,16-bit Unsigned,Supported
+"LW-9557 (16bit) : COM 2 databits (7 : 7 bits, 8 : 8 bits)",Local HMI,LW,9557,,16-bit Unsigned,Supported
+"LW-9558 (16bit) : COM 2 parity (0:none, 1:even, 2:odd)",Local HMI,LW,9558,,16-bit Unsigned,Supported
+"LW-9559 (16bit) : COM 2 stop bits (1 : 1 bit, 2 : 2 bits)",Local HMI,LW,9559,,16-bit Unsigned,Supported
+"LW-9560 (16bit) : COM 3 mode (0:RS232,1:RS485 2W) (use LB-9032 to activate all communication settings)",Local HMI,LW,9560,,16-bit Unsigned,Supported
+"LW-9561 (16bit) : COM 3 baud rate (9:300,7:1200,8:2400,0:4800,1:9600,10:14400,2:19200,11:28800,3:38400,12:76800,4:57600,..)",Local HMI,LW,9561,,16-bit Unsigned,Supported
+"LW-9562 (16bit) : COM 3 databits (7 : 7 bits, 8 : 8 bits)",Local HMI,LW,9562,,16-bit Unsigned,Supported
+"LW-9563 (16bit) : COM 3 parity (0:none, 1:even, 2:odd)",Local HMI,LW,9563,,16-bit Unsigned,Supported
+"LW-9564 (16bit) : COM 3 stop bits (1 : 1 bit, 2 : 2 bits)",Local HMI,LW,9564,,16-bit Unsigned,Supported
+LW-9565 (16bit) : COM 1 broadcast station no.,Local HMI,LW,9565,,16-bit Unsigned,Supported
+LW-9566 (16bit) : COM 2 broadcast station no.,Local HMI,LW,9566,,16-bit Unsigned,Supported
+LW-9567 (16bit) : COM 3 broadcast station no.,Local HMI,LW,9567,,16-bit Unsigned,Supported
+LW-9570 (32bit) : received data count (bytes) (COM 1 MODBUS server),Local HMI,LW,9570,,32-bit Unsigned,Supported
+LW-9572 (32bit) : received data count (bytes) (COM 2 MODBUS server),Local HMI,LW,9572,,32-bit Unsigned,Supported
+LW-9574 (32bit) : received data count (bytes) (COM 3 MODBUS server),Local HMI,LW,9574,,32-bit Unsigned,Supported
+LW-9576 (32bit) : received data count (bytes) (Ethernet MODBUS server),Local HMI,LW,9576,,32-bit Unsigned,Supported
+LW-9600 (16bit) : device 4's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9600,,16-bit Unsigned,Supported
+LW-9601 (16bit) : device 4's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9601,,16-bit Unsigned,Supported
+LW-9602 (16bit) : device 4's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9602,,16-bit Unsigned,Supported
+LW-9603 (16bit) : device 4's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9603,,16-bit Unsigned,Supported
+LW-9604 (16bit) : device 4's port no.,Local HMI,LW,9604,,16-bit Unsigned,Supported
+LW-9605 (16bit) : device 5's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9605,,16-bit Unsigned,Supported
+LW-9606 (16bit) : device 5's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9606,,16-bit Unsigned,Supported
+LW-9607 (16bit) : device 5's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9607,,16-bit Unsigned,Supported
+LW-9608 (16bit) : device 5's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9608,,16-bit Unsigned,Supported
+LW-9609 (16bit) : device 5's port no.,Local HMI,LW,9609,,16-bit Unsigned,Supported
+LW-9610 (16bit) : device 6's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9610,,16-bit Unsigned,Supported
+LW-9611 (16bit) : device 6's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9611,,16-bit Unsigned,Supported
+LW-9612 (16bit) : device 6's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9612,,16-bit Unsigned,Supported
+LW-9613 (16bit) : device 6's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9613,,16-bit Unsigned,Supported
+LW-9614 (16bit) : device 6's port no.,Local HMI,LW,9614,,16-bit Unsigned,Supported
+LW-9615 (16bit) : device 7's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9615,,16-bit Unsigned,Supported
+LW-9616 (16bit) : device 7's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9616,,16-bit Unsigned,Supported
+LW-9617 (16bit) : device 7's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9617,,16-bit Unsigned,Supported
+LW-9618 (16bit) : device 7's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9618,,16-bit Unsigned,Supported
+LW-9619 (16bit) : device 7's port no.,Local HMI,LW,9619,,16-bit Unsigned,Supported
+LW-9620 (16bit) : device 8's (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9620,,16-bit Unsigned,Supported
+LW-9621 (16bit) : device 8's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9621,,16-bit Unsigned,Supported
+LW-9622 (16bit) : device 8's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9622,,16-bit Unsigned,Supported
+LW-9623 (16bit) : device 8's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9623,,16-bit Unsigned,Supported
+LW-9624 (16bit) : device 8's port no.,Local HMI,LW,9624,,16-bit Unsigned,Supported
+LW-9625 (16bit) : device 9's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9625,,16-bit Unsigned,Supported
+LW-9626 (16bit) : device 9's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9626,,16-bit Unsigned,Supported
+LW-9627 (16bit) : device 9's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9627,,16-bit Unsigned,Supported
+LW-9628 (16bit) : device 9's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9628,,16-bit Unsigned,Supported
+LW-9629 (16bit) : device 9's port no.,Local HMI,LW,9629,,16-bit Unsigned,Supported
+LW-9765 (16bit) : device 37's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9765,,16-bit Unsigned,Supported
+LW-9766 (16bit) : device 37's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9766,,16-bit Unsigned,Supported
+LW-9767 (16bit) : device 37's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9767,,16-bit Unsigned,Supported
+LW-9768 (16bit) : device 37's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9768,,16-bit Unsigned,Supported
+LW-9769 (16bit) : device 37's port no.,Local HMI,LW,9769,,16-bit Unsigned,Supported
+LW-9770 (16bit) : remote printer/backup server IP0 (IP0:IP1:IP2:IP3),Local HMI,LW,9770,,16-bit Unsigned,Unsupported
+LW-9771 (16bit) : remote printer/backup server IP1 (IP0:IP1:IP2:IP3),Local HMI,LW,9771,,16-bit Unsigned,Unsupported
+LW-9772 (16bit) : remote printer/backup server IP2 (IP0:IP1:IP2:IP3),Local HMI,LW,9772,,16-bit Unsigned,Unsupported
+LW-9773 (16bit) : remote printer/backup server IP3 (IP0:IP1:IP2:IP3),Local HMI,LW,9773,,16-bit Unsigned,Unsupported
+LW-9774 (6 words) : remote printer/backup server user name,Local HMI,LW,9774,,16-bit Unsigned,Unsupported
+LW-9780 (6 words) : remote printer/backup server password,Local HMI,LW,9780,,16-bit Unsigned,Unsupported
+LW-9800 (16bit) : remote HMI 1's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9800,,16-bit Unsigned,Supported
+LW-9801 (16bit) : remote HMI 1's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9801,,16-bit Unsigned,Supported
+LW-9802 (16bit) : remote HMI 1's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9802,,16-bit Unsigned,Supported
+LW-9803 (16bit) : remote HMI 1's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9803,,16-bit Unsigned,Supported
+LW-9804 (16bit) : remote HMI 1's port no.,Local HMI,LW,9804,,16-bit Unsigned,Supported
+LW-9805 (16bit) : remote HMI 2's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9805,,16-bit Unsigned,Supported
+LW-9806 (16bit) : remote HMI 2's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9806,,16-bit Unsigned,Supported
+LW-9807 (16bit) : remote HMI 2's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9807,,16-bit Unsigned,Supported
+LW-9808 (16bit) : remote HMI 2's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9808,,16-bit Unsigned,Supported
+LW-9809 (16bit) : remote HMI 2's port no.,Local HMI,LW,9809,,16-bit Unsigned,Supported
+LW-9810 (16bit) : remote HMI 3's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9810,,16-bit Unsigned,Supported
+LW-9811 (16bit) : remote HMI 3's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9811,,16-bit Unsigned,Supported
+LW-9812 (16bit) : remote HMI 3's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9812,,16-bit Unsigned,Supported
+LW-9813 (16bit) : remote HMI 3's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9813,,16-bit Unsigned,Supported
+LW-9814 (16bit) : remote HMI 3's port no.,Local HMI,LW,9814,,16-bit Unsigned,Supported
+LW-9815 (16bit) : remote HMI 4's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9815,,16-bit Unsigned,Supported
+LW-9816 (16bit) : remote HMI 4's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9816,,16-bit Unsigned,Supported
+LW-9817 (16bit) : remote HMI 4's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9817,,16-bit Unsigned,Supported
+LW-9818 (16bit) : remote HMI 4's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9818,,16-bit Unsigned,Supported
+LW-9819 (16bit) : remote HMI 4's port no.,Local HMI,LW,9819,,16-bit Unsigned,Supported
+LW-9820 (16bit) : remote HMI 5's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9820,,16-bit Unsigned,Supported
+LW-9821 (16bit) : remote HMI 5's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9821,,16-bit Unsigned,Supported
+LW-9822 (16bit) : remote HMI 5's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9822,,16-bit Unsigned,Supported
+LW-9823 (16bit) : remote HMI 5's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9823,,16-bit Unsigned,Supported
+LW-9824 (16bit) : remote HMI 5's port no.,Local HMI,LW,9824,,16-bit Unsigned,Supported
+LW-9825 (16bit) : remote HMI 6's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9825,,16-bit Unsigned,Supported
+LW-9826 (16bit) : remote HMI 6's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9826,,16-bit Unsigned,Supported
+LW-9827 (16bit) : remote HMI 6's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9827,,16-bit Unsigned,Supported
+LW-9828 (16bit) : remote HMI 6's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9828,,16-bit Unsigned,Supported
+LW-9829 (16bit) : remote HMI 6's port no.,Local HMI,LW,9829,,16-bit Unsigned,Supported
+LW-9830 (16bit) : remote HMI 7's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9830,,16-bit Unsigned,Supported
+LW-9831 (16bit) : remote HMI 7's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9831,,16-bit Unsigned,Supported
+LW-9832 (16bit) : remote HMI 7's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9832,,16-bit Unsigned,Supported
+LW-9833 (16bit) : remote HMI 7's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9833,,16-bit Unsigned,Supported
+LW-9834 (16bit) : remote HMI 7's port no.,Local HMI,LW,9834,,16-bit Unsigned,Supported
+LW-9835 (16bit) : remote HMI 8's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9835,,16-bit Unsigned,Supported
+LW-9836 (16bit) : remote HMI 8's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9836,,16-bit Unsigned,Supported
+LW-9837 (16bit) : remote HMI 8's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9837,,16-bit Unsigned,Supported
+LW-9838 (16bit) : remote HMI 8's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9838,,16-bit Unsigned,Supported
+LW-9839 (16bit) : remote HMI 8's port no.,Local HMI,LW,9839,,16-bit Unsigned,Supported
+LW-9895 (16bit) : remote HMI 20's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9895,,16-bit Unsigned,Supported
+LW-9896 (16bit) : remote HMI 20's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9896,,16-bit Unsigned,Supported
+LW-9897 (16bit) : remote HMI 20's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9897,,16-bit Unsigned,Supported
+LW-9898 (16bit) : remote HMI 20's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9898,,16-bit Unsigned,Supported
+LW-9899 (16bit) : remote HMI 20's port no.,Local HMI,LW,9899,,16-bit Unsigned,Supported
+"LW-9900 (16bit) : HMI run mode (0 : normal mode, 1~3 : test mode (COM 1~COM 3))",Local HMI,LW,9900,,16-bit Unsigned,Supported
+LW-9901 (16bit) : pass-through source COM port (1~3 : COM 1~COM 3),Local HMI,LW,9901,,16-bit Unsigned,Supported
+LW-9902 (16bit) : pass-through destination COM port (1~3 : COM 1~COM 3),Local HMI,LW,9902,,16-bit Unsigned,Supported
+"LW-9903 (16bit) : pass-through control (0 : normal, 1 : pause, 2 : stop communications between HMI and device when executing pass-through)",Local HMI,LW,9903,,16-bit Unsigned,Supported
+LW-9904 (16bit) : pass-through server port no. (2000~2100),Local HMI,LW,9904,,16-bit Unsigned,Supported
+LW-9905 (16bit) : remote HMI 21's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9905,,16-bit Unsigned,Supported
+LW-9906 (16bit) : remote HMI 21's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9906,,16-bit Unsigned,Supported
+LW-9907 (16bit) : remote HMI 21's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9907,,16-bit Unsigned,Supported
+LW-9908 (16bit) : remote HMI 21's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9908,,16-bit Unsigned,Supported
+LW-9909 (16bit) : remote HMI 21's port no.,Local HMI,LW,9909,,16-bit Unsigned,Supported
+LW-9910 (16bit) : remote HMI 22's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9910,,16-bit Unsigned,Supported
+LW-9911 (16bit) : remote HMI 22's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9911,,16-bit Unsigned,Supported
+LW-9912 (16bit) : remote HMI 22's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9912,,16-bit Unsigned,Supported
+LW-9913 (16bit) : remote HMI 22's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9913,,16-bit Unsigned,Supported
+LW-9914 (16bit) : remote HMI 22's port no.,Local HMI,LW,9914,,16-bit Unsigned,Supported
+LW-9915 (16bit) : remote HMI 23's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9915,,16-bit Unsigned,Supported
+LW-9916 (16bit) : remote HMI 23's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9916,,16-bit Unsigned,Supported
+LW-9917 (16bit) : remote HMI 23's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9917,,16-bit Unsigned,Supported
+LW-9918 (16bit) : remote HMI 23's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9918,,16-bit Unsigned,Supported
+LW-9919 (16bit) : remote HMI 23's port no.,Local HMI,LW,9919,,16-bit Unsigned,Supported
+LW-9920 (16bit) : remote HMI 24's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9920,,16-bit Unsigned,Supported
+LW-9921 (16bit) : remote HMI 24's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9921,,16-bit Unsigned,Supported
+LW-9922 (16bit) : remote HMI 24's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9922,,16-bit Unsigned,Supported
+LW-9923 (16bit) : remote HMI 24's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9923,,16-bit Unsigned,Supported
+LW-9924 (16bit) : remote HMI 24's port no.,Local HMI,LW,9924,,16-bit Unsigned,Supported
+LW-9925 (16bit) : remote HMI 25's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9925,,16-bit Unsigned,Supported
+LW-9926 (16bit) : remote HMI 25's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9926,,16-bit Unsigned,Supported
+LW-9927 (16bit) : remote HMI 25's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9927,,16-bit Unsigned,Supported
+LW-9928 (16bit) : remote HMI 25's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9928,,16-bit Unsigned,Supported
+LW-9929 (16bit) : remote HMI 25's port no.,Local HMI,LW,9929,,16-bit Unsigned,Supported
+LW-9930 (16bit) : remote HMI 26's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9930,,16-bit Unsigned,Supported
+LW-9931 (16bit) : remote HMI 26's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9931,,16-bit Unsigned,Supported
+LW-9932 (16bit) : remote HMI 26's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9932,,16-bit Unsigned,Supported
+LW-9933 (16bit) : remote HMI 26's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9933,,16-bit Unsigned,Supported
+LW-9934 (16bit) : remote HMI 26's port no.,Local HMI,LW,9934,,16-bit Unsigned,Supported
+LW-9935 (16bit) : remote HMI 27's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9935,,16-bit Unsigned,Supported
+LW-9936 (16bit) : remote HMI 27's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9936,,16-bit Unsigned,Supported
+LW-9937 (16bit) : remote HMI 27's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9937,,16-bit Unsigned,Supported
+LW-9938 (16bit) : remote HMI 27's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9938,,16-bit Unsigned,Supported
+LW-9939 (16bit) : remote HMI 27's port no.,Local HMI,LW,9939,,16-bit Unsigned,Supported
+LW-9940 (16bit) : remote HMI 28's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9940,,16-bit Unsigned,Supported
+LW-9941 (16bit) : remote HMI 28's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9941,,16-bit Unsigned,Supported
+LW-9942 (16bit) : remote HMI 28's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9942,,16-bit Unsigned,Supported
+LW-9943 (16bit) : remote HMI 28's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9943,,16-bit Unsigned,Supported
+LW-9944 (16bit) : remote HMI 28's port no.,Local HMI,LW,9944,,16-bit Unsigned,Supported
+LW-9945 (16bit) : remote HMI 29's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9945,,16-bit Unsigned,Supported
+LW-9946 (16bit) : remote HMI 29's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9946,,16-bit Unsigned,Supported
+LW-9947 (16bit) : remote HMI 29's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9947,,16-bit Unsigned,Supported
+LW-9948 (16bit) : remote HMI 29's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9948,,16-bit Unsigned,Supported
+LW-9949 (16bit) : remote HMI 29's port no.,Local HMI,LW,9949,,16-bit Unsigned,Supported
+LW-9950 (16bit) : remote HMI 30's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9950,,16-bit Unsigned,Supported
+LW-9951 (16bit) : remote HMI 30's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9951,,16-bit Unsigned,Supported
+LW-9952 (16bit) : remote HMI 30's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9952,,16-bit Unsigned,Supported
+LW-9953 (16bit) : remote HMI 30's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9953,,16-bit Unsigned,Supported
+LW-9954 (16bit) : remote HMI 30's port no.,Local HMI,LW,9954,,16-bit Unsigned,Supported
+LW-9955 (16bit) : remote HMI 31's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9955,,16-bit Unsigned,Supported
+LW-9956 (16bit) : remote HMI 31's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9956,,16-bit Unsigned,Supported
+LW-9957 (16bit) : remote HMI 31's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9957,,16-bit Unsigned,Supported
+LW-9958 (16bit) : remote HMI 31's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9958,,16-bit Unsigned,Supported
+LW-9959 (16bit) : remote HMI 31's port no.,Local HMI,LW,9959,,16-bit Unsigned,Supported
+LW-9960 (16bit) : remote HMI 32's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9960,,16-bit Unsigned,Supported
+LW-9961 (16bit) : remote HMI 32's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9961,,16-bit Unsigned,Supported
+LW-9962 (16bit) : remote HMI 32's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9962,,16-bit Unsigned,Supported
+LW-9963 (16bit) : remote HMI 32's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9963,,16-bit Unsigned,Supported
+LW-9964 (16bit) : remote HMI 32's port no.,Local HMI,LW,9964,,16-bit Unsigned,Supported
+LW-9995 (16bit) : remote HMI 39's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9995,,16-bit Unsigned,Supported
+LW-9996 (16bit) : remote HMI 39's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9996,,16-bit Unsigned,Supported
+LW-9997 (16bit) : remote HMI 39's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9997,,16-bit Unsigned,Supported
+LW-9998 (16bit) : remote HMI 39's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,9998,,16-bit Unsigned,Supported
+LW-9999 (16bit) : remote HMI 39's port no.,Local HMI,LW,9999,,16-bit Unsigned,Supported
+LW-10000 (16bit) : var0 - station no. variable (usage : var0#address),Local HMI,LW,10000,,16-bit Unsigned,Supported
+LW-10001 (16bit) : var1 - station no. variable (usage : var1#address),Local HMI,LW,10001,,16-bit Unsigned,Supported
+LW-10002 (16bit) : var2 - station no. variable (usage : var2#address),Local HMI,LW,10002,,16-bit Unsigned,Supported
+LW-10003 (16bit) : var3 - station no. variable (usage : var3#address),Local HMI,LW,10003,,16-bit Unsigned,Supported
+LW-10004 (16bit) : var4 - station no. variable (usage : var4#address),Local HMI,LW,10004,,16-bit Unsigned,Supported
+LW-10005 (16bit) : var5 - station no. variable (usage : var5#address),Local HMI,LW,10005,,16-bit Unsigned,Supported
+LW-10006 (16bit) : var6 - station no. variable (usage : var6#address),Local HMI,LW,10006,,16-bit Unsigned,Supported
+LW-10007 (16bit) : var7 - station no. variable (usage : var7#address),Local HMI,LW,10007,,16-bit Unsigned,Supported
+LW-10008 (16bit) : var8 - station no. variable (usage : var8#address),Local HMI,LW,10008,,16-bit Unsigned,Supported
+LW-10009 (16bit) : var9 - station no. variable (usage : var9#address),Local HMI,LW,10009,,16-bit Unsigned,Supported
+LW-10010 (16bit) : var10 - station no. variable (usage : var10#address),Local HMI,LW,10010,,16-bit Unsigned,Supported
+LW-10011 (16bit) : var11 - station no. variable (usage : var11#address),Local HMI,LW,10011,,16-bit Unsigned,Supported
+LW-10012 (16bit) : var12 - station no. variable (usage : var12#address),Local HMI,LW,10012,,16-bit Unsigned,Supported
+LW-10013 (16bit) : var13 - station no. variable (usage : var13#address),Local HMI,LW,10013,,16-bit Unsigned,Supported
+LW-10014 (16bit) : var14 - station no. variable (usage : var14#address),Local HMI,LW,10014,,16-bit Unsigned,Supported
+LW-10015 (16bit) : var15 - station no. variable (usage : var15#address),Local HMI,LW,10015,,16-bit Unsigned,Supported
+LW-10050 (16bit) : IP0 of the HMI connecting to remote device 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10050,,16-bit Unsigned,Unsupported
+LW-10051 (16bit) : IP1 of the HMI connecting to remote device 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10051,,16-bit Unsigned,Unsupported
+LW-10052 (16bit) : IP2 of the HMI connecting to remote device 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10052,,16-bit Unsigned,Unsupported
+LW-10053 (16bit) : IP3 of the HMI connecting to remote device 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10053,,16-bit Unsigned,Unsupported
+LW-10054 (16bit) : port no. of the HMI connecting to remote device 1,Local HMI,LW,10054,,16-bit Unsigned,Unsupported
+LW-10055 (16bit) : IP0 of the HMI connecting to remote device 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10055,,16-bit Unsigned,Unsupported
+LW-10056 (16bit) : IP1 of the HMI connecting to remote device 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10056,,16-bit Unsigned,Unsupported
+LW-10057 (16bit) : IP2 of the HMI connecting to remote device 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10057,,16-bit Unsigned,Unsupported
+LW-10058 (16bit) : IP3 of the HMI connecting to remote device 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10058,,16-bit Unsigned,Unsupported
+LW-10059 (16bit) : port no. of the HMI connecting to remote device 2,Local HMI,LW,10059,,16-bit Unsigned,Unsupported
+LW-10060 (16bit) : IP0 of the HMI connecting to remote device 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10060,,16-bit Unsigned,Unsupported
+LW-10061 (16bit) : IP1 of the HMI connecting to remote device 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10061,,16-bit Unsigned,Unsupported
+LW-10062 (16bit) : IP2 of the HMI connecting to remote device 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10062,,16-bit Unsigned,Unsupported
+LW-10063 (16bit) : IP3 of the HMI connecting to remote device 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10063,,16-bit Unsigned,Unsupported
+LW-10064 (16bit) : port no. of the HMI connecting to remote device 3,Local HMI,LW,10064,,16-bit Unsigned,Unsupported
+LW-10065 (16bit) : IP0 of the HMI connecting to remote device 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10065,,16-bit Unsigned,Unsupported
+LW-10066 (16bit) : IP1 of the HMI connecting to remote device 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10066,,16-bit Unsigned,Unsupported
+LW-10067 (16bit) : IP2 of the HMI connecting to remote device 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10067,,16-bit Unsigned,Unsupported
+LW-10068 (16bit) : IP3 of the HMI connecting to remote device 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10068,,16-bit Unsigned,Unsupported
+LW-10069 (16bit) : port no. of the HMI connecting to remote device 4,Local HMI,LW,10069,,16-bit Unsigned,Unsupported
+LW-10205 (16bit) : IP0 of the HMI connecting to remote device 32 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10205,,16-bit Unsigned,Unsupported
+LW-10206 (16bit) : IP1 of the HMI connecting to remote device 32 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10206,,16-bit Unsigned,Unsupported
+LW-10207 (16bit) : IP2 of the HMI connecting to remote device 32 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10207,,16-bit Unsigned,Unsupported
+LW-10208 (16bit) : IP3 of the HMI connecting to remote device 32 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10208,,16-bit Unsigned,Unsupported
+LW-10209 (16bit) : port no. of the HMI connecting to remote device 32,Local HMI,LW,10209,,16-bit Unsigned,Unsupported
+LW-10300 (16bit) : remote device 1's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10300,,16-bit Unsigned,Unsupported
+LW-10301 (16bit) : remote device 1's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10301,,16-bit Unsigned,Unsupported
+LW-10302 (16bit) : remote device 1's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10302,,16-bit Unsigned,Unsupported
+LW-10303 (16bit) : remote device 1's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10303,,16-bit Unsigned,Unsupported
+LW-10304 (16bit) : remote device 1's port no.,Local HMI,LW,10304,,16-bit Unsigned,Unsupported
+LW-10305 (16bit) : remote device 2's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10305,,16-bit Unsigned,Unsupported
+LW-10306 (16bit) : remote device 2's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10306,,16-bit Unsigned,Unsupported
+LW-10307 (16bit) : remote device 2's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10307,,16-bit Unsigned,Unsupported
+LW-10308 (16bit) : remote device 2's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10308,,16-bit Unsigned,Unsupported
+LW-10309 (16bit) : remote device 2's port no.,Local HMI,LW,10309,,16-bit Unsigned,Unsupported
+LW-10310 (16bit) : remote device 3's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10310,,16-bit Unsigned,Unsupported
+LW-10311 (16bit) : remote device 3's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10311,,16-bit Unsigned,Unsupported
+LW-10312 (16bit) : remote device 3's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10312,,16-bit Unsigned,Unsupported
+LW-10313 (16bit) : remote device 3's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10313,,16-bit Unsigned,Unsupported
+LW-10314 (16bit) : remote device 3's port no.,Local HMI,LW,10314,,16-bit Unsigned,Unsupported
+LW-10315 (16bit) : remote device 4's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10315,,16-bit Unsigned,Unsupported
+LW-10316 (16bit) : remote device 4's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10316,,16-bit Unsigned,Unsupported
+LW-10317 (16bit) : remote device 4's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10317,,16-bit Unsigned,Unsupported
+LW-10318 (16bit) : remote device 4's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10318,,16-bit Unsigned,Unsupported
+LW-10319 (16bit) : remote device 4's port no.,Local HMI,LW,10319,,16-bit Unsigned,Unsupported
+LW-10455 (16bit) : remote device 32's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10455,,16-bit Unsigned,Unsupported
+LW-10456 (16bit) : remote device 32's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10456,,16-bit Unsigned,Unsupported
+LW-10457 (16bit) : remote device 32's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10457,,16-bit Unsigned,Unsupported
+LW-10458 (16bit) : remote device 32's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,10458,,16-bit Unsigned,Unsupported
+LW-10459 (16bit) : remote device 32's port no.,Local HMI,LW,10459,,16-bit Unsigned,Unsupported
+LW-10480 (16bit) : no. of event log files on SD card,Local HMI,LW,10480,,16-bit Unsigned,Unsupported
+LW-10481 (32bit) : size of event log files on SD card (bytes),Local HMI,LW,10481,,32-bit Unsigned,Unsupported
+LW-10483 (16bit) : no. of event log files on USB disk 1,Local HMI,LW,10483,,16-bit Unsigned,Unsupported
+LW-10484 (32bit) : size of event log files on USB disk 1 (bytes),Local HMI,LW,10484,,32-bit Unsigned,Unsupported
+LW-10486 (16bit) : no. of event log files on USB disk 2,Local HMI,LW,10486,,16-bit Unsigned,Unsupported
+LW-10487 (32bit) : size of event log files on USB disk 2 (bytes),Local HMI,LW,10487,,32-bit Unsigned,Unsupported
+LW-10489 (16bit) : no. of data sampling files on SD card,Local HMI,LW,10489,,16-bit Unsigned,Unsupported
+LW-10490 (32bit) : size of data sampling files on SD card  (bytes),Local HMI,LW,10490,,32-bit Unsigned,Unsupported
+LW-10492 (16bit) : no. of data sampling files on USB disk 1,Local HMI,LW,10492,,16-bit Unsigned,Unsupported
+LW-10493 (32bit) : size of data sampling files on USB disk 1 (bytes),Local HMI,LW,10493,,32-bit Unsigned,Unsupported
+LW-10495 (16bit) : no. of data sampling files on USB disk 2,Local HMI,LW,10495,,16-bit Unsigned,Unsupported
+LW-10496 (32bit) : size of data sampling files on USB disk 2  (bytes),Local HMI,LW,10496,,32-bit Unsigned,Unsupported
+"LW-10500 (16bit) : device 1 timeout (unit : 100ms, 0 : 50ms )",Local HMI,LW,10500,,16-bit Unsigned,Supported
+LW-10501 (16bit) : device 1 turn around delay (unit : ms),Local HMI,LW,10501,,16-bit Unsigned,Supported
+LW-10502 (16bit) : device 1 send ACK delay (unit : ms),Local HMI,LW,10502,,16-bit Unsigned,Supported
+"LW-10503 (16bit) : device 1 parameter 1 ",Local HMI,LW,10503,,16-bit Unsigned,Supported
+LW-10504 (16bit) : device 1 parameter 2,Local HMI,LW,10504,,16-bit Unsigned,Supported
+"LW-10505 (16bit) : device 2 timeout (unit : 100ms, 0 : 50ms)",Local HMI,LW,10505,,16-bit Unsigned,Supported
+LW-10506 (16bit) : device 2 turn around delay (unit : ms),Local HMI,LW,10506,,16-bit Unsigned,Supported
+LW-10507 (16bit) : device 2 send ACK delay (unit : ms),Local HMI,LW,10507,,16-bit Unsigned,Supported
+LW-10508 (16bit) : device 2 parameter 1,Local HMI,LW,10508,,16-bit Unsigned,Supported
+LW-10509 (16bit) : device 2 parameter 2,Local HMI,LW,10509,,16-bit Unsigned,Supported
+"LW-10510 (16bit) : device 3 timeout (unit : 100ms, 0 : 50ms)",Local HMI,LW,10510,,16-bit Unsigned,Supported
+LW-10511 (16bit) : device 3 turn around delay (unit : ms),Local HMI,LW,10511,,16-bit Unsigned,Supported
+LW-10512 (16bit) : device 3 send ACK delay (unit : ms),Local HMI,LW,10512,,16-bit Unsigned,Supported
+LW-10513 (16bit) : device 3 parameter 1,Local HMI,LW,10513,,16-bit Unsigned,Supported
+LW-10514 (16bit) : device 3 parameter 2,Local HMI,LW,10514,,16-bit Unsigned,Supported
+LW-10515 (16bit) : device 4 timeout (unit : 100ms),Local HMI,LW,10515,,16-bit Unsigned,Supported
+LW-10516 (16bit) : device 4 turn around delay (unit : ms),Local HMI,LW,10516,,16-bit Unsigned,Supported
+LW-10517 (16bit) : device 4 send ACK delay (unit : ms) (SIEMENS S7/400 Link type),Local HMI,LW,10517,,16-bit Unsigned,Supported
+LW-10518 (16bit) : device 4 parameter 1 (SIEMENS S7/400 rack),Local HMI,LW,10518,,16-bit Unsigned,Supported
+LW-10519 (16bit) : device 4 parameter 2 (SIEMENS S7/400 CPU slot),Local HMI,LW,10519,,16-bit Unsigned,Supported
+LW-10520 (16bit) : device 5 timeout (unit : 100ms),Local HMI,LW,10520,,16-bit Unsigned,Supported
+LW-10521 (16bit) : device 5 turn around delay (unit : ms),Local HMI,LW,10521,,16-bit Unsigned,Supported
+LW-10522 (16bit) : device 5 send ACK delay (unit : ms) (SIEMENS S7/400 Link type),Local HMI,LW,10522,,16-bit Unsigned,Supported
+LW-10523 (16bit) : device 5 parameter 1 (SIEMENS S7/400 rack),Local HMI,LW,10523,,16-bit Unsigned,Supported
+LW-10524 (16bit) : device 5 parameter 2 (SIEMENS S7/400 CPU slot),Local HMI,LW,10524,,16-bit Unsigned,Supported
+LW-10525 (16bit) : device 6 timeout (unit : 100ms),Local HMI,LW,10525,,16-bit Unsigned,Supported
+LW-10526 (16bit) : device 6 turn around delay (unit : ms),Local HMI,LW,10526,,16-bit Unsigned,Supported
+LW-10527 (16bit) : device 6 send ACK delay (unit : ms) (SIEMENS S7/400 Link type),Local HMI,LW,10527,,16-bit Unsigned,Supported
+LW-10528 (16bit) : device 6 parameter 1 (SIEMENS S7/400 rack),Local HMI,LW,10528,,16-bit Unsigned,Supported
+LW-10529 (16bit) : device 6 parameter 2 (SIEMENS S7/400 CPU slot),Local HMI,LW,10529,,16-bit Unsigned,Supported
+LW-10530 (16bit) : device 7 timeout (unit : 100ms),Local HMI,LW,10530,,16-bit Unsigned,Supported
+LW-10531 (16bit) : device 7 turn around delay (unit : ms),Local HMI,LW,10531,,16-bit Unsigned,Supported
+LW-10532 (16bit) : device 7 send ACK delay (unit : ms) (SIEMENS S7/400 Link type),Local HMI,LW,10532,,16-bit Unsigned,Supported
+LW-10533 (16bit) : device 7 parameter 1 (SIEMENS S7/400 rack),Local HMI,LW,10533,,16-bit Unsigned,Supported
+LW-10534 (16bit) : device 7 parameter 2 (SIEMENS S7/400 CPU slot),Local HMI,LW,10534,,16-bit Unsigned,Supported
+LW-10535 (16bit) : device 8 timeout (unit : 100ms),Local HMI,LW,10535,,16-bit Unsigned,Supported
+LW-10536 (16bit) : device 8 turn around delay (unit : ms),Local HMI,LW,10536,,16-bit Unsigned,Supported
+LW-10537 (16bit) : device 8 send ACK delay (unit : ms) (SIEMENS S7/400 Link type),Local HMI,LW,10537,,16-bit Unsigned,Supported
+LW-10538 (16bit) : device 8 parameter 1 (SIEMENS S7/400 rack),Local HMI,LW,10538,,16-bit Unsigned,Supported
+LW-10539 (16bit) : device 8 parameter 2 (SIEMENS S7/400 CPU slot),Local HMI,LW,10539,,16-bit Unsigned,Supported
+LW-10655 (16bit) : device 32 timeout (unit : 100ms),Local HMI,LW,10655,,16-bit Unsigned,Supported
+LW-10656 (16bit) : device 32 turn around delay (unit : ms),Local HMI,LW,10656,,16-bit Unsigned,Supported
+LW-10657 (16bit) : device 32 send ACK delay (unit : ms),Local HMI,LW,10657,,16-bit Unsigned,Supported
+"LW-10658 (16bit) : device 32 parameter 1 ",Local HMI,LW,10658,,16-bit Unsigned,Supported
+LW-10659 (16bit) : device 32 parameter 2,Local HMI,LW,10659,,16-bit Unsigned,Supported
+LW-10700 (4 words) : DLT_645 operator (COM 1),Local HMI,LW,10700,,16-bit Unsigned,Supported
+LW-10704 (4 words) : DLT_645 password (COM 1),Local HMI,LW,10704,,16-bit Unsigned,Supported
+LW-10708 (6 words) : DLT_645 address (COM 1),Local HMI,LW,10708,,16-bit Unsigned,Supported
+LW-10715 (4 words) : DLT_645 operator (COM 2),Local HMI,LW,10715,,16-bit Unsigned,Supported
+LW-10719 (4 words) : DLT_645 password (COM 2),Local HMI,LW,10719,,16-bit Unsigned,Supported
+LW-10723 (6 words) : DLT_645 address (COM 2),Local HMI,LW,10723,,16-bit Unsigned,Supported
+LW-10730 (4 words) : DLT_645 operator (COM 3),Local HMI,LW,10730,,16-bit Unsigned,Supported
+LW-10734 (4 words) : DLT_645 password (COM 3),Local HMI,LW,10734,,16-bit Unsigned,Supported
+LW-10738 (6 words) : DLT_645 address (COM 3),Local HMI,LW,10738,,16-bit Unsigned,Supported
+LW-10750 (16bit) : LAN 1 netmask 0 (for HMI use only),Local HMI,LW,10750,,16-bit Unsigned,Supported
+LW-10751 (16bit) : LAN 1 netmask 1 (for HMI use only),Local HMI,LW,10751,,16-bit Unsigned,Supported
+LW-10752 (16bit) : LAN 1 netmask 2 (for HMI use only),Local HMI,LW,10752,,16-bit Unsigned,Supported
+LW-10753 (16bit) : LAN 1 netmask 3 (for HMI use only),Local HMI,LW,10753,,16-bit Unsigned,Supported
+LW-10754 (8 words) : current user name,Local HMI,LW,10754,,16-bit Unsigned,Supported
+LW-10762 (8 words) : slot1 user name,Local HMI,LW,10762,,16-bit Unsigned,Supported
+LW-10770 (8 words) : slot2 user name,Local HMI,LW,10770,,16-bit Unsigned,Supported
+LW-10778 (8 words) : slot3 user name,Local HMI,LW,10778,,16-bit Unsigned,Supported
+LW-10786 (16bit) : LAN 2 IP 0 (for HMI use only),Local HMI,LW,10786,,16-bit Unsigned,Supported
+LW-10787 (16bit) : LAN 2 IP 1 (for HMI use only),Local HMI,LW,10787,,16-bit Unsigned,Supported
+LW-10788 (16bit) : LAN 2 IP 2 (for HMI use only),Local HMI,LW,10788,,16-bit Unsigned,Supported
+LW-10789 (16bit) : LAN 2 IP 3 (for HMI use only),Local HMI,LW,10789,,16-bit Unsigned,Supported
+LW-10790 (16bit) : LAN 2 netmask 0 (for HMI use only),Local HMI,LW,10790,,16-bit Unsigned,Supported
+LW-10791 (16bit) : LAN 2 netmask 1 (for HMI use only),Local HMI,LW,10791,,16-bit Unsigned,Supported
+LW-10792 (16bit) : LAN 2 netmask 2 (for HMI use only),Local HMI,LW,10792,,16-bit Unsigned,Supported
+LW-10793 (16bit) : LAN 2 netmask 3 (for HMI use only),Local HMI,LW,10793,,16-bit Unsigned,Supported
+LW-10794 (16bit) : LAN 2 gateway 0 (only when built-in CODESYS enabled),Local HMI,LW,10794,,16-bit Unsigned,Supported
+LW-10795 (16bit) : LAN 2 gateway 1 (only when built-in CODESYS enabled),Local HMI,LW,10795,,16-bit Unsigned,Supported
+LW-10796 (16bit) : LAN 2 gateway 2 (only when built-in CODESYS enabled),Local HMI,LW,10796,,16-bit Unsigned,Supported
+LW-10797 (16bit) : LAN 2 gateway 3 (only when built-in CODESYS enabled),Local HMI,LW,10797,,16-bit Unsigned,Supported
+LW-10798 (16bit) : LAN 2 media access control (MAC) address 0,Local HMI,LW,10798,,16-bit Unsigned,Supported
+LW-10799 (16bit) : LAN 2 media access control (MAC) address 1,Local HMI,LW,10799,,16-bit Unsigned,Supported
+LW-10800 (16bit) : LAN 2 media access control (MAC) address 2,Local HMI,LW,10800,,16-bit Unsigned,Supported
+LW-10801 (16bit) : LAN 2 media access control (MAC) address 3,Local HMI,LW,10801,,16-bit Unsigned,Supported
+LW-10802 (16bit) : LAN 2 media access control (MAC) address 4,Local HMI,LW,10802,,16-bit Unsigned,Supported
+LW-10803 (16bit) : LAN 2 media access control (MAC) address 5,Local HMI,LW,10803,,16-bit Unsigned,Supported
+LW-10804 (16bit) : LAN 1 domain name system (DNS) server IP 0 (cannot be used with built-in CODESYS),Local HMI,LW,10804,,16-bit Unsigned,Supported
+LW-10805 (16bit) : LAN 1 domain name system (DNS) server IP 1 (cannot be used with built-in CODESYS),Local HMI,LW,10805,,16-bit Unsigned,Supported
+LW-10806 (16bit) : LAN 1 domain name system (DNS) server IP 2 (cannot be used with built-in CODESYS),Local HMI,LW,10806,,16-bit Unsigned,Supported
+LW-10807 (16bit) : LAN 1 domain name system (DNS) server IP 3 (cannot be used with built-in CODESYS),Local HMI,LW,10807,,16-bit Unsigned,Supported
+LW-10808 (16bit) : ethernet LAN 2 domain name system (DNS) server IP 0 (only when built-in CODESYS enabled),Local HMI,LW,10808,,16-bit Unsigned,Supported
+LW-10809 (16bit) : ethernet LAN 2 domain name system (DNS) server IP 1 (only when built-in CODESYS enabled),Local HMI,LW,10809,,16-bit Unsigned,Supported
+LW-10810 (16bit) : ethernet LAN 2 domain name system (DNS) server IP 2 (only when built-in CODESYS enabled),Local HMI,LW,10810,,16-bit Unsigned,Supported
+LW-10811 (16bit) : ethernet LAN 2 domain name system (DNS) server IP 3 (only when built-in CODESYS enabled),Local HMI,LW,10811,,16-bit Unsigned,Supported
+"LW-10812 (16bit) : obtain LAN 1 IP address automatically (DHCP => 0 : off, 1 : on)",Local HMI,LW,10812,,16-bit Unsigned,Supported
+"LW-10813 (16bit) : obtain LAN 2 IP address automatically (DHCP => 0 : off, 1 : on)",Local HMI,LW,10813,,16-bit Unsigned,Supported
+"LW-10815 (16bit) : link speed of LAN 1 (0:failure, 10 (10M), 100 (100M), 1000 (1G))",Local HMI,LW,10815,,16-bit Unsigned,Supported
+"LW-10816 (16bit) : link speed of LAN 2 (0:failure, 10 (10M), 100 (100M), 1000 (1G))",Local HMI,LW,10816,,16-bit Unsigned,Supported
+LW-10820 (16bit) : disable (set 0)/enable (set 1) (EasyAccess 2.0),Local HMI,LW,10820,,16-bit Unsigned,Supported
+LW-10821 (5 words) : session ID (EasyAccess 2.0),Local HMI,LW,10821,,16-bit Unsigned,Supported
+LW-10826 (2 words) : password (EasyAccess 2.0),Local HMI,LW,10826,,16-bit Unsigned,Supported
+LW-10828 (16bit) : execution status (EasyAccess 2.0),Local HMI,LW,10828,,16-bit Unsigned,Supported
+LW-10829 (16bit) : the last error code (EasyAccess 2.0),Local HMI,LW,10829,,16-bit Unsigned,Supported
+"LW-10850 (16bit) : disable/enable (0 : disable, 1 : normal, 2 : IP limited) (siemens pass-through)",Local HMI,LW,10850,,16-bit Unsigned,Supported
+LW-10851 (16bit) : destination COM port (siemens pass-through),Local HMI,LW,10851,,16-bit Unsigned,Supported
+LW-10852 (16bit) : destination PLC station no. (siemens pass-through),Local HMI,LW,10852,,16-bit Unsigned,Supported
+"LW-10853 (16bit) : communication protocol (0 : invalid, 1 : PPI, 2 : MPI) (siemens pass-through)",Local HMI,LW,10853,,16-bit Unsigned,Supported
+LW-10854 (16bit) : IP0 of connecting client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10854,,16-bit Unsigned,Supported
+LW-10855 (16bit) : IP1 of connecting client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10855,,16-bit Unsigned,Supported
+LW-10856 (16bit) : IP2 of connecting client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10856,,16-bit Unsigned,Supported
+LW-10857 (16bit) : IP3 of connecting client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10857,,16-bit Unsigned,Supported
+LW-10858 (16bit) : IP0 of designated client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10858,,16-bit Unsigned,Supported
+LW-10859 (16bit) : IP1 of designated client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10859,,16-bit Unsigned,Supported
+LW-10860 (16bit) : IP2 of designated client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10860,,16-bit Unsigned,Supported
+LW-10861 (16bit) : IP3 of designated client (IP address = IP0:IP1:IP2:IP3) (siemens pass-through),Local HMI,LW,10861,,16-bit Unsigned,Supported
+"LW-10862 (16bit) : connection status (0 : ready, 1 : client connecting) (siemens pass-through)",Local HMI,LW,10862,,16-bit Unsigned,Supported
+"LW-10863 (16bit) : execution status (0 : normal, 1 : error) (siemens pass-through)",Local HMI,LW,10863,,16-bit Unsigned,Supported
+LW-10864 (16bit) : the last error code (siemens pass-through),Local HMI,LW,10864,,16-bit Unsigned,Supported
+LW-10884 (16 words) : HMI name,Local HMI,LW,10884,,16-bit Unsigned,Supported
+"LW-10900 (16bit) : macro 0 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10900,,16-bit Unsigned,Supported
+"LW-10901 (16bit) : macro 1 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10901,,16-bit Unsigned,Supported
+"LW-10902 (16bit) : macro 2 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10902,,16-bit Unsigned,Supported
+"LW-10903 (16bit) : macro 3 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10903,,16-bit Unsigned,Supported
+"LW-10904 (16bit) : macro 4 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10904,,16-bit Unsigned,Supported
+"LW-10905 (16bit) : macro 5 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10905,,16-bit Unsigned,Supported
+"LW-10906 (16bit) : macro 6 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10906,,16-bit Unsigned,Supported
+"LW-10907 (16bit) : macro 7 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10907,,16-bit Unsigned,Supported
+"LW-10908 (16bit) : macro 8 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10908,,16-bit Unsigned,Supported
+"LW-10909 (16bit) : macro 9 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,10909,,16-bit Unsigned,Supported
+"LW-11154 (16bit) : macro 254 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,11154,,16-bit Unsigned,Supported
+LW-11155 (32bit) : the total size of HMI memory (K bytes),Local HMI,LW,11155,,32-bit Unsigned,Supported
+LW-11157 (32bit) : the free size of HMI memory (K bytes),Local HMI,LW,11157,,32-bit Unsigned,Supported
+LW-11159 (16bit) : memory loading (x 100%),Local HMI,LW,11159,,16-bit Unsigned,Supported
+LW-11160 (16bit) : start time of USB security key - year,Local HMI,LW,11160,,16-bit Unsigned,Supported
+LW-11161 (16bit) : start time of USB security key - month,Local HMI,LW,11161,,16-bit Unsigned,Supported
+LW-11162 (16bit) : start time of USB security key - day,Local HMI,LW,11162,,16-bit Unsigned,Supported
+LW-11163 (16bit) : start time of USB security key - hour,Local HMI,LW,11163,,16-bit Unsigned,Supported
+LW-11164 (16bit) : start time of USB security key - minute,Local HMI,LW,11164,,16-bit Unsigned,Supported
+LW-11165 (16bit) : expiration time of USB security key - year,Local HMI,LW,11165,,16-bit Unsigned,Supported
+LW-11166 (16bit) : expiration time of USB security key - month,Local HMI,LW,11166,,16-bit Unsigned,Supported
+LW-11167 (16bit) : expiration time of USB security key - day,Local HMI,LW,11167,,16-bit Unsigned,Supported
+LW-11168 (16bit) : expiration time of USB security key - hour,Local HMI,LW,11168,,16-bit Unsigned,Supported
+LW-11169 (16bit) : expiration time of USB security key - minute,Local HMI,LW,11169,,16-bit Unsigned,Supported
+"LW-11170 (16bit) : Proxy Disable/Enable (0:disable, 1:enable) (EasyAccess 2.0)",Local HMI,LW,11170,,16-bit Unsigned,Supported
+"LW-11171 (16bit) : Proxy Type (0:HTTP, 1:SOCKSv4, 2:SOCKSv5) (EasyAccess 2.0)",Local HMI,LW,11171,,16-bit Unsigned,Supported
+LW-11172 (16bit) : Proxy Server IP0 (EasyAccess 2.0),Local HMI,LW,11172,,16-bit Unsigned,Supported
+LW-11173 (16bit) : Proxy Server IP1 (EasyAccess 2.0),Local HMI,LW,11173,,16-bit Unsigned,Supported
+LW-11174 (16bit) : Proxy Server IP2 (EasyAccess 2.0),Local HMI,LW,11174,,16-bit Unsigned,Supported
+LW-11175 (16bit) : Proxy Server IP3 (EasyAccess 2.0),Local HMI,LW,11175,,16-bit Unsigned,Supported
+LW-11176 (16bit) : Proxy Server Port (EasyAccess 2.0),Local HMI,LW,11176,,16-bit Unsigned,Supported
+"LW-11177 (16bit) : Proxy authentication (0:disable, 1:enable) (EasyAccess 2.0)",Local HMI,LW,11177,,16-bit Unsigned,Supported
+LW-11178 (16 words) : Proxy user name (EasyAccess 2.0),Local HMI,LW,11178,,16-bit Unsigned,Supported
+LW-11194 (16 words) : Proxy password (EasyAccess 2.0),Local HMI,LW,11194,,16-bit Unsigned,Supported
+LW-11210 (20 words) : Hardware key (EasyAccess 2.0),Local HMI,LW,11210,,16-bit Unsigned,Supported
+"LW-11260 (16bit) : enable/disable the daylight saving time (DST) (0:disable, 1:enable)",Local HMI,LW,11260,,16-bit Unsigned,Supported
+LW-11261 (16bit) : hour of the DST bias,Local HMI,LW,11261,,16-bit Unsigned,Supported
+LW-11262 (16bit) : minute of the DST bias,Local HMI,LW,11262,,16-bit Unsigned,Supported
+LW-11263 (16bit) : month of the year when DST starts,Local HMI,LW,11263,,16-bit Unsigned,Supported
+LW-11264 (16bit) : week of the month when DST starts (1~5),Local HMI,LW,11264,,16-bit Unsigned,Supported
+LW-11265 (16bit) : day of the week when DST starts (0~ 6),Local HMI,LW,11265,,16-bit Unsigned,Supported
+LW-11266 (16bit) : hour of local time when DST starts,Local HMI,LW,11266,,16-bit Unsigned,Supported
+LW-11267 (16bit) : minute of local time when DST starts,Local HMI,LW,11267,,16-bit Unsigned,Supported
+LW-11268 (16bit) : month of the year when DST ends,Local HMI,LW,11268,,16-bit Unsigned,Supported
+LW-11269 (16bit) : week of the month when DST ends (1~5),Local HMI,LW,11269,,16-bit Unsigned,Supported
+LW-11270 (16bit) : day of the week when DST ends (0~6),Local HMI,LW,11270,,16-bit Unsigned,Supported
+LW-11271 (16bit) : hour of local time when DST ends,Local HMI,LW,11271,,16-bit Unsigned,Supported
+LW-11272 (16bit) : minute of local time when DST ends,Local HMI,LW,11272,,16-bit Unsigned,Supported
+"LW-11273 (16bit) : enable/disable time synchronization via NTP (Network Time Protocol) server (0:disable, 1:enable)",Local HMI,LW,11273,,16-bit Unsigned,Supported
+"LW-11274 (16bit) : execute time synchronization when HMI starts (0:disable, 1:enable)",Local HMI,LW,11274,,16-bit Unsigned,Supported
+"LW-11275 (16bit) : server response time has been adjusted in accordance with DST (0:disable, 1:enable)",Local HMI,LW,11275,,16-bit Unsigned,Supported
+LW-11276 (16bit) : HMI time zone (unit : minute),Local HMI,LW,11276,,16-bit Unsigned,Supported
+LW-11277 (16bit) : server response time (server time zone)  (unit : minute),Local HMI,LW,11277,,16-bit Unsigned,Supported
+LW-11278 (16bit) : IP 0 of network time server 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11278,,16-bit Unsigned,Supported
+LW-11279 (16bit) : IP 1 of network time server 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11279,,16-bit Unsigned,Supported
+LW-11280 (16bit) : IP 2 of network time server 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11280,,16-bit Unsigned,Supported
+LW-11281 (16bit) : IP 3 of network time server 1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11281,,16-bit Unsigned,Supported
+LW-11282 (16bit) : IP 0 of network time server 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11282,,16-bit Unsigned,Supported
+LW-11283 (16bit) : IP 1 of network time server 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11283,,16-bit Unsigned,Supported
+LW-11284 (16bit) : IP 2 of network time server 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11284,,16-bit Unsigned,Supported
+LW-11285 (16bit) : IP 3 of network time server 2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11285,,16-bit Unsigned,Supported
+LW-11286 (16bit) : IP 0 of network time server 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11286,,16-bit Unsigned,Supported
+LW-11287 (16bit) : IP 1 of network time server 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11287,,16-bit Unsigned,Supported
+LW-11288 (16bit) : IP 2 of network time server 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11288,,16-bit Unsigned,Supported
+LW-11289 (16bit) : IP 3 of network time server 3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11289,,16-bit Unsigned,Supported
+LW-11290 (16bit) : IP 0 of network time server 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11290,,16-bit Unsigned,Supported
+LW-11291 (16bit) : IP 1 of network time server 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11291,,16-bit Unsigned,Supported
+LW-11292 (16bit) : IP 2 of network time server 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11292,,16-bit Unsigned,Supported
+LW-11293 (16bit) : IP 3 of network time server 4 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11293,,16-bit Unsigned,Supported
+"LW-11294 (32bit) :  update interval (time synchronization interval) (10 ~ 86400, unit : second)",Local HMI,LW,11294,,32-bit Unsigned,Supported
+"LW-11296 (16bit) :  location of EasyAccess 2.0 server (0 : Global, 1 : China)",Local HMI,LW,11296,,16-bit Unsigned,Supported
+LW-11297 (16 words) : PIN code of SIM card (cellular network),Local HMI,LW,11297,,16-bit Unsigned,Supported
+LW-11313 (16 words) : Access Point Name (cellular network),Local HMI,LW,11313,,16-bit Unsigned,Supported
+LW-11329 (16 words) : user name (cellular network),Local HMI,LW,11329,,16-bit Unsigned,Supported
+LW-11345 (16 words) : password (cellular network),Local HMI,LW,11345,,16-bit Unsigned,Supported
+LW-11361 (16 words) : dial number (cellular network),Local HMI,LW,11361,,16-bit Unsigned,Supported
+LW-11377 (16bit) : stop (set 0)/start (set 1) connection (cellular network),Local HMI,LW,11377,,16-bit Unsigned,Supported
+"LW-11378 (16bit) : last error code (0:success, 1:incorrect PIN code, 2:no SIM, 3:no device, 4:puk locked, 5:other) (cellular network)",Local HMI,LW,11378,,16-bit Unsigned,Supported
+"LW-11379 (16bit) : connection status(0:no device, 1:disconnect, 2:connecting, 3:connected) (cellular network)",Local HMI,LW,11379,,16-bit Unsigned,Supported
+LW-11380 (16bit) : stop (set 0)/start (set 1) connection (USB tethering),Local HMI,LW,11380,,16-bit Unsigned,Supported
+"LW-11381 (16bit) : connection status (0:no device, 1:disconnect, 2:connected, 3:fail, 4:OS not support, 5:HMI not support) (USB tethering)",Local HMI,LW,11381,,16-bit Unsigned,Supported
+"LW-11382 (16bit) : DIP switch status (bit 0 : DIP 1, bit 1 : DIP 2, bit 2 : DIP 3)",Local HMI,LW,11382,,16-bit Unsigned,Supported
+"LW-11383 (16bit) : WiFi control (1: disconnect, 2: connect, 3: popup setting dialog, 4. connect by SSID)",Local HMI,LW,11383,,16-bit Unsigned,Unsupported
+"LW-11384 (16bit) : WiFi error code (0: no error, 1: no such device, 2. radio is off, 3. parameter is invalid)",Local HMI,LW,11384,,16-bit Unsigned,Unsupported
+LW-11385 (16bit) : WiFi status (0: stopped; 1: connecting; 2: connected),Local HMI,LW,11385,,16-bit Unsigned,Unsupported
+LW-11386 (16 words) : WiFi connected SSID,Local HMI,LW,11386,,16-bit Unsigned,Unsupported
+"LW-11402 (16bit) : WiFi signal level (0: none, 1: weak, 2: fair, 3: good, 4: excellent) (WiFi)",Local HMI,LW,11402,,16-bit Unsigned,Unsupported
+LW-11403 (16bit) : WiFi country code,Local HMI,LW,11403,,16-bit Unsigned,Unsupported
+"LW-11404 (16bit) : WiFi radio (0: Off, 1: On)",Local HMI,LW,11404,,16-bit Unsigned,Unsupported
+"LW-11405 (16bit) : WiFi signal strength (dBm) (0, 1, 2: failed, others: signal strength) (WiFi)",Local HMI,LW,11405,,16-bit Signed,Unsupported
+LW-11410 (16bit) : HMI WiFi IP 0 (for HMI use only),Local HMI,LW,11410,,16-bit Unsigned,Unsupported
+LW-11411 (16bit) : HMI WiFi IP 1 (for HMI use only),Local HMI,LW,11411,,16-bit Unsigned,Unsupported
+LW-11412 (16bit) : HMI WiFi IP 2 (for HMI use only),Local HMI,LW,11412,,16-bit Unsigned,Unsupported
+LW-11413 (16bit) : HMI WiFi IP 3 (for HMI use only),Local HMI,LW,11413,,16-bit Unsigned,Unsupported
+LW-11414 (16bit) : HMI WiFi netmask 0 (for HMI use only),Local HMI,LW,11414,,16-bit Unsigned,Unsupported
+LW-11415 (16bit) : HMI WiFi netmask 1 (for HMI use only),Local HMI,LW,11415,,16-bit Unsigned,Unsupported
+LW-11416 (16bit) : HMI WiFi netmask 2 (for HMI use only),Local HMI,LW,11416,,16-bit Unsigned,Unsupported
+LW-11417 (16bit) : HMI WiFi netmask 3 (for HMI use only),Local HMI,LW,11417,,16-bit Unsigned,Unsupported
+LW-11418 (16bit) : HMI WiFi gateway 0 (for HMI use only),Local HMI,LW,11418,,16-bit Unsigned,Unsupported
+LW-11419 (16bit) : HMI WiFi gateway 1 (for HMI use only),Local HMI,LW,11419,,16-bit Unsigned,Unsupported
+LW-11420 (16bit) : HMI WiFi gateway 2 (for HMI use only),Local HMI,LW,11420,,16-bit Unsigned,Unsupported
+LW-11421 (16bit) : HMI WiFi gateway 3 (for HMI use only),Local HMI,LW,11421,,16-bit Unsigned,Unsupported
+LW-11422 (16bit) : HMI WiFi media access control (MAC) address 0,Local HMI,LW,11422,,16-bit Unsigned,Unsupported
+LW-11423 (16bit) : HMI WiFi media access control (MAC) address 1,Local HMI,LW,11423,,16-bit Unsigned,Unsupported
+LW-11424 (16bit) : HMI WiFi media access control (MAC) address 2,Local HMI,LW,11424,,16-bit Unsigned,Unsupported
+LW-11425 (16bit) : HMI WiFi media access control (MAC) address 3,Local HMI,LW,11425,,16-bit Unsigned,Unsupported
+LW-11426 (16bit) : HMI WiFi media access control (MAC) address 4,Local HMI,LW,11426,,16-bit Unsigned,Unsupported
+LW-11427 (16bit) : HMI WiFi media access control (MAC) address 5,Local HMI,LW,11427,,16-bit Unsigned,Unsupported
+LW-11428 (16bit) : HMI WiFi domain name system (DNS) server IP 0,Local HMI,LW,11428,,16-bit Unsigned,Unsupported
+LW-11429 (16bit) : HMI WiFi domain name system (DNS) server IP 1,Local HMI,LW,11429,,16-bit Unsigned,Unsupported
+LW-11430 (16bit) : HMI WiFi domain name system (DNS) server IP 2,Local HMI,LW,11430,,16-bit Unsigned,Unsupported
+LW-11431 (16bit) : HMI WiFi domain name system (DNS) server IP 3,Local HMI,LW,11431,,16-bit Unsigned,Unsupported
+"LW-11432 (16bit) : obtain an WiFi IP address automatically (DHCP => 0 : off, 1 : on)",Local HMI,LW,11432,,16-bit Unsigned,Unsupported
+"LW-11435 (16bit) : OPC UA Server status (0: stopped, 1: running)",Local HMI,LW,11435,,16-bit Unsigned,Unsupported
+"LW-11436 (16bit) : OPC UA Server error code (0: success, 1 or more: error)",Local HMI,LW,11436,,16-bit Unsigned,Unsupported
+"LW-11437 (16bit) : OPC UA Server control command (0: none, 1: start, 2: stop)",Local HMI,LW,11437,,16-bit Unsigned,Unsupported
+LW-11440 (16bit) : project compiled time [hour] (24-hour format),Local HMI,LW,11440,,16-bit Unsigned,Supported
+LW-11441 (16bit) : project compiled time [minute],Local HMI,LW,11441,,16-bit Unsigned,Supported
+LW-11442 (16bit) : project compiled time [second],Local HMI,LW,11442,,16-bit Unsigned,Supported
+"LW-11443 (16bit) : push notification alarm status (0 : none; 1 : green; 2 : yellow; 3 : red) ",Local HMI,LW,11443,,16-bit Unsigned,Supported
+LW-11444 (16bit) :  failed step (e-Mail),Local HMI,LW,11444,,16-bit Unsigned,Supported
+LW-11445 (16bit) :  error code (e-Mail),Local HMI,LW,11445,,16-bit Unsigned,Supported
+"LW-11456 (16bit) :  watch dog timeout (3 ~ 10), unit : second",Local HMI,LW,11456,,16-bit Unsigned,Supported
+LW-11458 (32bit) : HMI total space for history data (K bytes),Local HMI,LW,11458,,32-bit Unsigned,Supported
+LW-11460 (32bit) : HMI current free space for history data (K bytes),Local HMI,LW,11460,,32-bit Unsigned,Supported
+LW-11472 (16bit) : device 4's ID0 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11472,,16-bit Unsigned,Supported
+LW-11473 (16bit) : device 4's ID1 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11473,,16-bit Unsigned,Supported
+LW-11474 (16bit) : device 4's ID2 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11474,,16-bit Unsigned,Supported
+LW-11475 (16bit) : device 4's ID3 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11475,,16-bit Unsigned,Supported
+LW-11476 (16bit) : device 4's ID4 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11476,,16-bit Unsigned,Supported
+LW-11477 (16bit) : device 4's ID5 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11477,,16-bit Unsigned,Supported
+LW-11478 (16bit) : device 5's ID0 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11478,,16-bit Unsigned,Supported
+LW-11479 (16bit) : device 5's ID1 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11479,,16-bit Unsigned,Supported
+LW-11480 (16bit) : device 5's ID2 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11480,,16-bit Unsigned,Supported
+LW-11481 (16bit) : device 5's ID3 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11481,,16-bit Unsigned,Supported
+LW-11482 (16bit) : device 5's ID4 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11482,,16-bit Unsigned,Supported
+LW-11483 (16bit) : device 5's ID5 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11483,,16-bit Unsigned,Supported
+LW-11484 (16bit) : device 6's ID0 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11484,,16-bit Unsigned,Supported
+LW-11485 (16bit) : device 6's ID1 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11485,,16-bit Unsigned,Supported
+LW-11486 (16bit) : device 6's ID2 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11486,,16-bit Unsigned,Supported
+LW-11487 (16bit) : device 6's ID3 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11487,,16-bit Unsigned,Supported
+LW-11488 (16bit) : device 6's ID4 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11488,,16-bit Unsigned,Supported
+LW-11489 (16bit) : device 6's ID5 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11489,,16-bit Unsigned,Supported
+LW-11490 (16bit) : device 7's ID0 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11490,,16-bit Unsigned,Supported
+LW-11491 (16bit) : device 7's ID1 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11491,,16-bit Unsigned,Supported
+LW-11492 (16bit) : device 7's ID2 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11492,,16-bit Unsigned,Supported
+LW-11493 (16bit) : device 7's ID3 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11493,,16-bit Unsigned,Supported
+LW-11494 (16bit) : device 7's ID4 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11494,,16-bit Unsigned,Supported
+LW-11495 (16bit) : device 7's ID5 (Beckhoff AMS NetId = ID0:ID1:ID2:ID3:ID4:ID5),Local HMI,LW,11495,,16-bit Unsigned,Supported
+LW-11499 (16bit) : total no. of alarms,Local HMI,LW,11499,,16-bit Unsigned,Supported
+LW-11500 (16bit) : no. of alarms in category 0,Local HMI,LW,11500,,16-bit Unsigned,Supported
+LW-11501 (16bit) : no. of alarms in category 1,Local HMI,LW,11501,,16-bit Unsigned,Supported
+LW-11502 (16bit) : no. of alarms in category 2,Local HMI,LW,11502,,16-bit Unsigned,Supported
+LW-11503 (16bit) : no. of alarms in category 3,Local HMI,LW,11503,,16-bit Unsigned,Supported
+LW-11504 (16bit) : no. of alarms in category 4,Local HMI,LW,11504,,16-bit Unsigned,Supported
+LW-11505 (16bit) : no. of alarms in category 5,Local HMI,LW,11505,,16-bit Unsigned,Supported
+LW-11506 (16bit) : no. of alarms in category 6,Local HMI,LW,11506,,16-bit Unsigned,Supported
+LW-11507 (16bit) : no. of alarms in category 7,Local HMI,LW,11507,,16-bit Unsigned,Supported
+LW-11755 (16bit) : no. of alarms in category 255,Local HMI,LW,11755,,16-bit Unsigned,Supported
+LW-11756 (4 words) : Diagnoser password,Local HMI,LW,11756,,16-bit Unsigned,Supported
+"LW-11760 (16bit) : CODESYS firmware status (0:error, 1:start, 2:stop)",Local HMI,LW,11760,,16-bit Unsigned,Supported
+"LW-11761 (16bit) : CODESYS application status (0:error, 1:start, 2:stop)",Local HMI,LW,11761,,16-bit Unsigned,Supported
+"LW-11762 (16bit) : CODESYS login status (0:error, 1:login, 2:logout)",Local HMI,LW,11762,,16-bit Unsigned,Supported
+LW-11763 (16bit) : total no.of low priority level alarms,Local HMI,LW,11763,,16-bit Unsigned,Supported
+LW-11764 (16bit) : total no.of normal priority level alarms,Local HMI,LW,11764,,16-bit Unsigned,Supported
+LW-11765 (16bit) : total no.of high priority level alarms,Local HMI,LW,11765,,16-bit Unsigned,Supported
+LW-11766 (16bit) : total no.of emergency priority level alarms,Local HMI,LW,11766,,16-bit Unsigned,Supported
+LW-11770 (64 words) : QR code (URL) for push notification (EasyAccess 2.0),Local HMI,LW,11770,,16-bit Unsigned,Supported
+LW-11839 (16bit) : number of connected clients (cMT Viewer),Local HMI,LW,11839,,16-bit Unsigned,Supported
+LW-11840 (8 words) : client 1 user name,Local HMI,LW,11840,,16-bit Unsigned,Supported
+LW-11848 (8 words) : client 2 user name,Local HMI,LW,11848,,16-bit Unsigned,Supported
+LW-11856 (8 words) : client 3 user name,Local HMI,LW,11856,,16-bit Unsigned,Supported
+LW-11864 (8 words) : client 4 user name,Local HMI,LW,11864,,16-bit Unsigned,Supported
+LW-11872 (8 words) : client 5 user name,Local HMI,LW,11872,,16-bit Unsigned,Supported
+LW-11880 (8 words) : client 6 user name,Local HMI,LW,11880,,16-bit Unsigned,Supported
+LW-11888 (8 words) : client 7 user name,Local HMI,LW,11888,,16-bit Unsigned,Supported
+LW-11896 (8 words) : client 8 user name,Local HMI,LW,11896,,16-bit Unsigned,Supported
+LW-11904 (8 words) : client 9 user name,Local HMI,LW,11904,,16-bit Unsigned,Supported
+LW-11912 (8 words) : client 10 user name,Local HMI,LW,11912,,16-bit Unsigned,Supported
+LW-11940 (16bit) : client 1 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11940,,16-bit Unsigned,Supported
+LW-11941 (16bit) : client 1 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11941,,16-bit Unsigned,Supported
+LW-11942 (16bit) : client 1 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11942,,16-bit Unsigned,Supported
+LW-11943 (16bit) : client 1 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11943,,16-bit Unsigned,Supported
+LW-11944 (16bit) : client 2 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11944,,16-bit Unsigned,Supported
+LW-11945 (16bit) : client 2 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11945,,16-bit Unsigned,Supported
+LW-11946 (16bit) : client 2 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11946,,16-bit Unsigned,Supported
+LW-11947 (16bit) : client 2 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11947,,16-bit Unsigned,Supported
+LW-11948 (16bit) : client 3 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11948,,16-bit Unsigned,Supported
+LW-11949 (16bit) : client 3 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11949,,16-bit Unsigned,Supported
+LW-11950 (16bit) : client 3 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11950,,16-bit Unsigned,Supported
+LW-11951 (16bit) : client 3 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11951,,16-bit Unsigned,Supported
+LW-11952 (16bit) : client 4 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11952,,16-bit Unsigned,Supported
+LW-11953 (16bit) : client 4 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11953,,16-bit Unsigned,Supported
+LW-11954 (16bit) : client 4 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11954,,16-bit Unsigned,Supported
+LW-11955 (16bit) : client 4 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11955,,16-bit Unsigned,Supported
+LW-11956 (16bit) : client 5 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11956,,16-bit Unsigned,Supported
+LW-11957 (16bit) : client 5 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11957,,16-bit Unsigned,Supported
+LW-11958 (16bit) : client 5 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11958,,16-bit Unsigned,Supported
+LW-11959 (16bit) : client 5 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11959,,16-bit Unsigned,Supported
+LW-11960 (16bit) : client 6 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11960,,16-bit Unsigned,Supported
+LW-11961 (16bit) : client 6 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11961,,16-bit Unsigned,Supported
+LW-11962 (16bit) : client 6 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11962,,16-bit Unsigned,Supported
+LW-11963 (16bit) : client 6 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11963,,16-bit Unsigned,Supported
+LW-11964 (16bit) : client 7 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11964,,16-bit Unsigned,Supported
+LW-11965 (16bit) : client 7 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11965,,16-bit Unsigned,Supported
+LW-11966 (16bit) : client 7 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11966,,16-bit Unsigned,Supported
+LW-11967 (16bit) : client 7 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11967,,16-bit Unsigned,Supported
+LW-11968 (16bit) : client 8 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11968,,16-bit Unsigned,Supported
+LW-11969 (16bit) : client 8 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11969,,16-bit Unsigned,Supported
+LW-11970 (16bit) : client 8 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11970,,16-bit Unsigned,Supported
+LW-11971 (16bit) : client 8 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11971,,16-bit Unsigned,Supported
+LW-11972 (16bit) : client 9 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11972,,16-bit Unsigned,Supported
+LW-11973 (16bit) : client 9 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11973,,16-bit Unsigned,Supported
+LW-11974 (16bit) : client 9 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11974,,16-bit Unsigned,Supported
+LW-11975 (16bit) : client 9 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11975,,16-bit Unsigned,Supported
+LW-11976 (16bit) : client 10 IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11976,,16-bit Unsigned,Supported
+LW-11977 (16bit) : client 10 IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11977,,16-bit Unsigned,Supported
+LW-11978 (16bit) : client 10 IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11978,,16-bit Unsigned,Supported
+LW-11979 (16bit) : client 10 IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,11979,,16-bit Unsigned,Supported
+LW-11982 (16 words) : HMI domain (EasyAccess 2.0),Local HMI,LW,11982,,16-bit Unsigned,Supported
+LW-12006 (16 words) : WiFi Hotspot SSID.,Local HMI,LW,12006,,16-bit Unsigned,Unsupported
+LW-12022 (32 words) : WiFi Hotspot password.,Local HMI,LW,12022,,16-bit Unsigned,Unsupported
+LW-12059 (16bit) : CODESYS firmware version (year),Local HMI,LW,12059,,16-bit Unsigned,Supported
+LW-12060 (16bit) : CODESYS firmware version (month),Local HMI,LW,12060,,16-bit Unsigned,Supported
+LW-12061 (16bit) : CODESYS firmware version (day),Local HMI,LW,12061,,16-bit Unsigned,Supported
+LW-12110 (16bit) : device 38's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12110,,16-bit Unsigned,Supported
+LW-12111 (16bit) : device 38's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12111,,16-bit Unsigned,Supported
+LW-12112 (16bit) : device 38's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12112,,16-bit Unsigned,Supported
+LW-12113 (16bit) : device 38's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12113,,16-bit Unsigned,Supported
+LW-12114 (16bit) : device 38's port no.,Local HMI,LW,12114,,16-bit Unsigned,Supported
+LW-12115 (16bit) : device 39's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12115,,16-bit Unsigned,Supported
+LW-12116 (16bit) : device 39's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12116,,16-bit Unsigned,Supported
+LW-12117 (16bit) : device 39's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12117,,16-bit Unsigned,Supported
+LW-12118 (16bit) : device 39's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12118,,16-bit Unsigned,Supported
+LW-12119 (16bit) : device 39's port no.,Local HMI,LW,12119,,16-bit Unsigned,Supported
+LW-12120 (16bit) : device 40's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12120,,16-bit Unsigned,Supported
+LW-12121 (16bit) : device 40's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12121,,16-bit Unsigned,Supported
+LW-12122 (16bit) : device 40's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12122,,16-bit Unsigned,Supported
+LW-12123 (16bit) : device 40's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12123,,16-bit Unsigned,Supported
+LW-12124 (16bit) : device 40's port no.,Local HMI,LW,12124,,16-bit Unsigned,Supported
+LW-12125 (16bit) : device 41's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12125,,16-bit Unsigned,Supported
+LW-12126 (16bit) : device 41's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12126,,16-bit Unsigned,Supported
+LW-12127 (16bit) : device 41's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12127,,16-bit Unsigned,Supported
+LW-12128 (16bit) : device 41's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12128,,16-bit Unsigned,Supported
+LW-12129 (16bit) : device 41's port no.,Local HMI,LW,12129,,16-bit Unsigned,Supported
+LW-12240 (16bit) : device 64's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12240,,16-bit Unsigned,Supported
+LW-12241 (16bit) : device 64's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12241,,16-bit Unsigned,Supported
+LW-12242 (16bit) : device 64's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12242,,16-bit Unsigned,Supported
+LW-12243 (16bit) : device 64's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12243,,16-bit Unsigned,Supported
+LW-12244 (16bit) : device 64's port no.,Local HMI,LW,12244,,16-bit Unsigned,Supported
+LW-12245 (32bit) : BACnet/IP server device id,Local HMI,LW,12245,,32-bit Unsigned,Supported
+"LW-12247 (16bit) : macro 255 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12247,,16-bit Unsigned,Supported
+"LW-12248 (16bit) : macro 256 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12248,,16-bit Unsigned,Supported
+"LW-12249 (16bit) : macro 257 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12249,,16-bit Unsigned,Supported
+"LW-12250 (16bit) : macro 258 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12250,,16-bit Unsigned,Supported
+"LW-12251 (16bit) : macro 259 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12251,,16-bit Unsigned,Supported
+"LW-12252 (16bit) : macro 260 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12252,,16-bit Unsigned,Supported
+"LW-12253 (16bit) : macro 261 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12253,,16-bit Unsigned,Supported
+"LW-12254 (16bit) : macro 262 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12254,,16-bit Unsigned,Supported
+"LW-12255 (16bit) : macro 263 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12255,,16-bit Unsigned,Supported
+"LW-12256 (16bit) : macro 264 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12256,,16-bit Unsigned,Supported
+"LW-12491 (16bit) : macro 499 status (0:ready, 3:executing, 5:waiting response, 9:waiting sync, 17:delay, 32:abnormal end (exceed array size))",Local HMI,LW,12491,,16-bit Unsigned,Supported
+LW-12492 (4 words) : Last detected USB partition ID. (Supported OS version : 20201106 or later),Local HMI,LW,12492,,16-bit Unsigned,Supported
+LW-12496 (32bit-float) : Last detected USB partition size (GB) (Supported OS version : 20201106 or later),Local HMI,LW,12496,,32-bit Float,Supported
+LW-12498 (4 words) : Set the partition ID to be used as USB1 (Supported OS version : 20201106 or later),Local HMI,LW,12498,,16-bit Unsigned,Supported
+LW-12502 (4 words) : Set the partition ID to be used as USB2 (Supported OS version : 20201106 or later),Local HMI,LW,12502,,16-bit Unsigned,Supported
+LW-12506 (16bit) : remote HMI 40's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12506,,16-bit Unsigned,Supported
+LW-12507 (16bit) : remote HMI 40's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12507,,16-bit Unsigned,Supported
+LW-12508 (16bit) : remote HMI 40's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12508,,16-bit Unsigned,Supported
+LW-12509 (16bit) : remote HMI 40's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12509,,16-bit Unsigned,Supported
+LW-12510 (16bit) : remote HMI 40's port no.,Local HMI,LW,12510,,16-bit Unsigned,Supported
+LW-12511 (16bit) : remote HMI 41's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12511,,16-bit Unsigned,Supported
+LW-12512 (16bit) : remote HMI 41's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12512,,16-bit Unsigned,Supported
+LW-12513 (16bit) : remote HMI 41's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12513,,16-bit Unsigned,Supported
+LW-12514 (16bit) : remote HMI 41's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12514,,16-bit Unsigned,Supported
+LW-12515 (16bit) : remote HMI 41's port no.,Local HMI,LW,12515,,16-bit Unsigned,Supported
+LW-12516 (16bit) : remote HMI 42's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12516,,16-bit Unsigned,Supported
+LW-12517 (16bit) : remote HMI 42's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12517,,16-bit Unsigned,Supported
+LW-12518 (16bit) : remote HMI 42's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12518,,16-bit Unsigned,Supported
+LW-12519 (16bit) : remote HMI 42's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12519,,16-bit Unsigned,Supported
+LW-12520 (16bit) : remote HMI 42's port no.,Local HMI,LW,12520,,16-bit Unsigned,Supported
+LW-12521 (16bit) : remote HMI 43's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12521,,16-bit Unsigned,Supported
+LW-12522 (16bit) : remote HMI 43's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12522,,16-bit Unsigned,Supported
+LW-12523 (16bit) : remote HMI 43's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12523,,16-bit Unsigned,Supported
+LW-12524 (16bit) : remote HMI 43's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12524,,16-bit Unsigned,Supported
+LW-12525 (16bit) : remote HMI 43's port no.,Local HMI,LW,12525,,16-bit Unsigned,Supported
+LW-12526 (16bit) : remote HMI 44's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12526,,16-bit Unsigned,Supported
+LW-12527 (16bit) : remote HMI 44's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12527,,16-bit Unsigned,Supported
+LW-12528 (16bit) : remote HMI 44's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12528,,16-bit Unsigned,Supported
+LW-12529 (16bit) : remote HMI 44's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12529,,16-bit Unsigned,Supported
+LW-12530 (16bit) : remote HMI 44's port no.,Local HMI,LW,12530,,16-bit Unsigned,Supported
+LW-12531 (16bit) : remote HMI 45's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12531,,16-bit Unsigned,Supported
+LW-12532 (16bit) : remote HMI 45's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12532,,16-bit Unsigned,Supported
+LW-12533 (16bit) : remote HMI 45's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12533,,16-bit Unsigned,Supported
+LW-12534 (16bit) : remote HMI 45's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12534,,16-bit Unsigned,Supported
+LW-12535 (16bit) : remote HMI 45's port no.,Local HMI,LW,12535,,16-bit Unsigned,Supported
+LW-12536 (16bit) : remote HMI 46's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12536,,16-bit Unsigned,Supported
+LW-12537 (16bit) : remote HMI 46's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12537,,16-bit Unsigned,Supported
+LW-12538 (16bit) : remote HMI 46's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12538,,16-bit Unsigned,Supported
+LW-12539 (16bit) : remote HMI 46's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12539,,16-bit Unsigned,Supported
+LW-12540 (16bit) : remote HMI 46's port no.,Local HMI,LW,12540,,16-bit Unsigned,Supported
+LW-12541 (16bit) : remote HMI 47's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12541,,16-bit Unsigned,Supported
+LW-12542 (16bit) : remote HMI 47's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12542,,16-bit Unsigned,Supported
+LW-12543 (16bit) : remote HMI 47's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12543,,16-bit Unsigned,Supported
+LW-12544 (16bit) : remote HMI 47's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12544,,16-bit Unsigned,Supported
+LW-12545 (16bit) : remote HMI 47's port no.,Local HMI,LW,12545,,16-bit Unsigned,Supported
+LW-12546 (16bit) : remote HMI 48's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12546,,16-bit Unsigned,Supported
+LW-12547 (16bit) : remote HMI 48's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12547,,16-bit Unsigned,Supported
+LW-12548 (16bit) : remote HMI 48's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12548,,16-bit Unsigned,Supported
+LW-12549 (16bit) : remote HMI 48's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12549,,16-bit Unsigned,Supported
+LW-12550 (16bit) : remote HMI 48's port no.,Local HMI,LW,12550,,16-bit Unsigned,Supported
+LW-12551 (16bit) : remote HMI 49's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12551,,16-bit Unsigned,Supported
+LW-12552 (16bit) : remote HMI 49's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12552,,16-bit Unsigned,Supported
+LW-12553 (16bit) : remote HMI 49's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12553,,16-bit Unsigned,Supported
+LW-12554 (16bit) : remote HMI 49's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12554,,16-bit Unsigned,Supported
+LW-12555 (16bit) : remote HMI 49's port no.,Local HMI,LW,12555,,16-bit Unsigned,Supported
+LW-12556 (16bit) : remote HMI 50's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12556,,16-bit Unsigned,Supported
+LW-12557 (16bit) : remote HMI 50's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12557,,16-bit Unsigned,Supported
+LW-12558 (16bit) : remote HMI 50's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12558,,16-bit Unsigned,Supported
+LW-12559 (16bit) : remote HMI 50's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12559,,16-bit Unsigned,Supported
+LW-12560 (16bit) : remote HMI 50's port no.,Local HMI,LW,12560,,16-bit Unsigned,Supported
+LW-12561 (16bit) : remote HMI 51's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12561,,16-bit Unsigned,Supported
+LW-12562 (16bit) : remote HMI 51's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12562,,16-bit Unsigned,Supported
+LW-12563 (16bit) : remote HMI 51's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12563,,16-bit Unsigned,Supported
+LW-12564 (16bit) : remote HMI 51's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12564,,16-bit Unsigned,Supported
+LW-12565 (16bit) : remote HMI 51's port no.,Local HMI,LW,12565,,16-bit Unsigned,Supported
+LW-12566 (16bit) : remote HMI 52's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12566,,16-bit Unsigned,Supported
+LW-12567 (16bit) : remote HMI 52's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12567,,16-bit Unsigned,Supported
+LW-12568 (16bit) : remote HMI 52's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12568,,16-bit Unsigned,Supported
+LW-12569 (16bit) : remote HMI 52's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12569,,16-bit Unsigned,Supported
+LW-12570 (16bit) : remote HMI 52's port no.,Local HMI,LW,12570,,16-bit Unsigned,Supported
+LW-12571 (16bit) : remote HMI 53's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12571,,16-bit Unsigned,Supported
+LW-12572 (16bit) : remote HMI 53's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12572,,16-bit Unsigned,Supported
+LW-12573 (16bit) : remote HMI 53's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12573,,16-bit Unsigned,Supported
+LW-12574 (16bit) : remote HMI 53's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12574,,16-bit Unsigned,Supported
+LW-12575 (16bit) : remote HMI 53's port no.,Local HMI,LW,12575,,16-bit Unsigned,Supported
+LW-12576 (16bit) : remote HMI 54's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12576,,16-bit Unsigned,Supported
+LW-12577 (16bit) : remote HMI 54's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12577,,16-bit Unsigned,Supported
+LW-12578 (16bit) : remote HMI 54's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12578,,16-bit Unsigned,Supported
+LW-12579 (16bit) : remote HMI 54's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12579,,16-bit Unsigned,Supported
+LW-12580 (16bit) : remote HMI 54's port no.,Local HMI,LW,12580,,16-bit Unsigned,Supported
+LW-12581 (16bit) : remote HMI 55's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12581,,16-bit Unsigned,Supported
+LW-12582 (16bit) : remote HMI 55's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12582,,16-bit Unsigned,Supported
+LW-12583 (16bit) : remote HMI 55's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12583,,16-bit Unsigned,Supported
+LW-12584 (16bit) : remote HMI 55's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12584,,16-bit Unsigned,Supported
+LW-12585 (16bit) : remote HMI 55's port no.,Local HMI,LW,12585,,16-bit Unsigned,Supported
+LW-12586 (16bit) : remote HMI 56's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12586,,16-bit Unsigned,Supported
+LW-12587 (16bit) : remote HMI 56's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12587,,16-bit Unsigned,Supported
+LW-12588 (16bit) : remote HMI 56's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12588,,16-bit Unsigned,Supported
+LW-12589 (16bit) : remote HMI 56's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12589,,16-bit Unsigned,Supported
+LW-12590 (16bit) : remote HMI 56's port no.,Local HMI,LW,12590,,16-bit Unsigned,Supported
+LW-12591 (16bit) : remote HMI 57's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12591,,16-bit Unsigned,Supported
+LW-12592 (16bit) : remote HMI 57's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12592,,16-bit Unsigned,Supported
+LW-12593 (16bit) : remote HMI 57's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12593,,16-bit Unsigned,Supported
+LW-12594 (16bit) : remote HMI 57's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12594,,16-bit Unsigned,Supported
+LW-12595 (16bit) : remote HMI 57's port no.,Local HMI,LW,12595,,16-bit Unsigned,Supported
+LW-12596 (16bit) : remote HMI 58's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12596,,16-bit Unsigned,Supported
+LW-12597 (16bit) : remote HMI 58's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12597,,16-bit Unsigned,Supported
+LW-12598 (16bit) : remote HMI 58's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12598,,16-bit Unsigned,Supported
+LW-12599 (16bit) : remote HMI 58's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12599,,16-bit Unsigned,Supported
+LW-12600 (16bit) : remote HMI 58's port no.,Local HMI,LW,12600,,16-bit Unsigned,Supported
+LW-12601 (16bit) : remote HMI 59's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12601,,16-bit Unsigned,Supported
+LW-12602 (16bit) : remote HMI 59's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12602,,16-bit Unsigned,Supported
+LW-12603 (16bit) : remote HMI 59's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12603,,16-bit Unsigned,Supported
+LW-12604 (16bit) : remote HMI 59's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12604,,16-bit Unsigned,Supported
+LW-12605 (16bit) : remote HMI 59's port no.,Local HMI,LW,12605,,16-bit Unsigned,Supported
+LW-12606 (16bit) : remote HMI 60's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12606,,16-bit Unsigned,Supported
+LW-12607 (16bit) : remote HMI 60's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12607,,16-bit Unsigned,Supported
+LW-12608 (16bit) : remote HMI 60's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12608,,16-bit Unsigned,Supported
+LW-12609 (16bit) : remote HMI 60's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12609,,16-bit Unsigned,Supported
+LW-12610 (16bit) : remote HMI 60's port no.,Local HMI,LW,12610,,16-bit Unsigned,Supported
+LW-12611 (16bit) : remote HMI 61's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12611,,16-bit Unsigned,Supported
+LW-12612 (16bit) : remote HMI 61's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12612,,16-bit Unsigned,Supported
+LW-12613 (16bit) : remote HMI 61's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12613,,16-bit Unsigned,Supported
+LW-12614 (16bit) : remote HMI 61's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12614,,16-bit Unsigned,Supported
+LW-12615 (16bit) : remote HMI 61's port no.,Local HMI,LW,12615,,16-bit Unsigned,Supported
+LW-12616 (16bit) : remote HMI 62's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12616,,16-bit Unsigned,Supported
+LW-12617 (16bit) : remote HMI 62's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12617,,16-bit Unsigned,Supported
+LW-12618 (16bit) : remote HMI 62's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12618,,16-bit Unsigned,Supported
+LW-12619 (16bit) : remote HMI 62's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12619,,16-bit Unsigned,Supported
+LW-12620 (16bit) : remote HMI 62's port no.,Local HMI,LW,12620,,16-bit Unsigned,Supported
+LW-12621 (16bit) : remote HMI 63's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12621,,16-bit Unsigned,Supported
+LW-12622 (16bit) : remote HMI 63's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12622,,16-bit Unsigned,Supported
+LW-12623 (16bit) : remote HMI 63's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12623,,16-bit Unsigned,Supported
+LW-12624 (16bit) : remote HMI 63's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12624,,16-bit Unsigned,Supported
+LW-12625 (16bit) : remote HMI 63's port no.,Local HMI,LW,12625,,16-bit Unsigned,Supported
+LW-12626 (16bit) : remote HMI 64's IP0 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12626,,16-bit Unsigned,Supported
+LW-12627 (16bit) : remote HMI 64's IP1 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12627,,16-bit Unsigned,Supported
+LW-12628 (16bit) : remote HMI 64's IP2 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12628,,16-bit Unsigned,Supported
+LW-12629 (16bit) : remote HMI 64's IP3 (IP address = IP0:IP1:IP2:IP3),Local HMI,LW,12629,,16-bit Unsigned,Supported
+LW-12630 (16bit) : remote HMI 64's port no.,Local HMI,LW,12630,,16-bit Unsigned,Supported
+"LW-12631 (16bit-signed) : Signal strength (dBm) (0: failed, others: signal strength) (cellular network)",Local HMI,LW,12631,,16-bit Signed,Unsupported
+LW-12632 (8 words) : IMEI (cellular network),Local HMI,LW,12632,,16-bit Unsigned,Unsupported
+LW-12640 (10 words) : ICCID code of SIM card (cellular network),Local HMI,LW,12640,,16-bit Unsigned,Unsupported
+LW-12703 (16 words) : WiFi SSID to connect to,Local HMI,LW,12703,,16-bit Signed,Unsupported
+LW-12719 (32 words) : WiFi password to use,Local HMI,LW,12719,,16-bit Unsigned,Unsupported
+"LW-12751 (16bit) : WiFi security mode to use (0: WPA/WPA2, 1: WEP, 2: NONE)",Local HMI,LW,12751,,16-bit Unsigned,Unsupported
+LW-12752 (16 words) : Project checksum.,Local HMI,LW,12752,,16-bit Signed,Supported
+"LW-12768 (16bit) : WiFi Hotspot security mode : 0: NONE, 1: WPA-MIX-PSK.",Local HMI,LW,12768,,16-bit Signed,Unsupported
+LW-12769 (16bit) : WiFi Hotspot server address IP0.,Local HMI,LW,12769,,16-bit Signed,Unsupported
+LW-12770 (16bit) : WiFi Hotspot server address IP1.,Local HMI,LW,12770,,16-bit Signed,Unsupported
+LW-12771 (16bit) : WiFi Hotspot server address IP2.,Local HMI,LW,12771,,16-bit Signed,Unsupported
+LW-12772 (16bit) : WiFi Hotspot server address IP3.,Local HMI,LW,12772,,16-bit Signed,Unsupported
+LW-12773 (16bit) : Number of connected user (EasyAccess 2.0),Local HMI,LW,12773,,16-bit Unsigned,Supported
+LW-12774 (16 words) : Connected user  1 (EasyAccess 2.0),Local HMI,LW,12774,,16-bit Unsigned,Supported
+LW-12790 (16 words) : Connected user  2 (EasyAccess 2.0),Local HMI,LW,12790,,16-bit Unsigned,Supported
+LW-12806 (16 words) : Connected user  3 (EasyAccess 2.0),Local HMI,LW,12806,,16-bit Unsigned,Supported
+LW-12824 (16 bit) : Flash disk health status (0: unavailable or unsupported 1: good 2: fair 3: poor) (Supported OS version : 20230501 or later),Local HMI,LW,12824,,16-bit Unsigned,Supported
+LW-12825 (32bit) : EasyBuilder Pro version (full),Local HMI,LW,12825,,32-bit Unsigned,Supported
+LW-12827 (16bit) : BACnet/IP server port no.,Local HMI,LW,12827,,16-bit Unsigned,Supported
+LW-12829 (32bit) : HMI available space for history data (K bytes),Local HMI,LW,12829,,32-bit Unsigned,Supported
+LW-12831 (32bit) : VNC/WebView interlock timeout (1 to 86400 seconds) (supported OS version : 20240123 or later),Local HMI,LW,12831,,32-bit Unsigned,Supported
+"LW-12833 (16bit) : VNC/WebView interlock status bar (0: regular, 1: minimal) (supported OS version : 20240123 or later)",Local HMI,LW,12833,,16-bit Unsigned,Supported
+"LW-12834 (16bit) : System setting theme (0: light , 1: dark) (supported OS version : 20240320 or later)",Local HMI,LW,12834,,16-bit Unsigned,Supported
+PLB-12056 : the user touches an unauthorized object (when ON) (on tablet),Local HMI,PLB,12056,,16-bit Unsigned,Supported
+PLW-9050 (16bit) : current base window ID (on tablet),Local HMI,PLW,9050,,16-bit Unsigned,Supported
+PLW-9052 (32bit-float) : the previous input value of the numeric input object,Local HMI,PLW,9052,,32-bit Float,Supported
+PLW-9134 (16bit) : language mode (on tablet),Local HMI,PLW,9134,,16-bit Unsigned,Supported
+PLW-9200 (16bit) : private address index 0,Local HMI,PLW,9200,,16-bit Unsigned,Supported
+PLW-9201 (16bit) : private address index 1,Local HMI,PLW,9201,,16-bit Unsigned,Supported
+PLW-9202 (16bit) : private address index 2,Local HMI,PLW,9202,,16-bit Unsigned,Supported
+PLW-9203 (16bit) : private address index 3,Local HMI,PLW,9203,,16-bit Unsigned,Supported
+PLW-9204 (16bit) : private address index 4,Local HMI,PLW,9204,,16-bit Unsigned,Supported
+PLW-9205 (16bit) : private address index 5,Local HMI,PLW,9205,,16-bit Unsigned,Supported
+PLW-9206 (16bit) : private address index 6,Local HMI,PLW,9206,,16-bit Unsigned,Supported
+PLW-9207 (16bit) : private address index 7,Local HMI,PLW,9207,,16-bit Unsigned,Supported
+PLW-9208 (16bit) : private address index 8,Local HMI,PLW,9208,,16-bit Unsigned,Supported
+PLW-9209 (16bit) : private address index 9,Local HMI,PLW,9209,,16-bit Unsigned,Supported
+PLW-9210 (16bit) : private address index 10,Local HMI,PLW,9210,,16-bit Unsigned,Supported
+PLW-9211 (16bit) : private address index 11,Local HMI,PLW,9211,,16-bit Unsigned,Supported
+PLW-9212 (16bit) : private address index 12,Local HMI,PLW,9212,,16-bit Unsigned,Supported
+PLW-9213 (16bit) : private address index 13,Local HMI,PLW,9213,,16-bit Unsigned,Supported
+PLW-9214 (16bit) : private address index 14,Local HMI,PLW,9214,,16-bit Unsigned,Supported
+PLW-9215 (16bit) : private address index 15,Local HMI,PLW,9215,,16-bit Unsigned,Supported
+"PLW-9222 (16bit) : object classes (on tablet) can be operated for current user (bit 0:A, bit 1:B,bit 2:C, ...)",Local HMI,PLW,9222,,16-bit Unsigned,Supported
+PLW-9230 (32bit) : private address index 16,Local HMI,PLW,9230,,32-bit Unsigned,Supported
+PLW-9232 (32bit) : private address index 17,Local HMI,PLW,9232,,32-bit Unsigned,Supported
+PLW-9234 (32bit) : private address index 18,Local HMI,PLW,9234,,32-bit Unsigned,Supported
+PLW-9236 (32bit) : private address index 19,Local HMI,PLW,9236,,32-bit Unsigned,Supported
+PLW-9238 (32bit) : private address index 20,Local HMI,PLW,9238,,32-bit Unsigned,Supported
+PLW-9240 (32bit) : private address index 21,Local HMI,PLW,9240,,32-bit Unsigned,Supported
+PLW-9242 (32bit) : private address index 22,Local HMI,PLW,9242,,32-bit Unsigned,Supported
+PLW-9244 (32bit) : private address index 23,Local HMI,PLW,9244,,32-bit Unsigned,Supported
+PLW-9246 (32bit) : private address index 24,Local HMI,PLW,9246,,32-bit Unsigned,Supported
+PLW-9248 (32bit) : private address index 25,Local HMI,PLW,9248,,32-bit Unsigned,Supported
+PLW-9250 (32bit) : private address index 26,Local HMI,PLW,9250,,32-bit Unsigned,Supported
+PLW-9252 (32bit) : private address index 27,Local HMI,PLW,9252,,32-bit Unsigned,Supported
+PLW-9254 (32bit) : private address index 28,Local HMI,PLW,9254,,32-bit Unsigned,Supported
+PLW-9256 (32bit) : private address index 29,Local HMI,PLW,9256,,32-bit Unsigned,Supported
+PLW-9258 (32bit) : private address index 30,Local HMI,PLW,9258,,32-bit Unsigned,Supported
+PLW-9260 (32bit) : private address index 31,Local HMI,PLW,9260,,32-bit Unsigned,Supported
+PLW-10754 (8 words) : current user name (on tablet),Local HMI,PLW,10754,,16-bit Unsigned,Supported
+PLW-11998 (8 words) : Control Token release countdown,Local HMI,PLW,11998,,16-bit Unsigned,Supported

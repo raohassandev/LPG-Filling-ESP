@@ -1,0 +1,14 @@
+// =============================================================
+// M03_Capture_Tare
+// Trigger : "Capture Tare" button — Press event
+//           (optional button on operator screen)
+// Sends command 13 (RequestTare) — non-blocking hardware tare.
+// The controller tares the HX711; net weight becomes 0.
+// Use only when cylinder is NOT on the scale.
+// =============================================================
+macro_command main()
+
+short err = 0
+err = LPG_SendCommand(13)  // cmd 13 = RequestTare (non-blocking)
+
+end macro_command
