@@ -1,0 +1,38 @@
+﻿macro_definition_begin
+    "id": "33"
+    "name": "M33_Next_Cylinder"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M33_Next_Cylinder
+// Sends command 33 and clears local operator entry values.
+// =============================================================
+
+macro_command main()
+
+short err = 0
+short nextEnable = 0
+short cmd = 33
+short stepCode = 1
+
+float zero = 0.0
+
+GetData(nextEnable, "Local HMI", LB, 1503, 1)
+
+if nextEnable == 1 then
+    err = LPG_SendCommand(cmd)
+else
+    err = 0
+end if
+
+SetData(zero, "Local HMI", LW, 1404, 1)
+SetData(zero, "Local HMI", LW, 1406, 1)
+SetData(zero, "Local HMI", LW, 1420, 1)
+SetData(stepCode, "Local HMI", LW, 1450, 1)
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command

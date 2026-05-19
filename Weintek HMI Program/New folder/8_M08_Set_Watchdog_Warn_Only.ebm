@@ -1,0 +1,26 @@
+﻿macro_definition_begin
+    "id": "8"
+    "name": "M08_Set_Watchdog_Warn_Only"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M08_Set_Watchdog_Warn_Only
+// Optional service macro.
+// 4x143 = 0x008F watchdog mode
+// 0 = warn-only / block new Start/Prepare if comm lost.
+// =============================================================
+
+macro_command main()
+
+short err = 0
+short mode = 0
+
+SetDataEx(mode, "LPG-Controller", 4x, 143, 1)
+GetError(err)
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command

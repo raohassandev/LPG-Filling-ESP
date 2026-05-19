@@ -1,0 +1,20 @@
+﻿macro_definition_begin
+    "id": "1"
+    "name": "M01_Mode_ByKG"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M01_Mode_ByKG
+// Operator selects KG mode.
+// LW1400 = 0
+// =============================================================
+
+macro_command main()
+
+short mode = 0
+
+SetData(mode, "Local HMI", LW, 1400, 1)
+
+end macro_command

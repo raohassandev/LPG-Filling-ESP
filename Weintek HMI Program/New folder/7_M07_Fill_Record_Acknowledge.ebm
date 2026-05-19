@@ -1,0 +1,31 @@
+﻿macro_definition_begin
+    "id": "7"
+    "name": "M07_Fill_Record_Acknowledge"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M07_Fill_Record_Acknowledge
+// Acknowledge last completed fill record.
+// 4x176 = 0x00B0 fill record logged acknowledge.
+// =============================================================
+
+macro_command main()
+
+short err = 0
+short ack = 1
+short zero = 0
+
+SetDataEx(ack, "LPG-Controller", 4x, 176, 1)
+GetError(err)
+
+if err == 0 then
+    SetData(zero, "Local HMI", LB, 1506, 1)
+    SetData(zero, "Local HMI", LW, 8904, 1)
+end if
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command

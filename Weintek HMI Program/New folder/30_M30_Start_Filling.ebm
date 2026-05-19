@@ -1,0 +1,60 @@
+﻿macro_definition_begin
+    "id": "30"
+    "name": "M30_Start_Filling"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M30_Start_Filling
+// Sends command 30. Firmware validates ready/safety before starting.
+//
+// After sending, cmdResult is read back immediately to detect
+// firmware rejection without waiting up to 500 ms for M06.
+// cmd30 is asynchronous (fill runs in background), so the
+// expected result is Accepted(1) not Done(4).
+// Stale-result safety: a prior Done(4) from cmd14 is not 3,
+// so it is treated as started â€” M06 corrects within 500 ms.
+// =============================================================
+
+macro_command main()
+
+short err         = 0
+short startEnable = 0
+short cmd         = 30
+short stepCode    = 4
+short res[2]
+
+GetData(startEnable, "Local HMI", LB, 1501, 1)
+
+if startEnable == 1 then
+
+    err = LPG_SendCommand(cmd)
+
+    // Read firmware result immediately (1 burst: cmdResult + cmdErr)
+    if err == 0 then
+GetDataEx(res[0], "LPG-Controller", 4x, 131, 2)
+        GetError(err)
+    end if
+
+    if err == 0 then
+        if res[0] == 3 then
+            // Rejected â€” encode as 300 + firmware error code
+            err      = 300 + res[1]
+            stepCode = 3
+        end if
+        // Accepted(1), Done(4), or still pending: stepCode stays 4
+    end if
+
+else
+    err = 137
+end if
+
+if err == 0 then
+    SetData(stepCode, "Local HMI", LW, 1450, 1)
+end if
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command

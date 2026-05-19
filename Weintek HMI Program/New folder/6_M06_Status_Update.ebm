@@ -1,0 +1,230 @@
+﻿macro_definition_begin
+    "id": "6"
+    "name": "M06_Status_Update"
+    "startup": "false"
+    "periodic": [ "true", "3" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M06_Status_Update â€” 100 ms periodic status poller.
+//
+// 5 Modbus reads per cycle:
+//   Read 1: 4x131â€“4x139 (9 regs) â€” HMI command/status block
+//   Read 2: 4x14â€“4x18   (5 regs) â€” fillState + weightStable
+//   Read 3: 4x72         (1 reg)  â€” alarmCode
+//   Read 4: 4x4â€“4x7     (4 regs) â€” net + target float[2]
+//   Read 5: 4x175        (1 reg)  â€” pendingRecord
+//
+// Resilience: prepared and readyStart are cached in LW1435/LW1436.
+// When the burst read fails (Modbus timeout on a congested cycle),
+// Weintek zeros the GetDataEx array. Without caching, both readyStart
+// and prepared would appear 0, reverting the UI incorrectly.
+// Caching preserves the last good values across failed reads.
+//
+// stepCode uses flat sequential priority (no deep nesting):
+//   1=enter value  2=press prepare  3=ready to start
+//   4=filling      5=complete       6=alarm active
+// =============================================================
+
+macro_command main()
+
+short err            = 0
+short alarmCode      = 0
+short pendingRecord  = 0
+short stepCode       = 0
+
+short hmi[9]
+short states[5]
+
+short cmdResult      = 0
+short cmdErr         = 0
+short fillState      = 0
+short prepared       = 0
+short readyToPrepare = 0
+short readyStart     = 0
+short canStop        = 0
+short weightStable   = 0
+
+short prepareEnable  = 0
+short startEnable    = 0
+short stopEnable     = 0
+short nextEnable     = 0
+short alarmActive    = 0
+short commFault      = 0
+short recordPending  = 0
+
+float wt[2]
+float net         = 0.0
+float target      = 0.0
+float progress    = 0.0
+float desiredKg   = 0.0
+float desiredAmt  = 0.0
+
+// â”€â”€ 1 of 5 reads: HMI command/status block (9 registers, 1 FC03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetDataEx(hmi[0], "LPG-Controller", 4x, 131, 9)
+GetError(err)
+
+if err == 0 then
+    cmdResult      = hmi[0]
+    cmdErr         = hmi[1]
+    prepared       = hmi[4]
+    readyToPrepare = hmi[5]
+    readyStart     = hmi[6]
+    canStop        = hmi[8]
+    // Persist to LW so a future failed read does not revert the UI
+    SetData(prepared,   "Local HMI", LW, 1435, 1)
+    SetData(readyStart, "Local HMI", LW, 1436, 1)
+    SetData(canStop,    "Local HMI", LW, 1437, 1)
+else
+    // Burst read failed â€” Weintek zeros hmi[]. Restore from cache.
+    GetData(prepared,   "Local HMI", LW, 1435, 1)
+    GetData(readyStart, "Local HMI", LW, 1436, 1)
+    GetData(canStop,    "Local HMI", LW, 1437, 1)
+end if
+
+// â”€â”€ 2: fill state + weightStable (5 registers, 1 FC03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetDataEx(states[0], "LPG-Controller", 4x, 14, 5)
+fillState    = states[0]
+weightStable = states[4]
+
+// â”€â”€ 3: alarm code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetDataEx(alarmCode, "LPG-Controller", 4x, 72, 1)
+
+// â”€â”€ 4: net + target weight as float[2] (4 registers, 1 FC03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetDataEx(wt[0], "LPG-Controller", 4x_Double, 4, 2)
+net    = wt[0]
+target = wt[1]
+
+// â”€â”€ 5: fill record pending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetDataEx(pendingRecord, "LPG-Controller", 4x, 175, 1)
+
+// â”€â”€ Local reads (no Modbus) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GetData(desiredKg,  "Local HMI", LW, 1404, 1)
+GetData(desiredAmt, "Local HMI", LW, 1406, 1)
+GetData(commFault,  "Local HMI", LB, 9045, 1)
+
+// â”€â”€ Progress percent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+if target > 0.001 then
+    progress = net * 100.0 / target
+else
+    progress = 0.0
+end if
+
+if progress < 0.0 then
+    progress = 0.0
+end if
+
+if progress > 100.0 then
+    progress = 100.0
+end if
+
+SetData(progress, "Local HMI", LW, 1420, 1)
+
+// â”€â”€ Alarm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+if alarmCode <> 0 then
+    alarmActive = 1
+else
+    alarmActive = 0
+end if
+
+// â”€â”€ Step code â€” flat sequential priority, highest wins â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Start at lowest, each later condition overrides to a higher code.
+stepCode = 1
+
+if desiredKg > 0.001 then
+    stepCode = 2
+end if
+
+if desiredAmt > 0.001 then
+    stepCode = 2
+end if
+
+// prepared=1 means cmd14 succeeded â€” ready to start even if readyStart
+// briefly reads 0 due to a transient rtp condition or failed Modbus read.
+if prepared == 1 then
+    stepCode = 3
+end if
+
+if readyStart == 1 then
+    stepCode = 3
+end if
+
+if fillState == 6 then
+    stepCode = 5
+end if
+
+if canStop == 1 then
+    stepCode = 4
+end if
+
+if alarmActive == 1 then
+    stepCode = 6
+end if
+
+SetData(stepCode, "Local HMI", LW, 1450, 1)
+
+// â”€â”€ Button enables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Prepare: no alarm, not filling, firmware scale/safety ready, scale stable, value entered
+prepareEnable = 0
+if alarmActive == 0 then
+    if canStop == 0 then
+        if readyToPrepare == 1 then
+            if weightStable == 1 then
+                if desiredKg > 0.001 then
+                    prepareEnable = 1
+                end if
+                if desiredAmt > 0.001 then
+                    prepareEnable = 1
+                end if
+            end if
+        end if
+    end if
+end if
+
+// Start: firmware ready, or prepared (hold enabled across transients)
+startEnable = 0
+if alarmActive == 0 then
+    if readyStart == 1 then
+        startEnable = 1
+    end if
+    if prepared == 1 then
+        startEnable = 1
+    end if
+end if
+
+// Stop: fill active
+stopEnable = 0
+if canStop == 1 then
+    stopEnable = 1
+end if
+
+// Next cylinder: fill complete
+nextEnable = 0
+if fillState == 6 then
+    nextEnable = 1
+end if
+
+// Fill record pending
+recordPending = 0
+if pendingRecord <> 0 then
+    recordPending = 1
+end if
+
+SetData(prepareEnable, "Local HMI", LB, 1500, 1)
+SetData(startEnable,   "Local HMI", LB, 1501, 1)
+SetData(stopEnable,    "Local HMI", LB, 1502, 1)
+SetData(nextEnable,    "Local HMI", LB, 1503, 1)
+SetData(alarmActive,   "Local HMI", LB, 1504, 1)
+SetData(commFault,     "Local HMI", LB, 1505, 1)
+SetData(recordPending, "Local HMI", LB, 1506, 1)
+
+// Service display copies (LW8900-8904 â€” avoids UAC system registers LW8950-8954)
+SetData(cmdResult,     "Local HMI", LW, 8900, 1)
+SetData(cmdErr,        "Local HMI", LW, 8901, 1)
+SetData(prepared,      "Local HMI", LW, 8902, 1)
+SetData(readyStart,    "Local HMI", LW, 8903, 1)
+SetData(pendingRecord, "Local HMI", LW, 8904, 1)
+
+SetData(err, "Local HMI", LW, 1424, 1)
+
+end macro_command

@@ -1,0 +1,26 @@
+﻿macro_definition_begin
+    "id": "9"
+    "name": "M09_Set_Watchdog_Stop_Fill"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M09_Set_Watchdog_Stop_Fill
+// Optional service macro.
+// 4x143 = 0x008F watchdog mode
+// 1 = stop active fill if HMI communication is lost.
+// =============================================================
+
+macro_command main()
+
+short err = 0
+short mode = 1
+
+SetDataEx(mode, "LPG-Controller", 4x, 143, 1)
+GetError(err)
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command

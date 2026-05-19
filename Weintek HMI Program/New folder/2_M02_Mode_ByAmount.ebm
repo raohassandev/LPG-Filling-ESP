@@ -1,0 +1,20 @@
+﻿macro_definition_begin
+    "id": "2"
+    "name": "M02_Mode_ByAmount"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M02_Mode_ByAmount
+// Operator selects Amount / PKR mode.
+// LW1400 = 1
+// =============================================================
+
+macro_command main()
+
+short mode = 1
+
+SetData(mode, "Local HMI", LW, 1400, 1)
+
+end macro_command

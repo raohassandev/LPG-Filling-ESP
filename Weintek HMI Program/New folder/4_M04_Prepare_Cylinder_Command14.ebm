@@ -1,0 +1,101 @@
+﻿macro_definition_begin
+    "id": "4"
+    "name": "M04_Prepare_Cylinder_Command14"
+    "startup": "false"
+    "periodic": [ "false" ]
+    "interlock": [ "false" ]
+macro_definition_end
+// =============================================================
+// M04_Prepare_Cylinder_Command14
+// =============================================================
+
+macro_command main()
+
+short err      = 0
+short mode     = 0
+short cmd      = 14
+short stepCode = 2
+short res[9]
+
+float price     = 0.0
+float kg        = 0.0
+float amount    = 0.0
+float presets[3]
+
+GetData(mode,   "Local HMI", LW,  1400, 1)
+GetData(price,  "Local HMI", RW,  1402, 1)
+GetData(kg,     "Local HMI", LW,  1404, 1)
+GetData(amount, "Local HMI", LW,  1406, 1)
+
+// Local validation
+if price <= 0.0 then
+    err = 201
+end if
+
+if err == 0 then
+    if mode == 0 then
+        if kg <= 0.0 then
+            err = 202
+        else
+            amount = kg * price
+            SetData(amount, "Local HMI", LW, 1406, 1)
+        end if
+    else
+        if amount <= 0.0 then
+            err = 203
+        else
+            kg = amount / price
+            SetData(kg, "Local HMI", LW, 1404, 1)
+        end if
+    end if
+end if
+
+// Write fill mode (1 register)
+if err == 0 then
+    SetDataEx(mode, "LPG-Controller", 4x, 134, 1)
+    GetError(err)
+end if
+
+// Write target KG + rate + amount as 1 burst FC16 (3 floats = 6 registers at 4x146)
+if err == 0 then
+    presets[0] = kg
+    presets[1] = price
+    presets[2] = amount
+    SetDataEx(presets[0], "LPG-Controller", 4x_Double, 146, 3)
+    GetError(err)
+end if
+
+// Send atomic Prepare Cylinder command 14
+if err == 0 then
+    err = LPG_SendCommand(cmd)
+end if
+
+// Read full HMI status block immediately (9 registers, 1 FC03: 4x131â€“4x139).
+// cmd14 is synchronous: Done(4) = success, Rejected(3) = refused.
+// res[0]=cmdResult  res[1]=cmdErr  res[6]=readyStart
+if err == 0 then
+    GetDataEx(res[0], "LPG-Controller", 4x, 131, 9)
+    GetError(err)
+end if
+
+if err == 0 then
+    if res[0] == 4 then
+        stepCode = 3
+    else
+        if res[0] == 3 then
+            err = 300 + res[1]
+        else
+            stepCode = 3
+        end if
+    end if
+end if
+
+// Update step indicator immediately â€” M06 will update button enables on next cycle
+if err == 0 then
+    SetData(stepCode, "Local HMI", LW, 1450, 1)
+end if
+
+SetData(err, "Local HMI", LW, 1424, 1)
+SetData(err, "Local HMI", LW, 899, 1)
+
+end macro_command
