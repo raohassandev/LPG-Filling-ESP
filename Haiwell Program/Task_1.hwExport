@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HwExportModel xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Windows>
+    <Versions>0</Versions>
+    <DicWinAndDoc />
+    <DicFontUse />
+    <DicSym />
+    <DicSymPictures />
+    <DicSymGrpLib />
+    <DicSymLib />
+    <DicSymTxt />
+    <DicSymPic />
+    <DicVarFunllNameAndID />
+    <DicVarIDAndDataType />
+    <DicSymVarInfo />
+    <DicSymbolWinIdAndWindowId />
+  </Windows>
+  <Tasks>
+    <ListTask>
+      <HwExportTaskModel>
+        <Task>
+          <ID>13</ID>
+          <Name>Task_1</Name>
+          <Memo />
+          <ClassifyId>0</ClassifyId>
+          <HwSys>0</HwSys>
+          <Type>SCRIPT</Type>
+          <IsAutoCreate>0</IsAutoCreate>
+          <OrderId>0</OrderId>
+          <ContentId>13</ContentId>
+          <RealEnabled>false</RealEnabled>
+        </Task>
+        <TaskDocument>
+          <ID>13</ID>
+          <ClassifyId>0</ClassifyId>
+          <HwSys>0</HwSys>
+          <Config />
+          <Script>Common.Beep(ringTime,interval,loop);
+Common.BeepStart();
+Common.BeepEnd();
+Common.Bee();
+Common.BoolToInt(bool);
+var a = Common.IntToBool(int);
+Common.BitAnd(x,y);
+Common.ConvertToBase(value,toBase);
+Common.ConvertFromBase(value,fromBase);
+var num = Common.Format(10.203,"00.00");
+Common.encodeToBase64(str);
+Common.decodeFromBase64(str);
+Window.DisplaySync(number);
+Window.HideByNo(number);
+Window.PopSubByNo(1,{position:'def',x:50,y:100});
+Window.sendActivityFrame();
+Window.ShowByNo(number,subLocation,isSystemWinNoChanged);
+Window.ShowPaymentInfo();
+Window.Toast(textContext);
+Window.Login();
+Window.Logout();
+Common.sysReboot();
+Common.Setting();
+Common.MsgBox(textContext);
+Common.ConfirmBox(str);
+Common.MsgBox(str,{showConfirmButton:true});
+Common.Quit();
+Common.SetTimeout(callback, times);
+Common.SetInterval(callback, times);
+Common.PausePlayback();
+Common.logger.log("%s",1);
+Common.logger.debug("%s","hello");
+Common.logger.info("%s %s %s","hello","Iot","!");
+Common.logger.info("%s %s %s","hello","Iot","!");
+Common.logger.trace("%s %s","hello","!");
+Common.logger.warn("%s === %s","condition 1","condition 2");
+Common.logger.note("%O",{"id":1 ,"name": "hello"});
+Common.logger.error("%o",{"value1":1 ,"value2": "hello"});
+Common.database.createDatabase("/local/test.sdb",function(error){
+	if(error!==null){
+		
+	}else{
+		
+	}
+});
+var error = Common.database.deleteDatabase("/local/test.sdb");
+if(error!==null){
+	//Database deletion failed
+}else{
+	//Database deleted successfully
+}
+var sql = $sql.variable1;
+Common.database.exec("/local/test.sdb", sql, function(error){
+	if(error !== null) {
+		// Error executing statement, deal with it here
+	}else{
+		// Statement executed successfully
+	}
+});//Start transaction
+//var arr = [sql1,sql2,sql3 ...];
+Common.database.execTransaction( path, arr, function(error){  
+	if(error !== null) {
+		// Error executing statement, deal with it here
+	}else{
+		//The transaction is successful, write follow-up code here
+	}
+});Common.database.flush(function(error){
+	if(error!==null){
+		//Cache write failure
+	}else{
+		//Cache write successfully
+	}
+});var sql = $sql.variable1;
+Common.database.get("/local/test.sdb", sql, function(error, row){
+	if(error !== null) {
+		// Error executing statement, deal with it here
+	}else if (row === undefined){
+		// No results found
+	}else{
+		// Query result processing
+	}
+});var dbs = Common.database.getDatabaseFiles();
+
+var sql = $sql.variable1;
+Common.database.query("/local/test.sdb", sql, function(error, rows){  
+	if(error !== null) {
+		// Error executing statement, deal with it here
+	}else{
+		// Statement executed successfully
+	}
+});
+var par1={reg:4,addr:1,type:"UINT16"};
+var par2={reg:4,addr:10,type:"UINT16"};
+var options=[par1,par2];
+function cb(err,data){
+	if(err){
+	//Execution failed, capture error
+	//err.message Error message
+		return;
+	}
+	// data is an array
+	// Variable1=data[0]
+	// Variable2=data[1]
+}
+Device.ModbusRead(deviceName,options,cb);
+var par1={reg:4,addr:1,type:"UINT16",value:"1"};
+var par2={reg:4,addr:10,type:"UINT16",value:"10"};
+var options=[par1,par2];
+function cb(err){
+	if(err){
+	//Execution failed, capture error
+	//err.message Error message
+		return;
+	}
+	// Write success
+}
+Device.ModbusWrite(deviceName,options,cb);
+
+var options=[{reg:4,addr:1,type:"UINT16",cnt:2}];
+function cb(err,data){
+	if(err){
+	//Execution failed, capture error
+	//err.message Error message
+		return;
+	}
+	// data is an array
+	// Variable1=data[0]
+	// Variable2=data[1]
+}
+Device.ModbusReadBatch(deviceName,options,cb);
+
+var options=[{reg:4,addr:1,type:"UINT16",value:["1","2"],cnt:2}];
+function cb(err){
+	if(err){
+	//Execution failed, capture error
+	//err.message Error message
+		return;
+	}
+	// Write success
+}
+Device.ModbusWriteBatch(deviceName,options,cb);
+
+Common.BufferCreate(zoneCode,zoneLen);
+Common.BufferGetAt(zoneCode,zoneLen);
+Common.BufferSetAt(zoneCode,zoneLen,data);
+Common.BufferStoreToFile(0,'/mnt/sd/file.json',function(error){
+	if(error)
+	{
+	Common.MsgBox(error);
+	}
+
+});
+
+Common.BufferLoadFromFile(0,'/mnt/sd/file.json',function(error){
+	if(error)
+	{
+	Common.MsgBox(error);
+	}
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</Script>
+          <VariableId />
+        </TaskDocument>
+      </HwExportTaskModel>
+    </ListTask>
+  </Tasks>
+  <Events>
+    <ListEventModel />
+  </Events>
+  <Boms>
+    <ListBom />
+  </Boms>
+  <Reports>
+    <ListReport />
+  </Reports>
+  <VariableGroups>
+    <ListVariableGroup />
+  </VariableGroups>
+  <UserGroups>
+    <ListUserGroup />
+    <ListUser />
+    <DicAvatarPic />
+  </UserGroups>
+  <Users>
+    <ListUser />
+    <ListUserGroup />
+    <DicAvatarPic />
+  </Users>
+  <EncryptCorpCode />
+</HwExportModel>
