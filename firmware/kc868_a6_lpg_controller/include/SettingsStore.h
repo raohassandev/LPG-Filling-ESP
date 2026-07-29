@@ -13,6 +13,7 @@ class SettingsStore {
  public:
   void begin();
   SettingsSnapshot snapshot() const;
+  bool setManufacturingPin(const String& pin, String& reason);
 
  private:
   SettingsSnapshot settings_;
