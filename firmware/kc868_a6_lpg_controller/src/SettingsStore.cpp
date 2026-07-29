@@ -47,3 +47,30 @@ void SettingsStore::begin() {
 }
 
 SettingsSnapshot SettingsStore::snapshot() const { return settings_; }
+
+bool SettingsStore::setManufacturingPin(const String& pin, String& reason) {
+  String normalizedPin = pin;
+  normalizedPin.trim();
+
+  if (!isValidManufacturingPin(normalizedPin)) {
+    reason = "PIN must contain 4 to 8 digits";
+    return false;
+  }
+
+  Preferences preferences;
+  if (!preferences.begin("lpgctrl", false)) {
+    reason = "Unable to open settings storage";
+    return false;
+  }
+
+  const size_t written = preferences.putString("mfg_pin", normalizedPin);
+  preferences.end();
+  if (written != normalizedPin.length()) {
+    reason = "Unable to save manufacturing PIN";
+    return false;
+  }
+
+  settings_.manufacturingPin = normalizedPin;
+  reason = "Manufacturing PIN updated";
+  return true;
+}
