@@ -28,7 +28,17 @@ The temporary default is:
 
 `2468`
 
-The PIN must contain 4 to 8 digits. A site/manufacturing provisioning step must replace the temporary default before production deployment.
+The PIN must contain 4 to 8 digits. Replace the temporary default before production deployment.
+
+### Provision a New Manufacturing PIN
+
+Connect to the controller serial console at `115200` baud and run:
+
+```text
+mfgpin 735194
+```
+
+Use your own 4–8 digit PIN. The command writes the new value to NVS immediately and does not print the PIN back to the console. Run `help` to confirm the command is available.
 
 ## Build the OTA Binary
 
@@ -82,7 +92,7 @@ Reports device name, firmware version, process state, update permission, busy st
 
 ```http
 POST /api/ota/upload
-X-Manufacturing-PIN: 2468
+X-Manufacturing-PIN: <provisioned PIN>
 Content-Type: multipart/form-data
 ```
 
