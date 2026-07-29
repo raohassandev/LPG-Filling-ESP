@@ -5,6 +5,7 @@
 struct SettingsSnapshot {
   String apSsid;
   String apPassword;
+  String manufacturingPin;
   float slowFillThreshold = 0.95f;
 };
 
