@@ -36,7 +36,7 @@ class WebPortal {
   void handleOtaUploadChunk();
   void resetOtaState();
   void failOtaUpload(const String& reason);
-  bool authorizeOtaRequest();
+  bool authorizeOtaRequest() const;
   bool isOtaStartAllowed() const;
 
   String statusJson() const;
@@ -47,7 +47,7 @@ class WebPortal {
   WeightService& weightService_;
   SettingsStore& settingsStore_;
   EventLog& eventLog_;
-  WebServer server_{80};
+  mutable WebServer server_{80};
 
   bool otaAuthorized_ = false;
   bool otaStarted_ = false;
