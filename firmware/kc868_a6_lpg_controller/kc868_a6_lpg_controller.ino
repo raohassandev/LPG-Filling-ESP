@@ -39,6 +39,7 @@ void printSerialHelp() {
   Serial.println(F("  start <targetKg> <ratePerKg> [targetAmount]"));
   Serial.println(F("  stop"));
   Serial.println(F("  reset"));
+  Serial.println(F("  mfgpin <4-8 digits>"));
 }
 
 void handleSerialCommand(const String& line) {
@@ -69,6 +70,15 @@ void handleSerialCommand(const String& line) {
     const bool ok = fillController.resetToIdle(reason);
     Serial.printf("[SERIAL] reset: %s (%s)\n", ok ? "ok" : "rejected", reason.c_str());
     printStatusSnapshot();
+    return;
+  }
+
+  if (command.startsWith("mfgpin ")) {
+    String reason;
+    const String pin = command.substring(7);
+    const bool ok = settingsStore.setManufacturingPin(pin, reason);
+    eventLog.append(ok ? "INFO" : "WARN", ok ? "mfg_pin_updated" : "mfg_pin_rejected", reason);
+    Serial.printf("[SERIAL] manufacturing PIN: %s (%s)\n", ok ? "updated" : "rejected", reason.c_str());
     return;
   }
 
