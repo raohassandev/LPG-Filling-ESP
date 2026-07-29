@@ -29,7 +29,18 @@ class WebPortal {
   void handleStop();
   void handleReset();
   void handleSetSimWeight();
+
+  void handleOtaPage();
+  void handleOtaStatus();
+  void handleOtaUploadComplete();
+  void handleOtaUploadChunk();
+  void resetOtaState();
+  void failOtaUpload(const String& reason);
+  bool authorizeOtaRequest() const;
+  bool isOtaStartAllowed() const;
+
   String statusJson() const;
+  String otaStatusJson() const;
 
   StatusStore& statusStore_;
   FillController& fillController_;
@@ -37,4 +48,12 @@ class WebPortal {
   SettingsStore& settingsStore_;
   EventLog& eventLog_;
   WebServer server_{80};
+
+  bool otaAuthorized_ = false;
+  bool otaStarted_ = false;
+  bool otaSucceeded_ = false;
+  bool otaRestartPending_ = false;
+  size_t otaBytesWritten_ = 0;
+  String otaError_;
+  unsigned long otaRestartAtMs_ = 0;
 };
