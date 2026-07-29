@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SKETCH_DIR="$REPO_ROOT/firmware/kc868_a6_lpg_controller"
+HEADER_DIR="$SKETCH_DIR/include"
 BUILD_DIR="$SKETCH_DIR/build/ota"
 FQBN="${FQBN:-esp32:esp32:esp32}"
 LOCAL_ARDUINO_CLI="$REPO_ROOT/tools/local/arduino-cli-0.35.3"
@@ -32,6 +33,7 @@ print "CLI:    $CLI"
 
 "$CLI" compile \
   --fqbn "$FQBN" \
+  --build-property "compiler.cpp.extra_flags=-I$HEADER_DIR" \
   --export-binaries \
   --output-dir "$BUILD_DIR" \
   "$SKETCH_DIR"
