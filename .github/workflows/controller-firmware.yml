@@ -28,9 +28,11 @@ jobs:
 
       - name: Compile controller firmware
         run: |
+          mkdir -p firmware/kc868_a6_lpg_controller/build/ci
           arduino-cli compile \
             --fqbn esp32:esp32:esp32 \
             --warnings all \
+            --build-property "compiler.cpp.extra_flags=-I${GITHUB_WORKSPACE}/firmware/kc868_a6_lpg_controller/include" \
             --export-binaries \
             --output-dir firmware/kc868_a6_lpg_controller/build/ci \
             firmware/kc868_a6_lpg_controller
