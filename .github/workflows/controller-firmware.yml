@@ -1,0 +1,47 @@
+name: Controller Firmware
+
+on:
+  pull_request:
+    paths:
+      - "firmware/kc868_a6_lpg_controller/**"
+      - "scripts/build_ota_firmware.sh"
+      - ".github/workflows/controller-firmware.yml"
+  workflow_dispatch:
+
+jobs:
+  compile-kc868-a6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 Arduino core
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.0
+
+      - name: Compile controller firmware
+        run: |
+          mkdir -p firmware/kc868_a6_lpg_controller/build/ci
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --warnings all \
+            --build-property "compiler.cpp.extra_flags=-I${GITHUB_WORKSPACE}/firmware/kc868_a6_lpg_controller/include" \
+            --export-binaries \
+            --output-dir firmware/kc868_a6_lpg_controller/build/ci \
+            firmware/kc868_a6_lpg_controller
+
+      - name: Verify OTA application slot size
+        run: |
+          BIN="firmware/kc868_a6_lpg_controller/build/ci/kc868_a6_lpg_controller.ino.bin"
+          test -f "$BIN"
+          BYTES="$(stat -c%s "$BIN")"
+          MAX_BYTES=$((0x140000))
+          echo "OTA application size: $BYTES / $MAX_BYTES bytes"
+          test "$BYTES" -le "$MAX_BYTES"

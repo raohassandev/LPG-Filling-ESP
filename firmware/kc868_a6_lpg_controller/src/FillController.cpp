@@ -63,6 +63,18 @@ bool FillController::startFill(float targetWeightKg, float ratePerKg, float targ
     return false;
   }
 
+  if (status.state == ProcessState::Maintenance) {
+    reason = "Maintenance operation is in progress";
+    return false;
+  }
+
+  const bool startStateAllowed = status.state == ProcessState::Idle || status.state == ProcessState::Ready ||
+                                 status.state == ProcessState::Complete || status.state == ProcessState::Aborted;
+  if (!startStateAllowed) {
+    reason = "Controller state does not allow filling";
+    return false;
+  }
+
   if (!status.emergencyStopOk) {
     reason = "Emergency stop is active";
     return false;
@@ -110,6 +122,11 @@ bool FillController::stopFill(const String& reasonCode) {
 bool FillController::resetToIdle(String& reason) {
   syncInputs();
   const StatusSnapshot status = statusStore_.snapshot();
+
+  if (status.state == ProcessState::Maintenance) {
+    reason = "Maintenance operation is in progress";
+    return false;
+  }
 
   if (!status.emergencyStopOk) {
     reason = "Emergency stop is active";

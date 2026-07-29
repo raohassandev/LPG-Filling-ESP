@@ -18,5 +18,6 @@ struct BoardConfig {
   static constexpr const char* kDeviceName = "kc868-a6-lpg";
   static constexpr const char* kFallbackApSsid = "LPG-Controller-Setup";
   static constexpr const char* kFallbackApPassword = "lpgsetup123";
-  static constexpr const char* kFirmwareVersion = "0.1.0";
+  static constexpr const char* kDefaultManufacturingPin = "2468";
+  static constexpr const char* kFirmwareVersion = "0.2.0-ota";
 };
