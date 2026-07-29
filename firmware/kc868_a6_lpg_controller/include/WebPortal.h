@@ -36,7 +36,7 @@ class WebPortal {
   void handleOtaUploadChunk();
   void resetOtaState();
   void failOtaUpload(const String& reason);
-  bool authorizeOtaRequest() const;
+  bool authorizeOtaRequest();
   bool isOtaStartAllowed() const;
 
   String statusJson() const;
